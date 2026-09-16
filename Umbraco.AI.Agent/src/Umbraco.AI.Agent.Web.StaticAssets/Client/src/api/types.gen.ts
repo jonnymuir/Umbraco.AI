@@ -79,6 +79,10 @@ export type AiAgentUserGroupPermissionsModel = {
     deniedToolScopeIds: Array<string>;
 };
 
+export type AiStarterPromptModel = {
+    prompt: string;
+};
+
 export type AgentConfigModel = {
     [key: string]: never;
 };
@@ -92,6 +96,7 @@ export type AgentItemResponseModel = {
     profileId?: string | null;
     surfaceIds: Array<string>;
     scope?: AiAgentScopeModel | null;
+    starterPrompts: Array<AiStarterPromptModel>;
     isActive: boolean;
     dateCreated: string;
     dateModified: string;
@@ -107,6 +112,7 @@ export type AgentResponseModel = {
     guardrailIds: Array<string>;
     surfaceIds: Array<string>;
     scope?: AiAgentScopeModel | null;
+    starterPrompts: Array<AiStarterPromptModel>;
     config?: StandardAgentConfigModel | OrchestratedAgentConfigModel | null;
     isActive: boolean;
     dateCreated: string;
@@ -156,6 +162,7 @@ export type CreateAgentRequestModel = {
     guardrailIds?: Array<string> | null;
     surfaceIds?: Array<string> | null;
     scope?: AiAgentScopeModel | null;
+    starterPrompts?: Array<AiStarterPromptModel> | null;
     config?: StandardAgentConfigModel | OrchestratedAgentConfigModel | null;
 };
 
@@ -225,6 +232,7 @@ export type UpdateAgentRequestModel = {
     guardrailIds?: Array<string> | null;
     surfaceIds?: Array<string> | null;
     scope?: AiAgentScopeModel | null;
+    starterPrompts?: Array<AiStarterPromptModel> | null;
     config?: StandardAgentConfigModel | OrchestratedAgentConfigModel | null;
     isActive: boolean;
 };
