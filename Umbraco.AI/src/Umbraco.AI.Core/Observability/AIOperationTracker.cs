@@ -1,8 +1,6 @@
 using System.Diagnostics;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Umbraco.AI.Core.Analytics;
 using Umbraco.AI.Core.Analytics.Usage;
 using Umbraco.AI.Core.AuditLog;
 using Umbraco.AI.Core.AuditLog.Middleware;
@@ -14,11 +12,9 @@ namespace Umbraco.AI.Core.Observability;
 internal sealed class AIOperationTracker : IAIOperationTracker
 {
     private readonly IAIRuntimeContextAccessor _contextAccessor;
-    private readonly IAIUsageRecordingService _usageRecordingService;
-    private readonly IAIUsageRecordFactory _usageRecordFactory;
-    private readonly IOptionsMonitor<AIAnalyticsOptions> _analyticsOptions;
     private readonly IAIAuditLogFactory _auditLogFactory;
     private readonly IOptionsMonitor<AIAuditLogOptions> _auditLogOptions;
+    private readonly IReadOnlyList<IAIOperationRecorder> _recorders;
     private readonly ILogger<AIOperationTracker> _logger;
 
     internal IAIAuditLogService AuditLogService { get; }
@@ -28,18 +24,14 @@ internal sealed class AIOperationTracker : IAIOperationTracker
         IAIAuditLogService auditLogService,
         IAIAuditLogFactory auditLogFactory,
         IOptionsMonitor<AIAuditLogOptions> auditLogOptions,
-        IAIUsageRecordingService usageRecordingService,
-        IAIUsageRecordFactory usageRecordFactory,
-        IOptionsMonitor<AIAnalyticsOptions> analyticsOptions,
+        IEnumerable<IAIOperationRecorder> recorders,
         ILogger<AIOperationTracker> logger)
     {
         _contextAccessor = contextAccessor;
         AuditLogService = auditLogService;
         _auditLogFactory = auditLogFactory;
         _auditLogOptions = auditLogOptions;
-        _usageRecordingService = usageRecordingService;
-        _usageRecordFactory = usageRecordFactory;
-        _analyticsOptions = analyticsOptions;
+        _recorders = recorders.ToList();
         _logger = logger;
     }
 
@@ -92,96 +84,56 @@ internal sealed class AIOperationTracker : IAIOperationTracker
         AIActivityEnricher.EnrichCurrentActivity(auditLog, _contextAccessor);
 
         // Captured now, while the context still belongs to this call: nested AI calls (guardrail judge,
-        // semantic search embeddings) overwrite these keys before this call completes. Serves both
-        // usage analytics and test usage collection, so completion never re-reads the live context.
-        var usageContext = _contextAccessor.Context is { } context
+        // semantic search embeddings) overwrite these keys before this call completes, so recorders
+        // never re-read the live context.
+        var identity = _contextAccessor.Context is { } context
             ? AIUsageContext.ExtractFromRuntimeContext(descriptor.Capability, context)
             : null;
 
-        return new AIOperationScope(
-            this, descriptor, auditLog, auditPrompt, usageContext, cancellationToken);
+        var recordings = await BeginRecordingsAsync(new AIOperationStart(descriptor, identity), cancellationToken);
+
+        return new AIOperationScope(this, auditLog, auditPrompt, recordings);
+    }
+
+    private async Task<IReadOnlyList<IAIOperationRecording>> BeginRecordingsAsync(
+        AIOperationStart start,
+        CancellationToken cancellationToken)
+    {
+        var recordings = new List<IAIOperationRecording>(_recorders.Count);
+        foreach (var recorder in _recorders)
+        {
+            try
+            {
+                if (await recorder.BeginAsync(start, cancellationToken) is { } recording)
+                {
+                    recordings.Add(recording);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "{Recorder} failed to start recording {Capability}",
+                    recorder.GetType().FullName, start.Descriptor.Capability);
+            }
+        }
+
+        return recordings;
     }
 
     /// <summary>
-    /// The single usage path for a finished call: every tracked call's usage is captured once into an
-    /// <see cref="AIUsageObservation"/> and handed to each consumer, which applies its own rules.
-    /// Never throws into the AI call.
+    /// Hands a finished call's outcome to each recording, in recorder order. Never throws into the AI call.
     /// </summary>
-    internal void ReportUsage(AIUsageObservation observation, CancellationToken cancellationToken)
+    internal async Task EndRecordingsAsync(IReadOnlyList<IAIOperationRecording> recordings, AIOperationOutcome outcome)
     {
-        CollectUsage(observation);
-        _ = RecordUsageAsync(observation, cancellationToken);
-    }
-
-    /// <summary>
-    /// Adds the call to the ambient <see cref="AIUsageCollectionScope"/>, if one is open.
-    /// Runs synchronously on the caller's flow, because it reads the ambient collector from it,
-    /// independent of the analytics toggle and <see cref="AIOperationDescriptor.RecordUsageWhenEmpty"/>.
-    /// </summary>
-    private void CollectUsage(AIUsageObservation observation)
-    {
-        try
+        foreach (var recording in recordings)
         {
-            var collector = AIUsageCollectionScope.Current;
-            if (collector is null)
+            try
             {
-                return;
+                await recording.EndAsync(outcome);
             }
-
-            var usageContext = observation.Context;
-            collector.RecordCall(
-                observation.Descriptor.Capability,
-                usageContext?.ProviderId,
-                usageContext?.ModelId,
-                // GetValue<Guid> returns Guid.Empty for a missing key; normalised here rather than in
-                // AIUsageContext.ExtractFromRuntimeContext so persisted analytics values don't change.
-                usageContext?.ProfileId == Guid.Empty ? null : usageContext?.ProfileId,
-                usageContext?.ProfileAlias,
-                usageContext?.FeatureType,
-                usageContext?.FeatureId == Guid.Empty ? null : usageContext?.FeatureId,
-                usageContext?.FeatureAlias,
-                observation.Usage,
-                observation.DurationMs,
-                observation.Succeeded);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to collect AI usage for {Capability}", observation.Descriptor.Capability);
-        }
-    }
-
-    /// <summary>
-    /// Persists the call to usage analytics, when analytics is enabled and the call has something to record.
-    /// </summary>
-    private async Task RecordUsageAsync(AIUsageObservation observation, CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (!_analyticsOptions.CurrentValue.Enabled || observation.Context is null)
+            catch (Exception ex)
             {
-                return;
+                _logger.LogError(ex, "{Recording} failed to record the end of an AI call", recording.GetType().FullName);
             }
-
-            if (observation.Usage is null && !observation.Descriptor.RecordUsageWhenEmpty)
-            {
-                return; // chat/embedding: no token counts => nothing to record
-            }
-
-            var recordContext = AIUsageRecordContext.FromUsageContext(observation.Context);
-            var result = new AIUsageRecordResult
-            {
-                Usage = observation.Usage,
-                DurationMs = observation.DurationMs,
-                Succeeded = observation.Succeeded,
-                ErrorMessage = observation.ErrorMessage,
-            };
-
-            var record = _usageRecordFactory.Create(recordContext, result);
-            await _usageRecordingService.QueueRecordUsageAsync(record, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to record AI usage for {Capability}", observation.Descriptor.Capability);
         }
     }
 }
