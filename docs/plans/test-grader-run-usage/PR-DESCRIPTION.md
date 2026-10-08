@@ -59,17 +59,18 @@ The runner opens an ambient collection scope (`AsyncLocal`) around feature execu
      GradeOutcomeAsync(transcript, outcome, ...)
 ```
 
-Every tracked AI call feeds the open scope. It needs no changes to Prompt, Agent or third-party test features:
+Every tracked AI call feeds the open scope. It needs no changes to Prompt, Agent or third-party test features. There is one usage path: each finished call is captured once, then every consumer applies its own rules:
 
 ```
 ScopedProfileChatClient            (writes profile/provider/model to runtime context)
 └── AITrackingChatClient
     └── AIOperationTracker.BeginAsync   + captures AIUsageContext once here
         └── AIOperationScope.CompleteAsync / FailAsync
-            ├── + tracker.CollectUsage(descriptor, usageContext, usage)
-            │       → AIUsageCollectionScope.Current?.RecordCall(...)   (independent of analytics)
-            └──   RecordUsageAsync(descriptor, usageContext, ...)
--                     (was: read the live runtime context at completion)
+            └── + tracker.ReportUsage(new AIUsageObservation(...))     (one capture per call)
+                  ├── + CollectUsage   → AIUsageCollectionScope.Current?.RecordCall(...)
+                  │                      (whenever a scope is open, independent of analytics)
+                  └──   RecordUsageAsync → persisted only when analytics is enabled
+-                         (was: called separately, and read the live runtime context at completion)
 ```
 
 New internal types in `Umbraco.AI.Core/Observability/`:
@@ -79,6 +80,7 @@ New internal types in `Umbraco.AI.Core/Observability/`:
 +AIUsageCollector.cs             // thread-safe, groups by capability/provider/model/profile/feature
 +AIUsageCollectorSnapshot.cs
 +AIUsageCollectorEntry.cs
++AIUsageObservation.cs           // one finished call's usage, handed to every consumer
 ```
 
 Management API adds `outcome.usage` (`TestUsageResponseModel` with `callCount`, `unreportedCallCount`, `failedCallCount`, `durationMs`, `breakdown[]` of `TestUsageEntryResponseModel`); `outcome.tokenUsage` is obsolete and null. The TS client is regenerated, and the run detail view now prints `outcome.usage` as JSON (a proper table is #523).
