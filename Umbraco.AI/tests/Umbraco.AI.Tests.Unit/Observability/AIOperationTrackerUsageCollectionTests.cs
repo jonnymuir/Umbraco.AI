@@ -30,7 +30,10 @@ public class AIOperationTrackerUsageCollectionTests
         return runtimeContext;
     }
 
-    private static AIOperationTracker CreateTracker(bool analyticsEnabled = true, AIRuntimeContext? runtimeContext = null)
+    private static AIOperationTracker CreateTracker(
+        bool analyticsEnabled = true,
+        AIRuntimeContext? runtimeContext = null,
+        IAIUsageRecordFactory? usageRecordFactory = null)
     {
         runtimeContext ??= CreateRuntimeContext();
 
@@ -49,7 +52,7 @@ public class AIOperationTrackerUsageCollectionTests
             new Mock<IAIAuditLogFactory>().Object,
             auditOptions.Object,
             new Mock<IAIUsageRecordingService>().Object,
-            new Mock<IAIUsageRecordFactory>().Object,
+            usageRecordFactory ?? new Mock<IAIUsageRecordFactory>().Object,
             analyticsOptions.Object,
             NullLogger<AIOperationTracker>.Instance);
     }
@@ -106,6 +109,32 @@ public class AIOperationTrackerUsageCollectionTests
 
         [Fact]
         public void StillCollectsTheCall() => _snapshot.CallCount.ShouldBe(1);
+
+        public void Dispose() => _scope.Dispose();
+    }
+
+    public class GivenAnalyticsIsEnabled : IDisposable
+    {
+        private readonly AIUsageCollectionScope _scope = AIUsageCollectionScope.Begin();
+        private readonly AIUsageCollectorSnapshot _snapshot;
+        private readonly List<AIUsageRecordResult> _recorded = [];
+
+        public GivenAnalyticsIsEnabled()
+        {
+            var factory = new Mock<IAIUsageRecordFactory>();
+            factory
+                .Setup(x => x.Create(It.IsAny<AIUsageRecordContext>(), It.IsAny<AIUsageRecordResult>()))
+                .Callback<AIUsageRecordContext, AIUsageRecordResult>((_, result) => _recorded.Add(result));
+
+            TrackChatCallAsync(CreateTracker(usageRecordFactory: factory.Object)).GetAwaiter().GetResult();
+            _snapshot = _scope.Collector.GetSnapshot();
+        }
+
+        [Fact]
+        public void CollectsTheCall() => _snapshot.TotalTokens.ShouldBe(120);
+
+        [Fact]
+        public void RecordsTheSameCallToAnalytics() => _recorded.Single().Usage!.TotalTokenCount.ShouldBe(120);
 
         public void Dispose() => _scope.Dispose();
     }

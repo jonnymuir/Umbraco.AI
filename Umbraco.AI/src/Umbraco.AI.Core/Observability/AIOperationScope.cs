@@ -12,8 +12,9 @@ namespace Umbraco.AI.Core.Observability;
 
 /// <summary>
 /// A tracking scope for a single AI operation. Created by <see cref="AIOperationTracker.BeginAsync"/>.
-/// Completing or failing the scope queues the audit status (awaited, on <see cref="CancellationToken.None"/>)
-/// and fire-and-forgets the usage record. Dispose ends the ambient <see cref="AIAuditScope"/>.
+/// Completing or failing the scope reports the call's usage once (see <see cref="AIOperationTracker.ReportUsage"/>)
+/// and queues the audit status (awaited, on <see cref="CancellationToken.None"/>).
+/// Dispose ends the ambient <see cref="AIAuditScope"/>.
 /// </summary>
 internal sealed class AIOperationScope : IDisposable
 {
@@ -48,33 +49,29 @@ internal sealed class AIOperationScope : IDisposable
     public async Task CompleteAsync(UsageDetails? usage, AIAuditResponse? auditResponse)
     {
         _stopwatch.Stop();
-        var durationMs = _stopwatch.ElapsedMilliseconds;
-        _tracker.CollectUsage(_descriptor, _usageContext, usage, durationMs, succeeded: true);
+        _tracker.ReportUsage(
+            new AIUsageObservation(_descriptor, _usageContext, usage, _stopwatch.ElapsedMilliseconds, Succeeded: true, ErrorMessage: null),
+            _cancellationToken);
 
         if (_auditLog is not null)
         {
             await _tracker.AuditLogService.QueueCompleteAuditLogAsync(
                 _auditLog, _auditPrompt, auditResponse, CancellationToken.None);
         }
-
-        _ = _tracker.RecordUsageAsync(
-            _descriptor, _usageContext, usage, durationMs, succeeded: true, errorMessage: null, _cancellationToken);
     }
 
     public async Task FailAsync(Exception exception, UsageDetails? usage = null)
     {
         _stopwatch.Stop();
-        var durationMs = _stopwatch.ElapsedMilliseconds;
-        _tracker.CollectUsage(_descriptor, _usageContext, usage, durationMs, succeeded: false);
+        _tracker.ReportUsage(
+            new AIUsageObservation(_descriptor, _usageContext, usage, _stopwatch.ElapsedMilliseconds, Succeeded: false, exception.Message),
+            _cancellationToken);
 
         if (_auditLog is not null)
         {
             await _tracker.AuditLogService.QueueRecordAuditLogFailureAsync(
                 _auditLog, _auditPrompt, exception, CancellationToken.None);
         }
-
-        _ = _tracker.RecordUsageAsync(
-            _descriptor, _usageContext, usage, durationMs, succeeded: false, errorMessage: exception.Message, _cancellationToken);
     }
 
     public void Dispose() => _auditScope?.Dispose();

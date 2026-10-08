@@ -101,18 +101,22 @@ internal sealed class AIOperationTracker : IAIOperationTracker
     }
 
     /// <summary>
-    /// Reports a finished call to the ambient <see cref="AIUsageCollectionScope"/>, if one is open.
-    /// Runs synchronously on the caller's flow, because it reads the ambient collector from it,
-    /// independent of the analytics toggle and <see cref="AIOperationDescriptor.RecordUsageWhenEmpty"/>.
-    /// Uses the usage context captured at <see cref="BeginAsync"/>, not the live runtime context.
+    /// The single usage path for a finished call: every tracked call's usage is captured once into an
+    /// <see cref="AIUsageObservation"/> and handed to each consumer, which applies its own rules.
     /// Never throws into the AI call.
     /// </summary>
-    internal void CollectUsage(
-        AIOperationDescriptor descriptor,
-        AIUsageContext? usageContext,
-        UsageDetails? usage,
-        long durationMs,
-        bool succeeded)
+    internal void ReportUsage(AIUsageObservation observation, CancellationToken cancellationToken)
+    {
+        CollectUsage(observation);
+        _ = RecordUsageAsync(observation, cancellationToken);
+    }
+
+    /// <summary>
+    /// Adds the call to the ambient <see cref="AIUsageCollectionScope"/>, if one is open.
+    /// Runs synchronously on the caller's flow, because it reads the ambient collector from it,
+    /// independent of the analytics toggle and <see cref="AIOperationDescriptor.RecordUsageWhenEmpty"/>.
+    /// </summary>
+    private void CollectUsage(AIUsageObservation observation)
     {
         try
         {
@@ -122,8 +126,9 @@ internal sealed class AIOperationTracker : IAIOperationTracker
                 return;
             }
 
+            var usageContext = observation.Context;
             collector.RecordCall(
-                descriptor.Capability,
+                observation.Descriptor.Capability,
                 usageContext?.ProviderId,
                 usageContext?.ModelId,
                 // GetValue<Guid> returns Guid.Empty for a missing key; normalised here rather than in
@@ -133,39 +138,40 @@ internal sealed class AIOperationTracker : IAIOperationTracker
                 usageContext?.FeatureType,
                 usageContext?.FeatureId == Guid.Empty ? null : usageContext?.FeatureId,
                 usageContext?.FeatureAlias,
-                usage,
-                durationMs,
-                succeeded);
+                observation.Usage,
+                observation.DurationMs,
+                observation.Succeeded);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to collect AI usage for {Capability}", descriptor.Capability);
+            _logger.LogError(ex, "Failed to collect AI usage for {Capability}", observation.Descriptor.Capability);
         }
     }
 
-    internal async Task RecordUsageAsync(
-        AIOperationDescriptor descriptor, AIUsageContext? usageContext, UsageDetails? usage, long durationMs,
-        bool succeeded, string? errorMessage, CancellationToken cancellationToken)
+    /// <summary>
+    /// Persists the call to usage analytics, when analytics is enabled and the call has something to record.
+    /// </summary>
+    private async Task RecordUsageAsync(AIUsageObservation observation, CancellationToken cancellationToken)
     {
         try
         {
-            if (!_analyticsOptions.CurrentValue.Enabled || usageContext is null)
+            if (!_analyticsOptions.CurrentValue.Enabled || observation.Context is null)
             {
                 return;
             }
 
-            if (usage is null && !descriptor.RecordUsageWhenEmpty)
+            if (observation.Usage is null && !observation.Descriptor.RecordUsageWhenEmpty)
             {
                 return; // chat/embedding: no token counts => nothing to record
             }
 
-            var recordContext = AIUsageRecordContext.FromUsageContext(usageContext);
+            var recordContext = AIUsageRecordContext.FromUsageContext(observation.Context);
             var result = new AIUsageRecordResult
             {
-                Usage = usage,
-                DurationMs = durationMs,
-                Succeeded = succeeded,
-                ErrorMessage = errorMessage,
+                Usage = observation.Usage,
+                DurationMs = observation.DurationMs,
+                Succeeded = observation.Succeeded,
+                ErrorMessage = observation.ErrorMessage,
             };
 
             var record = _usageRecordFactory.Create(recordContext, result);
@@ -173,7 +179,7 @@ internal sealed class AIOperationTracker : IAIOperationTracker
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to record AI usage for {Capability}", descriptor.Capability);
+            _logger.LogError(ex, "Failed to record AI usage for {Capability}", observation.Descriptor.Capability);
         }
     }
 }
