@@ -34,4 +34,7 @@ internal enum AIOperationStatus
 
     /// <summary>The call threw, or ended on a provider error.</summary>
     Failed,
+
+    /// <summary>A guardrail stopped the call (<see cref="Guardrails.AIGuardrailBlockedException"/>).</summary>
+    Blocked,
 }

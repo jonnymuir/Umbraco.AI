@@ -94,7 +94,7 @@ internal sealed class AIUsageAggregationService : IAIUsageAggregationService
                         FeatureType = g.Key.FeatureType,
                         RequestCount = g.Count(),
                         SuccessCount = g.Count(r => r.Status == "Succeeded"),
-                        FailureCount = g.Count(r => r.Status == "Failed"),
+                        FailureCount = g.Count(r => r.Status is "Failed" or "Blocked"),
                         InputTokens = g.Sum(r => r.InputTokens),
                         CachedInputTokens = AIUsageTokenAggregation.SumOrNull(g, r => r.CachedInputTokens),
                         OutputTokens = g.Sum(r => r.OutputTokens),

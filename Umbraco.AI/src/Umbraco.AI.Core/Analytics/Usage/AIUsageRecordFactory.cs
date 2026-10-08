@@ -98,7 +98,7 @@ internal sealed class AIUsageRecordFactory : IAIUsageRecordFactory
             OutputTokens = result.Usage?.OutputTokenCount ?? 0,
             TotalTokens = result.Usage?.TotalTokenCount ?? 0,
             DurationMs = result.DurationMs,
-            Status = result.Succeeded ? "Succeeded" : "Failed",
+            Status = result.Succeeded ? "Succeeded" : result.Blocked ? "Blocked" : "Failed",
             ErrorMessage = result.ErrorMessage,
             CreatedAt = timestamp
         };
