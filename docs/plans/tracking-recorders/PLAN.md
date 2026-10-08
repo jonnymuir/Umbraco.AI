@@ -36,7 +36,7 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
   - Recorder failures are isolated (decision 1). The guard already exists from T1, so moving audit
     behind it is what changes the behaviour; a separate commit adds the test for it.
 
-- [ ] **T3. One outcome for every recorder.**
+- [x] **T3. One outcome for every recorder.** #541 (v18), #542 (v17).
   - `AIOperationStatus.Blocked` when the call fails with `AIGuardrailBlockedException` (the same
     check `AIAuditLogService` makes today), shared by audit and analytics (decision 5).
   - Same provider-error check for streaming and non-streaming chat (non-streaming never checks
@@ -44,11 +44,13 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
   - Not covered here: `AIChatExecutedNotification.IsSuccess` is still true for a response that ends
     on a provider error. Notifications are raised by the services, outside the tracker; moved to T4.
 
-- [ ] **T4. Smaller duplicates from #528** (can run in any order after T2): five copies of
+- [x] **T4. Smaller duplicates from #528** (can run in any order after T2): five copies of
   `PopulateProfileMetadata`; the error category worked out twice; two context extractors with
   different field sets; out-of-date docs on `RecordUsageWhenEmpty`. (`AITrackedOperationResult`'s
   doc was fixed in T2, when its audit response became neutral `ResponseData`.) Also the chat
   Executed notification reporting success for a response that ends on a provider error (from T3).
+  Done in one PR, one commit per item, except the error category: on a closer look it isn't
+  duplicated (see decision log). `RecordUsageWhenEmpty` was removed rather than re-documented.
 
 - [ ] **T5. Final review of what the refactor left behind** (last, after T1 to T4 have merged).
   Moving responsibilities out leaves some types thinner than their names and interfaces suggest.
