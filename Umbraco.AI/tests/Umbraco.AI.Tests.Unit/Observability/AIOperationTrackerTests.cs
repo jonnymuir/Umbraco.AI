@@ -131,7 +131,7 @@ public class AIOperationTrackerTests
         // Assert
         _auditLogServiceMock.Verify(x => x.QueueRecordAuditLogFailureAsync(_auditLog, It.IsAny<AIAuditPrompt?>(), exception, It.IsAny<CancellationToken>()), Times.Once);
         _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(It.IsAny<AIAuditLog>(), It.IsAny<AIAuditPrompt?>(), It.IsAny<AIAuditResponse?>(), It.IsAny<CancellationToken>()), Times.Never);
-        record.Status.ShouldBe("Failed");
+        record.Status.ShouldBe(AIUsageRecordStatus.Failed);
         record.ErrorMessage.ShouldBe("boom");
     }
 
@@ -301,7 +301,7 @@ public class AIOperationTrackerTests
         // Assert
         (await queuedWith.Task.WaitAsync(TimeSpan.FromSeconds(2))).ShouldBe(CancellationToken.None);
         queued.ShouldNotBeNull();
-        queued.Status.ShouldBe("Failed");
+        queued.Status.ShouldBe(AIUsageRecordStatus.Failed);
     }
 
     // Test 8: audit log is created with parentId = AIAuditScope.Current when nested.
@@ -549,8 +549,42 @@ public class AIOperationTrackerTests
 
         // Assert
         result.Result.ShouldBe("success");
-        (await AwaitOrTimeout(usageSignal.Task)).Status.ShouldBe("Succeeded");
+        (await AwaitOrTimeout(usageSignal.Task)).Status.ShouldBe(AIUsageRecordStatus.Succeeded);
         _auditLogServiceMock.Verify(x => x.QueueStartAuditLogAsync(It.IsAny<AIAuditLog>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // Decision 5: a guardrail block is its own outcome, so analytics stores "Blocked" as audit does.
+    [Fact]
+    public async Task TrackAsync_WhenAGuardrailBlocksTheCall_RecordsItAsBlocked()
+    {
+        // Arrange
+        AIUsageRecordResult? recorded = null;
+        var usageSignal = ArrangeUsageRecordingSignal();
+        _usageRecordFactoryMock
+            .Setup(x => x.Create(It.IsAny<AIUsageRecordContext>(), It.IsAny<AIUsageRecordResult>()))
+            .Callback<AIUsageRecordContext, AIUsageRecordResult>((_, result) => recorded = result)
+            .Returns((AIUsageRecordContext ctx, AIUsageRecordResult result) => BuildUsageRecord(ctx, result));
+        var blocked = new Umbraco.AI.Core.Guardrails.AIGuardrailBlockedException(
+            new Umbraco.AI.Core.Guardrails.Evaluators.AIGuardrailEvaluationResult
+            {
+                Action = Umbraco.AI.Core.Guardrails.AIGuardrailAction.Block,
+                Phase = Umbraco.AI.Core.Guardrails.AIGuardrailPhase.PreGenerate,
+                RuleResults = [],
+            });
+        var tracker = CreateTracker();
+
+        // Act
+        await Should.ThrowAsync<Umbraco.AI.Core.Guardrails.AIGuardrailBlockedException>(() =>
+            tracker.TrackAsync<string>(
+                CreateDescriptor(recordUsageWhenEmpty: true),
+                _ => Task.FromException<AITrackedOperationResult<string>>(blocked),
+                CancellationToken.None));
+        await AwaitOrTimeout(usageSignal.Task);
+
+        // Assert
+        recorded.ShouldNotBeNull();
+        recorded.Succeeded.ShouldBeFalse();
+        recorded.Blocked.ShouldBeTrue();
     }
 
     // The user tag used to come from the audit entry, so it was missing when auditing was off.
@@ -605,7 +639,7 @@ public class AIOperationTrackerTests
         OutputTokens = result.Usage?.OutputTokenCount ?? 0,
         TotalTokens = result.Usage?.TotalTokenCount ?? 0,
         DurationMs = result.DurationMs,
-        Status = result.Succeeded ? "Succeeded" : "Failed",
+        Status = result.Succeeded ? AIUsageRecordStatus.Succeeded : AIUsageRecordStatus.Failed,
         ErrorMessage = result.ErrorMessage,
         CreatedAt = DateTime.UtcNow,
     };

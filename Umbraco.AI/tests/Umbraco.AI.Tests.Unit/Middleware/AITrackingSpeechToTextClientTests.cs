@@ -125,7 +125,7 @@ public class AITrackingSpeechToTextClientTests
         record.InputTokens.ShouldBe(0);
         record.OutputTokens.ShouldBe(0);
         record.TotalTokens.ShouldBe(0);
-        record.Status.ShouldBe("Succeeded");
+        record.Status.ShouldBe(AIUsageRecordStatus.Succeeded);
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public class AITrackingSpeechToTextClientTests
 
         // RecordUsageWhenEmpty=true means even a failed operation with no usage records duration/status.
         var record = await AwaitOrTimeout(usageSignal.Task);
-        record.Status.ShouldBe("Failed");
+        record.Status.ShouldBe(AIUsageRecordStatus.Failed);
         record.ErrorMessage.ShouldBe("AI error");
     }
 
@@ -262,7 +262,7 @@ public class AITrackingSpeechToTextClientTests
         var record = await AwaitOrTimeout(usageSignal.Task);
 
         // Assert
-        record.Status.ShouldBe("Succeeded");
+        record.Status.ShouldBe(AIUsageRecordStatus.Succeeded);
         record.TotalTokens.ShouldBe(0);
     }
 
@@ -342,7 +342,7 @@ public class AITrackingSpeechToTextClientTests
         OutputTokens = result.Usage?.OutputTokenCount ?? 0,
         TotalTokens = result.Usage?.TotalTokenCount ?? 0,
         DurationMs = result.DurationMs,
-        Status = result.Succeeded ? "Succeeded" : "Failed",
+        Status = result.Succeeded ? AIUsageRecordStatus.Succeeded : AIUsageRecordStatus.Failed,
         ErrorMessage = result.ErrorMessage,
         CreatedAt = DateTime.UtcNow,
     };

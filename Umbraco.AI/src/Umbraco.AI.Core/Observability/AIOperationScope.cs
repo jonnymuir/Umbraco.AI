@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.AI;
+using Umbraco.AI.Core.Guardrails;
 
 namespace Umbraco.AI.Core.Observability;
 
@@ -32,9 +33,10 @@ internal sealed class AIOperationScope
     public Task FailAsync(Exception exception, UsageDetails? usage = null)
     {
         _stopwatch.Stop();
+        var status = exception is AIGuardrailBlockedException ? AIOperationStatus.Blocked : AIOperationStatus.Failed;
         return _tracker.EndRecordingsAsync(
             _recordings,
-            new AIOperationOutcome(AIOperationStatus.Failed, usage, _stopwatch.ElapsedMilliseconds, exception));
+            new AIOperationOutcome(status, usage, _stopwatch.ElapsedMilliseconds, exception));
     }
 
     /// <summary>
