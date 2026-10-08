@@ -56,6 +56,22 @@
   `FeatureVersion`, so the audit and trace recorders build from it and the runtime context is read
   once per call. `AIOperationStart.RuntimeContext` is gone. The name `AIUsageContext` now
   undersells it; left for T5's naming review.
+- 08-10-2026 (T5): No shared "queue a repository save" helper. `AIAuditLogService`'s queue methods
+  do real work before queueing (status, snapshots, redaction, error category), so
+  `AIUsageRecordingService` is the only thin one; one example doesn't justify a helper.
+- 08-10-2026 (T5): `AIUsageRecordingService` keeps its name. It is internal and "recording" still
+  fits (it records usage by queueing the save); a rename is churn without a reader benefit.
+- 08-10-2026 (T5): `AIUsageContext` keeps its name, as it is public; its doc comment now says it is
+  the call's identity, shared by every recorder.
+- 08-10-2026 (T5): The declared log values (LogKeys) moved from the tracking clients into the
+  tracker's one read of the runtime context (`AIOperationStart.LogValues`). The clients no longer
+  know about the audit log, and image audit entries now get the log values too.
+- 08-10-2026 (T5): The unused optional `modelId` parameters on the public
+  `AIUsageContext`/`AIAuditContext.ExtractFromRuntimeContext` methods are left: removing an
+  optional parameter is a binary break and they cost nothing. Revisit if T6's validation flags
+  them for another reason.
+- 08-10-2026 (T5): The recorder contracts have nothing unused: `EnterScope` is used by audit,
+  `ResponseData` by audit, `Blocked` by audit and analytics.
 - 08-10-2026: Added T7. The refactor was built by hand rather than through `umb-build-loop`, so no
   task had its reviewer gate. T7 runs the playbook's reviewer agent over every task's diff at the
   end, compares the work with how the build loop would have shaped it, and writes the missing
