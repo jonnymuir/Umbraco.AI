@@ -230,15 +230,15 @@ public class TestTokenUsageResponseModel
     public int UnreportedCallCount { get; set; }
 
     /// <summary>
-    /// Token usage broken down by model.
+    /// Token usage broken down by capability, provider, model, profile and feature.
     /// </summary>
-    public IEnumerable<TestModelTokenUsageResponseModel> Models { get; set; } = [];
+    public IEnumerable<TestTokenUsageEntryResponseModel> Breakdown { get; set; } = [];
 }
 
 /// <summary>
-/// Response model for token usage attributed to a single model.
+/// Response model for token usage attributed to a single breakdown entry (capability, provider, model, profile and feature).
 /// </summary>
-public class TestModelTokenUsageResponseModel
+public class TestTokenUsageEntryResponseModel
 {
     /// <summary>
     /// The capability the calls were made with (for example Chat or Embedding).
@@ -266,6 +266,21 @@ public class TestModelTokenUsageResponseModel
     public string? ProfileAlias { get; set; }
 
     /// <summary>
+    /// The type of feature that made the calls (for example "prompt", "agent" or "inline-chat"), if any.
+    /// </summary>
+    public string? FeatureType { get; set; }
+
+    /// <summary>
+    /// The ID of the feature that made the calls, if any.
+    /// </summary>
+    public Guid? FeatureId { get; set; }
+
+    /// <summary>
+    /// The alias of the feature that made the calls, if any.
+    /// </summary>
+    public string? FeatureAlias { get; set; }
+
+    /// <summary>
     /// Number of input tokens consumed.
     /// </summary>
     public int InputTokens { get; set; }
@@ -281,12 +296,12 @@ public class TestModelTokenUsageResponseModel
     public int TotalTokens { get; set; }
 
     /// <summary>
-    /// Number of calls made with this model.
+    /// Number of calls made in this entry.
     /// </summary>
     public int CallCount { get; set; }
 
     /// <summary>
-    /// Number of calls with this model whose provider reported no token usage.
+    /// Number of calls in this entry whose provider reported no token usage.
     /// </summary>
     public int UnreportedCallCount { get; set; }
 }

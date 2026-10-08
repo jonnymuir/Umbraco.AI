@@ -9,12 +9,12 @@ public class AITestTokenUsageSerializationTests
 {
     private static readonly JsonSerializerOptions Options = Umbraco.AI.Core.Constants.DefaultJsonSerializerOptions;
 
-    public class GivenTokenUsageWithTwoModelEntries
+    public class GivenTokenUsageWithTwoBreakdownEntries
     {
         private readonly AITestTokenUsage _original;
         private readonly AITestTokenUsage _loaded;
 
-        public GivenTokenUsageWithTwoModelEntries()
+        public GivenTokenUsageWithTwoBreakdownEntries()
         {
             _original = new AITestTokenUsage
             {
@@ -23,22 +23,25 @@ public class AITestTokenUsageSerializationTests
                 TotalTokens = 175,
                 CallCount = 3,
                 UnreportedCallCount = 1,
-                Models =
+                Breakdown =
                 [
-                    new AITestModelTokenUsage
+                    new AITestTokenUsageEntry
                     {
                         Capability = AICapability.Chat,
                         ProviderId = "openai",
                         ModelId = "gpt-x",
                         ProfileId = Guid.NewGuid(),
                         ProfileAlias = "p1",
+                        FeatureType = "prompt",
+                        FeatureId = Guid.NewGuid(),
+                        FeatureAlias = "my-prompt",
                         InputTokens = 100,
                         OutputTokens = 20,
                         TotalTokens = 120,
                         CallCount = 2,
                         UnreportedCallCount = 0
                     },
-                    new AITestModelTokenUsage
+                    new AITestTokenUsageEntry
                     {
                         Capability = AICapability.Embedding,
                         ProviderId = "openai",
@@ -71,15 +74,27 @@ public class AITestTokenUsageSerializationTests
         }
 
         [Fact]
-        public void KeepsBothModelEntries()
+        public void KeepsBothBreakdownEntries()
         {
-            _loaded.Models.Count.ShouldBe(2);
+            _loaded.Breakdown.Count.ShouldBe(2);
         }
 
         [Fact]
-        public void KeepsTheModelIdentity()
+        public void KeepsTheEntryIdentity()
         {
-            _loaded.Models[0].ShouldBeEquivalentTo(_original.Models[0]);
+            _loaded.Breakdown[0].ShouldBeEquivalentTo(_original.Breakdown[0]);
+        }
+    }
+
+    public class GivenJsonWithTheOldModelsProperty
+    {
+        private readonly AITestTokenUsage _loaded = JsonSerializer.Deserialize<AITestTokenUsage>(
+            """{"inputTokens":10,"outputTokens":5,"totalTokens":15,"models":[{"modelId":"gpt-x","totalTokens":15}]}""", Options)!;
+
+        [Fact]
+        public void LoadsWithAnEmptyBreakdown()
+        {
+            _loaded.Breakdown.ShouldBeEmpty();
         }
     }
 
@@ -94,9 +109,9 @@ public class AITestTokenUsageSerializationTests
         }
 
         [Fact]
-        public void LoadsWithAnEmptyModelsList()
+        public void LoadsWithAnEmptyBreakdown()
         {
-            _loaded.Models.ShouldBeEmpty();
+            _loaded.Breakdown.ShouldBeEmpty();
         }
 
         [Fact]

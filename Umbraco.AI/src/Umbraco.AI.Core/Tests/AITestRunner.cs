@@ -341,14 +341,17 @@ internal sealed class AITestRunner : IAITestRunner
             TotalTokens = snapshot.TotalTokens,
             CallCount = snapshot.CallCount,
             UnreportedCallCount = snapshot.UnreportedCallCount,
-            Models = snapshot.Models
-                .Select(m => new AITestModelTokenUsage
+            Breakdown = snapshot.Breakdown
+                .Select(m => new AITestTokenUsageEntry
                 {
                     Capability = m.Capability,
                     ProviderId = m.ProviderId,
                     ModelId = m.ModelId,
                     ProfileId = m.ProfileId,
                     ProfileAlias = m.ProfileAlias,
+                    FeatureType = m.FeatureType,
+                    FeatureId = m.FeatureId,
+                    FeatureAlias = m.FeatureAlias,
                     InputTokens = m.InputTokens,
                     OutputTokens = m.OutputTokens,
                     TotalTokens = m.TotalTokens,

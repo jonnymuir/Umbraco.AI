@@ -10,7 +10,7 @@ public class AIUsageCollectorTests
     private static readonly Guid ProfileId = Guid.NewGuid();
 
     private static void Record(AIUsageCollector collector, string? modelId, UsageDetails? usage) =>
-        collector.RecordCall(AICapability.Chat, "openai", modelId, ProfileId, "profile", usage);
+        collector.RecordCall(AICapability.Chat, "openai", modelId, ProfileId, "profile", null, null, null, usage);
 
     private static UsageDetails Usage(long total) =>
         new() { InputTokenCount = total / 2, OutputTokenCount = total - total / 2, TotalTokenCount = total };
@@ -28,10 +28,80 @@ public class AIUsageCollectorTests
         }
 
         [Fact]
-        public void GroupsThemIntoOneEntry() => _snapshot.Models.Count.ShouldBe(1);
+        public void GroupsThemIntoOneEntry() => _snapshot.Breakdown.Count.ShouldBe(1);
 
         [Fact]
         public void SumsTheirTokens() => _snapshot.TotalTokens.ShouldBe(30);
+    }
+
+    private static void RecordForFeature(
+        AIUsageCollector collector, string? featureType, Guid? featureId, string? featureAlias, UsageDetails? usage) =>
+        collector.RecordCall(AICapability.Chat, "openai", "gpt", ProfileId, "profile", featureType, featureId, featureAlias, usage);
+
+    public class GivenTwoCallsToTheSameModelFromDifferentFeatures
+    {
+        private readonly AIUsageCollectorSnapshot _snapshot;
+
+        public GivenTwoCallsToTheSameModelFromDifferentFeatures()
+        {
+            var collector = new AIUsageCollector();
+            RecordForFeature(collector, "prompt", Guid.NewGuid(), "my-prompt", Usage(10));
+            RecordForFeature(collector, "inline-chat", null, "guardrail-llm-evaluator", Usage(20));
+            _snapshot = collector.GetSnapshot();
+        }
+
+        [Fact]
+        public void KeepsAnEntryPerFeature() => _snapshot.Breakdown.Count.ShouldBe(2);
+
+        [Fact]
+        public void KeepsOnlyItsOwnTokensInEachEntry() =>
+            _snapshot.Breakdown.Single(e => e.FeatureType == "inline-chat").TotalTokens.ShouldBe(20);
+
+        [Fact]
+        public void TotalsTheSumOfTheEntries() =>
+            _snapshot.TotalTokens.ShouldBe(_snapshot.Breakdown.Sum(e => e.TotalTokens));
+    }
+
+    public class GivenTwoCallsFromTheSameFeature
+    {
+        private readonly AIUsageCollectorSnapshot _snapshot;
+
+        public GivenTwoCallsFromTheSameFeature()
+        {
+            var featureId = Guid.NewGuid();
+            var collector = new AIUsageCollector();
+            RecordForFeature(collector, "prompt", featureId, "my-prompt", Usage(10));
+            RecordForFeature(collector, "prompt", featureId, "my-prompt", Usage(20));
+            _snapshot = collector.GetSnapshot();
+        }
+
+        [Fact]
+        public void GroupsThemIntoOneEntry() => _snapshot.Breakdown.Count.ShouldBe(1);
+
+        [Fact]
+        public void SumsTheirTokens() => _snapshot.Breakdown.Single().TotalTokens.ShouldBe(30);
+    }
+
+    public class GivenACallFromAFeature
+    {
+        private readonly AIUsageCollectorEntry _entry;
+        private readonly Guid _featureId = Guid.NewGuid();
+
+        public GivenACallFromAFeature()
+        {
+            var collector = new AIUsageCollector();
+            RecordForFeature(collector, "prompt", _featureId, "my-prompt", Usage(10));
+            _entry = collector.GetSnapshot().Breakdown.Single();
+        }
+
+        [Fact]
+        public void CarriesTheFeatureType() => _entry.FeatureType.ShouldBe("prompt");
+
+        [Fact]
+        public void CarriesTheFeatureId() => _entry.FeatureId.ShouldBe(_featureId);
+
+        [Fact]
+        public void CarriesTheFeatureAlias() => _entry.FeatureAlias.ShouldBe("my-prompt");
     }
 
     public class GivenCallsToTwoModels
@@ -47,19 +117,19 @@ public class AIUsageCollectorTests
         }
 
         [Fact]
-        public void KeepsAnEntryPerModel() => _snapshot.Models.Count.ShouldBe(2);
+        public void KeepsAnEntryPerModel() => _snapshot.Breakdown.Count.ShouldBe(2);
 
         [Fact]
         public void KeepsOnlyItsOwnTokensInEachEntry() =>
-            _snapshot.Models.Single(m => m.ModelId == "model-a").TotalTokens.ShouldBe(10);
+            _snapshot.Breakdown.Single(m => m.ModelId == "model-a").TotalTokens.ShouldBe(10);
 
         [Fact]
         public void TotalsTheSumOfTheEntries() =>
-            _snapshot.TotalTokens.ShouldBe(_snapshot.Models.Sum(m => m.TotalTokens));
+            _snapshot.TotalTokens.ShouldBe(_snapshot.Breakdown.Sum(m => m.TotalTokens));
 
         [Fact]
         public void OrdersEntriesByModel() =>
-            _snapshot.Models.Select(m => m.ModelId).ShouldBe(["model-a", "model-b"]);
+            _snapshot.Breakdown.Select(m => m.ModelId).ShouldBe(["model-a", "model-b"]);
     }
 
     public class GivenNoTotalFromTheProvider
@@ -117,7 +187,7 @@ public class AIUsageCollectorTests
         public GivenACallWithUnknownProviderAndModel()
         {
             var collector = new AIUsageCollector();
-            collector.RecordCall(AICapability.Chat, null, null, null, null, Usage(10));
+            collector.RecordCall(AICapability.Chat, null, null, null, null, null, null, null, Usage(10));
             _snapshot = collector.GetSnapshot();
         }
 
@@ -125,7 +195,7 @@ public class AIUsageCollectorTests
         public void StillCountsTheCall() => _snapshot.CallCount.ShouldBe(1);
 
         [Fact]
-        public void LandsInOneEntryWithANullModel() => _snapshot.Models.Single().ModelId.ShouldBeNull();
+        public void LandsInOneEntryWithANullModel() => _snapshot.Breakdown.Single().ModelId.ShouldBeNull();
     }
 
     public class GivenNestedScopes : IDisposable
@@ -165,7 +235,7 @@ public class AIUsageCollectorTests
                 for (var i = 0; i < calls; i++)
                 {
                     await Task.Yield();
-                    AIUsageCollectionScope.Current!.RecordCall(AICapability.Chat, "openai", "gpt", null, null, Usage(2));
+                    AIUsageCollectionScope.Current!.RecordCall(AICapability.Chat, "openai", "gpt", null, null, null, null, null, Usage(2));
                 }
                 return scope.Collector.GetSnapshot().CallCount;
             });

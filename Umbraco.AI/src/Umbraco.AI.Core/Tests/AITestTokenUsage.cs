@@ -32,8 +32,10 @@ public sealed class AITestTokenUsage
     public int UnreportedCallCount { get; set; }
 
     /// <summary>
-    /// Per-model breakdown of the usage. Never null; empty when no breakdown was recorded
-    /// (for example, usage persisted before the breakdown existed).
+    /// Breakdown of the usage, one entry per capability, provider, model, profile and feature.
+    /// Graders can sum just the entries they care about (for example only the target prompt's own call,
+    /// or only guardrail judge calls). The top-level totals cover every tracked call in the run.
+    /// Never null; empty when no breakdown was recorded (for example, usage persisted before the breakdown existed).
     /// </summary>
-    public List<AITestModelTokenUsage> Models { get; set; } = [];
+    public List<AITestTokenUsageEntry> Breakdown { get; set; } = [];
 }

@@ -85,7 +85,7 @@ public class AIOperationTrackerUsageCollectionTests
         public void CollectsTheCallsTokens() => _snapshot.TotalTokens.ShouldBe(120);
 
         [Fact]
-        public void CollectsTheModelFromTheRuntimeContext() => _snapshot.Models.Single().ModelId.ShouldBe(ModelId);
+        public void CollectsTheModelFromTheRuntimeContext() => _snapshot.Breakdown.Single().ModelId.ShouldBe(ModelId);
 
         public void Dispose() => _scope.Dispose();
     }
@@ -163,7 +163,69 @@ public class AIOperationTrackerUsageCollectionTests
         }
 
         [Fact]
-        public void CollectsUnderTheModelAtBegin() => _snapshot.Models.Single().ModelId.ShouldBe(ModelId);
+        public void CollectsUnderTheModelAtBegin() => _snapshot.Breakdown.Single().ModelId.ShouldBe(ModelId);
+
+        public void Dispose() => _scope.Dispose();
+    }
+
+    public class GivenANestedCallChangesTheFeatureMidFlight : IDisposable
+    {
+        private readonly AIUsageCollectionScope _scope = AIUsageCollectionScope.Begin();
+        private readonly AIUsageCollectorEntry _entry;
+        private readonly Guid _featureId = Guid.NewGuid();
+
+        public GivenANestedCallChangesTheFeatureMidFlight()
+        {
+            var runtimeContext = CreateRuntimeContext();
+            runtimeContext.SetValue(Constants.ContextKeys.FeatureType, "prompt");
+            runtimeContext.SetValue(Constants.ContextKeys.FeatureId, _featureId);
+            runtimeContext.SetValue(Constants.ContextKeys.FeatureAlias, "my-prompt");
+            var tracker = CreateTracker(runtimeContext: runtimeContext);
+
+            tracker.TrackAsync(
+                CreateDescriptor(),
+                _ =>
+                {
+                    // A nested guardrail judge call overwrites the shared feature identity.
+                    runtimeContext.SetValue(Constants.ContextKeys.FeatureType, "inline-chat");
+                    runtimeContext.SetValue(Constants.ContextKeys.FeatureId, Guid.NewGuid());
+                    runtimeContext.SetValue(Constants.ContextKeys.FeatureAlias, "guardrail-llm-evaluator");
+                    return Task.FromResult(new AITrackedOperationResult<string>
+                    {
+                        Result = "ok",
+                        Usage = new UsageDetails { InputTokenCount = 100, OutputTokenCount = 20, TotalTokenCount = 120 },
+                    });
+                },
+                CancellationToken.None).GetAwaiter().GetResult();
+
+            _entry = _scope.Collector.GetSnapshot().Breakdown.Single();
+        }
+
+        [Fact]
+        public void CollectsUnderTheFeatureTypeAtBegin() => _entry.FeatureType.ShouldBe("prompt");
+
+        [Fact]
+        public void CollectsUnderTheFeatureIdAtBegin() => _entry.FeatureId.ShouldBe(_featureId);
+
+        [Fact]
+        public void CollectsUnderTheFeatureAliasAtBegin() => _entry.FeatureAlias.ShouldBe("my-prompt");
+
+        public void Dispose() => _scope.Dispose();
+    }
+
+    public class GivenATrackedCallWithNoFeatureId : IDisposable
+    {
+        private readonly AIUsageCollectionScope _scope = AIUsageCollectionScope.Begin();
+        private readonly AIUsageCollectorEntry _entry;
+
+        public GivenATrackedCallWithNoFeatureId()
+        {
+            TrackChatCallAsync(CreateTracker()).GetAwaiter().GetResult();
+            _entry = _scope.Collector.GetSnapshot().Breakdown.Single();
+        }
+
+        [Fact]
+        public void CollectsItWithANullFeatureId() => _entry.FeatureId.ShouldBeNull();
 
         public void Dispose() => _scope.Dispose();
     }

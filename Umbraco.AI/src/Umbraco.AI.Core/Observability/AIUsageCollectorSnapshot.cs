@@ -9,4 +9,4 @@ internal sealed record AIUsageCollectorSnapshot(
     int TotalTokens,
     int CallCount,
     int UnreportedCallCount,
-    IReadOnlyList<AIUsageCollectorModelEntry> Models);
+    IReadOnlyList<AIUsageCollectorEntry> Breakdown);

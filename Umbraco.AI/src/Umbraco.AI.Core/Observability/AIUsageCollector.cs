@@ -5,7 +5,7 @@ namespace Umbraco.AI.Core.Observability;
 
 /// <summary>
 /// Thread-safe accumulator of token usage for the AI calls made within an <see cref="AIUsageCollectionScope"/>.
-/// Calls are grouped by capability, provider, model and profile. Tool calls may run concurrently,
+/// Calls are grouped by capability, provider, model, profile and feature. Tool calls may run concurrently,
 /// so all access is guarded by a lock.
 /// </summary>
 internal sealed class AIUsageCollector
@@ -23,9 +23,12 @@ internal sealed class AIUsageCollector
         string? modelId,
         Guid? profileId,
         string? profileAlias,
+        string? featureType,
+        Guid? featureId,
+        string? featureAlias,
         UsageDetails? usage)
     {
-        var key = new GroupKey(capability, providerId, modelId, profileId);
+        var key = new GroupKey(capability, providerId, modelId, profileId, featureType, featureId);
 
         lock (_lock)
         {
@@ -36,6 +39,7 @@ internal sealed class AIUsageCollector
             }
 
             group.ProfileAlias ??= profileAlias;
+            group.FeatureAlias ??= featureAlias;
             group.CallCount++;
 
             if (usage is null
@@ -61,13 +65,16 @@ internal sealed class AIUsageCollector
     {
         lock (_lock)
         {
-            var models = _groups
-                .Select(pair => new AIUsageCollectorModelEntry(
+            var breakdown = _groups
+                .Select(pair => new AIUsageCollectorEntry(
                     pair.Key.Capability,
                     pair.Key.ProviderId,
                     pair.Key.ModelId,
                     pair.Key.ProfileId,
                     pair.Value.ProfileAlias,
+                    pair.Key.FeatureType,
+                    pair.Key.FeatureId,
+                    pair.Value.FeatureAlias,
                     ClampToInt(pair.Value.InputTokens),
                     ClampToInt(pair.Value.OutputTokens),
                     ClampToInt(pair.Value.TotalTokens),
@@ -77,6 +84,8 @@ internal sealed class AIUsageCollector
                 .ThenBy(e => e.ProviderId, StringComparer.Ordinal)
                 .ThenBy(e => e.ModelId, StringComparer.Ordinal)
                 .ThenBy(e => e.ProfileId)
+                .ThenBy(e => e.FeatureType, StringComparer.Ordinal)
+                .ThenBy(e => e.FeatureId)
                 .ToList();
 
             return new AIUsageCollectorSnapshot(
@@ -85,17 +94,18 @@ internal sealed class AIUsageCollector
                 ClampToInt(_groups.Values.Sum(g => g.TotalTokens)),
                 _groups.Values.Sum(g => g.CallCount),
                 _groups.Values.Sum(g => g.UnreportedCallCount),
-                models);
+                breakdown);
         }
     }
 
     private static int ClampToInt(long value) => (int)Math.Clamp(value, 0, int.MaxValue);
 
-    private readonly record struct GroupKey(AICapability Capability, string? ProviderId, string? ModelId, Guid? ProfileId);
+    private readonly record struct GroupKey(AICapability Capability, string? ProviderId, string? ModelId, Guid? ProfileId, string? FeatureType, Guid? FeatureId);
 
     private sealed class Group
     {
         public string? ProfileAlias { get; set; }
+        public string? FeatureAlias { get; set; }
         public long InputTokens { get; set; }
         public long OutputTokens { get; set; }
         public long TotalTokens { get; set; }

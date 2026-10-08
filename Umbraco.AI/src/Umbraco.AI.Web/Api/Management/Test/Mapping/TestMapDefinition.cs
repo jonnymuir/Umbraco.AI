@@ -163,13 +163,16 @@ public class TestMapDefinition : IMapDefinition
                         TotalTokens = source.Outcome.TokenUsage.TotalTokens,
                         CallCount = source.Outcome.TokenUsage.CallCount,
                         UnreportedCallCount = source.Outcome.TokenUsage.UnreportedCallCount,
-                        Models = source.Outcome.TokenUsage.Models.Select(m => new TestModelTokenUsageResponseModel
+                        Breakdown = source.Outcome.TokenUsage.Breakdown.Select(m => new TestTokenUsageEntryResponseModel
                         {
                             Capability = m.Capability.ToString(),
                             ProviderId = m.ProviderId,
                             ModelId = m.ModelId,
                             ProfileId = m.ProfileId,
                             ProfileAlias = m.ProfileAlias,
+                            FeatureType = m.FeatureType,
+                            FeatureId = m.FeatureId,
+                            FeatureAlias = m.FeatureAlias,
                             InputTokens = m.InputTokens,
                             OutputTokens = m.OutputTokens,
                             TotalTokens = m.TotalTokens,

@@ -123,6 +123,9 @@ internal sealed class AIOperationTracker : IAIOperationTracker
                 usageContext?.ModelId,
                 usageContext?.ProfileId == Guid.Empty ? null : usageContext?.ProfileId,
                 usageContext?.ProfileAlias,
+                usageContext?.FeatureType,
+                usageContext?.FeatureId == Guid.Empty ? null : usageContext?.FeatureId,
+                usageContext?.FeatureAlias,
                 usage);
         }
         catch (Exception ex)

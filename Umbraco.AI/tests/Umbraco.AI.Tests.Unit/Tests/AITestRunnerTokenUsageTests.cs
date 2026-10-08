@@ -37,7 +37,10 @@ public class AITestRunnerTokenUsageTests
         AICapability Capability = AICapability.Chat,
         int? InputTokens = null,
         int? OutputTokens = null,
-        int? TotalTokens = null)
+        int? TotalTokens = null,
+        string? FeatureType = null,
+        Guid? FeatureId = null,
+        string? FeatureAlias = null)
     {
         public UsageDetails? Usage => InputTokens is null && OutputTokens is null && TotalTokens is null
             ? null
@@ -54,6 +57,20 @@ public class AITestRunnerTokenUsageTests
         runtimeContext.SetValue(Constants.ContextKeys.ProfileAlias, call.ProfileAlias);
         runtimeContext.SetValue(Constants.ContextKeys.ProviderId, call.ProviderId);
         runtimeContext.SetValue(Constants.ContextKeys.ModelId, call.ModelId);
+        if (call.FeatureType is not null)
+        {
+            runtimeContext.SetValue(Constants.ContextKeys.FeatureType, call.FeatureType);
+        }
+
+        if (call.FeatureId is not null)
+        {
+            runtimeContext.SetValue(Constants.ContextKeys.FeatureId, call.FeatureId.Value);
+        }
+
+        if (call.FeatureAlias is not null)
+        {
+            runtimeContext.SetValue(Constants.ContextKeys.FeatureAlias, call.FeatureAlias);
+        }
 
         var contextAccessor = new Mock<IAIRuntimeContextAccessor>();
         contextAccessor.Setup(x => x.Context).Returns(runtimeContext);
@@ -194,7 +211,7 @@ public class AITestRunnerTokenUsageTests
 
         [Fact]
         public void GraderReceivesTheModelIdentity() =>
-            Usage.Models.Select(m => (m.ProviderId, m.ModelId, m.ProfileId, m.ProfileAlias))
+            Usage.Breakdown.Select(m => (m.ProviderId, m.ModelId, m.ProfileId, m.ProfileAlias))
                 .ShouldBe([("openai", "gpt-x", (Guid?)ProfileA, "p1")]);
 
         [Fact]
@@ -235,18 +252,53 @@ public class AITestRunnerTokenUsageTests
         }
 
         [Fact]
-        public void HasAnEntryPerModelAndCapability() => _usage.Models.Count.ShouldBe(3);
+        public void HasAnEntryPerModelAndCapability() => _usage.Breakdown.Count.ShouldBe(3);
 
         [Fact]
-        public void TopLevelTotalEqualsSumOfEntries() => _usage.TotalTokens.ShouldBe(_usage.Models.Sum(m => m.TotalTokens));
+        public void TopLevelTotalEqualsSumOfEntries() => _usage.TotalTokens.ShouldBe(_usage.Breakdown.Sum(m => m.TotalTokens));
 
         [Fact]
         public void EachEntryHoldsOnlyItsOwnTokens() =>
-            _usage.Models.Single(m => m.ModelId == "model-a").TotalTokens.ShouldBe(10);
+            _usage.Breakdown.Single(m => m.ModelId == "model-a").TotalTokens.ShouldBe(10);
 
         [Fact]
         public void EntriesCarryTheirCapability() =>
-            _usage.Models.Count(m => m.Capability == AICapability.Embedding).ShouldBe(1);
+            _usage.Breakdown.Count(m => m.Capability == AICapability.Embedding).ShouldBe(1);
+    }
+
+    public class GivenAPromptCallAndAGuardrailJudgeCallOnTheSameModel
+    {
+        private readonly AITestTokenUsage _usage;
+        private static readonly Guid PromptId = Guid.NewGuid();
+
+        public GivenAPromptCallAndAGuardrailJudgeCallOnTheSameModel()
+        {
+            var harness = new RunnerHarness(() => ReportAsync(
+                new CallSpec("openai", "gpt-x", ProfileA, "p1", TotalTokens: 100,
+                    FeatureType: "prompt", FeatureId: PromptId, FeatureAlias: "my-prompt"),
+                new CallSpec("openai", "gpt-x", ProfileA, "p1", TotalTokens: 40,
+                    FeatureType: "inline-chat", FeatureAlias: "guardrail-llm-evaluator")));
+            _usage = harness.OutcomeSeenByGrader!.TokenUsage!;
+        }
+
+        [Fact]
+        public void GraderSeesAnEntryPerFeature() => _usage.Breakdown.Count.ShouldBe(2);
+
+        [Fact]
+        public void PromptEntryIsIdentifiedByFeatureType() =>
+            _usage.Breakdown.Single(e => e.FeatureType == "prompt").TotalTokens.ShouldBe(100);
+
+        [Fact]
+        public void PromptEntryCarriesTheFeatureId() =>
+            _usage.Breakdown.Single(e => e.FeatureType == "prompt").FeatureId.ShouldBe(PromptId);
+
+        [Fact]
+        public void GuardrailEntryIsIdentifiedByFeatureAlias() =>
+            _usage.Breakdown.Single(e => e.FeatureAlias == "guardrail-llm-evaluator").TotalTokens.ShouldBe(40);
+
+        [Fact]
+        public void TopLevelTotalEqualsSumOfEntries() =>
+            _usage.TotalTokens.ShouldBe(_usage.Breakdown.Sum(e => e.TotalTokens));
     }
 
     public class GivenOneReportedAndOneUnreportedCall
@@ -269,7 +321,7 @@ public class AITestRunnerTokenUsageTests
 
         [Fact]
         public void ModelEntryCountsTheUnreportedCall() =>
-            _usage.Models.Single(m => m.ModelId == "model-b").UnreportedCallCount.ShouldBe(1);
+            _usage.Breakdown.Single(m => m.ModelId == "model-b").UnreportedCallCount.ShouldBe(1);
     }
 
     public class GivenNoTrackedCalls

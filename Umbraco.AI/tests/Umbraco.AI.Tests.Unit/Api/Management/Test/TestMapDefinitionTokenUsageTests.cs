@@ -17,13 +17,16 @@ public class TestMapDefinitionTokenUsageTests
 {
     public class GivenARunWithPopulatedTokenUsage
     {
-        private readonly AITestModelTokenUsage _firstModel = new()
+        private readonly AITestTokenUsageEntry _firstModel = new()
         {
             Capability = AICapability.Chat,
             ProviderId = "openai",
             ModelId = "gpt-4o",
             ProfileId = Guid.NewGuid(),
             ProfileAlias = "chat-profile",
+            FeatureType = "inline-chat",
+            FeatureId = Guid.NewGuid(),
+            FeatureAlias = "guardrail-llm-evaluator",
             InputTokens = 10,
             OutputTokens = 5,
             TotalTokens = 15,
@@ -52,10 +55,10 @@ public class TestMapDefinitionTokenUsageTests
                         TotalTokens = 20,
                         CallCount = 3,
                         UnreportedCallCount = 1,
-                        Models =
+                        Breakdown =
                         [
                             _firstModel,
-                            new AITestModelTokenUsage
+                            new AITestTokenUsageEntry
                             {
                                 Capability = AICapability.Embedding,
                                 ModelId = "text-embedding-3-small",
@@ -78,15 +81,24 @@ public class TestMapDefinitionTokenUsageTests
         public void MapsTheUnreportedCallCount() => _tokenUsage.UnreportedCallCount.ShouldBe(1);
 
         [Fact]
-        public void MapsTheModelEntries() => _tokenUsage.Models.Count().ShouldBe(2);
+        public void MapsTheBreakdownEntries() => _tokenUsage.Breakdown.Count().ShouldBe(2);
 
         [Fact]
-        public void MapsTheModelIdentity()
+        public void MapsTheEntryIdentity()
         {
-            var first = _tokenUsage.Models.First();
+            var first = _tokenUsage.Breakdown.First();
 
             (first.Capability, first.ProviderId, first.ModelId, first.ProfileId, first.ProfileAlias)
                 .ShouldBe((nameof(AICapability.Chat), _firstModel.ProviderId, _firstModel.ModelId, _firstModel.ProfileId, _firstModel.ProfileAlias));
+        }
+
+        [Fact]
+        public void MapsTheFeatureIdentity()
+        {
+            var first = _tokenUsage.Breakdown.First();
+
+            (first.FeatureType, first.FeatureId, first.FeatureAlias)
+                .ShouldBe((_firstModel.FeatureType, _firstModel.FeatureId, _firstModel.FeatureAlias));
         }
     }
 }

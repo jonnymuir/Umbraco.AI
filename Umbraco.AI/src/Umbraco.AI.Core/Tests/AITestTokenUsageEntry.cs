@@ -3,9 +3,11 @@ using Umbraco.AI.Core.Models;
 namespace Umbraco.AI.Core.Tests;
 
 /// <summary>
-/// Token usage for one model (capability, provider, model and profile combination) within a test execution.
+/// Token usage for one breakdown entry (a capability, provider, model, profile and feature combination)
+/// within a test execution. The feature identifies what made the calls, for example a prompt, an agent, or a
+/// guardrail judge, so graders can sum just the entries they care about.
 /// </summary>
-public sealed class AITestModelTokenUsage
+public sealed class AITestTokenUsageEntry
 {
     /// <summary>
     /// The capability the calls were made with (for example Chat or Embedding).
@@ -33,6 +35,21 @@ public sealed class AITestModelTokenUsage
     public string? ProfileAlias { get; set; }
 
     /// <summary>
+    /// The type of feature that made the calls (for example "prompt", "agent" or "inline-chat"), if any.
+    /// </summary>
+    public string? FeatureType { get; set; }
+
+    /// <summary>
+    /// The ID of the feature (for example the prompt or agent) that made the calls, if any.
+    /// </summary>
+    public Guid? FeatureId { get; set; }
+
+    /// <summary>
+    /// The alias of the feature that made the calls, if any (for example "guardrail-llm-evaluator").
+    /// </summary>
+    public string? FeatureAlias { get; set; }
+
+    /// <summary>
     /// Number of input tokens consumed by these calls.
     /// </summary>
     public int InputTokens { get; set; }
@@ -49,12 +66,12 @@ public sealed class AITestModelTokenUsage
     public int TotalTokens { get; set; }
 
     /// <summary>
-    /// Number of tracked calls made with this model, including calls that reported no usage.
+    /// Number of tracked calls made with this entry's combination, including calls that reported no usage.
     /// </summary>
     public int CallCount { get; set; }
 
     /// <summary>
-    /// Number of calls with this model that returned no usage details.
+    /// Number of calls in this entry that returned no usage details.
     /// </summary>
     public int UnreportedCallCount { get; set; }
 }
