@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -54,6 +55,7 @@ internal static class ContentPropertyValueOperationHelper
         IUmbracoWriteAuthorizer authorizer,
         IContentEditingService contentEditingService,
         IAIPropertyValueDispatcher dispatcher,
+        ContentEditorValueReader valueReader,
         Guid contentKey,
         IReadOnlyList<UmbracoPropertyPathSegmentArg>? path,
         AIPropertyOperation operation,
@@ -99,6 +101,11 @@ internal static class ContentPropertyValueOperationHelper
             return ContentPropertyValueOperationOutcome.Fail($"Content with key '{contentKey}' was not found.");
         }
 
+        if (!TryResolveCulture(content, culture, out culture, out var cultureError))
+        {
+            return ContentPropertyValueOperationOutcome.Fail(cultureError);
+        }
+
         var documentMetadata = new AIDocumentMetadata(
             content.ContentType.Key,
             [culture is not null || segment is not null ? new AIVariantId(culture, segment) : AIVariantId.Invariant],
@@ -106,7 +113,19 @@ internal static class ContentPropertyValueOperationHelper
             content.ContentType.Variations.HasFlag(ContentVariation.Segment),
             content.Name);
 
-        var rootValue = ToJsonNode(content.GetValue(rootAlias, culture, segment));
+        // The root property is read and written for the edited variant narrowed to its own variance:
+        // Property.GetValue returns null for a culture on an invariant property, which would make the
+        // dispatcher start from an empty value. Nested block values are narrowed by the dispatcher.
+        // The dispatcher works on the editor format — the same shape the backoffice and the LLM's own
+        // values use — so the new root value can be handed straight back to IContentEditingService.
+        var rootProperty = content.Properties.FirstOrDefault(p => p.Alias == rootAlias);
+        var rootVariant = rootProperty is null
+            ? new AIVariantId(culture, segment)
+            : AIVariantId.ForVariations(new AIVariantId(culture, segment), rootProperty.PropertyType.Variations);
+
+        var rootValue = rootProperty is null
+            ? null
+            : valueReader.GetEditorValueNode(rootProperty, rootVariant.Culture, rootVariant.Segment);
 
         var request = new AIPropertyValueDispatchRequest(segments, operation, args, rootValue, documentMetadata);
         var dispatchResult = await dispatcher.DispatchAsync(request, cancellationToken);
@@ -123,17 +142,19 @@ internal static class ContentPropertyValueOperationHelper
                 Value = dispatchResult.NewRootValue is { } newRootValue
                     ? NormalizeIncomingValue(newRootValue.Deserialize<JsonElement>())
                     : null,
-                Culture = culture,
-                Segment = segment,
+                Culture = rootVariant.Culture,
+                Segment = rootVariant.Segment,
             },
         };
 
         // ContentEditingServiceBase.RemoveMissingProperties clears every property alias NOT present in
         // Properties on every save, so — like UpdateUmbracoContentTool — this must resubmit every other
         // property's current value or an operation touching only the root alias would silently wipe the
-        // rest of the content item. Segment-varying properties are skipped: there's no per-property
-        // segment to read/write them correctly here, so they're left with the pre-existing
-        // (removed-if-omitted) behavior rather than risk a NotSupportedException from guessing a segment.
+        // rest of the content item. The values must be resubmitted in editor format, not the stored
+        // format, or editors such as pickers and dropdowns can't read them back (see ContentEditorValueReader).
+        // Segment-varying properties are skipped: there's no per-property segment to read/write them
+        // correctly here, so they're left with the pre-existing (removed-if-omitted) behavior rather
+        // than risk a NotSupportedException from guessing a segment.
         foreach (var property in content.Properties)
         {
             if (property.Alias == rootAlias || property.PropertyType.VariesBySegment())
@@ -142,11 +163,10 @@ internal static class ContentPropertyValueOperationHelper
             }
 
             var propertyCulture = property.PropertyType.VariesByCulture() ? culture : null;
-            var currentValue = ToJsonNode(property.GetValue(propertyCulture))?.Deserialize<JsonElement>();
             properties.Add(new PropertyValueModel
             {
                 Alias = property.Alias,
-                Value = currentValue is { } cv ? NormalizeIncomingValue(cv) : null,
+                Value = valueReader.GetEditorValue(property, propertyCulture, null),
                 Culture = propertyCulture,
             });
         }
@@ -167,8 +187,76 @@ internal static class ContentPropertyValueOperationHelper
             return ContentPropertyValueOperationOutcome.Fail(updateAttempt.Status.ToMessage());
         }
 
+        // A value in the wrong shape (e.g. rich text sent as something other than { markup, blocks })
+        // passes validation but is turned into nothing by the property editor, so the save "succeeds"
+        // while the property is emptied. Check the saved value and put the old one back if that happened.
+        if (operation == AIPropertyOperation.SetValue
+            && HasContent(args?["value"])
+            && dispatcher is IAIPropertyValueReader reader
+            && updateAttempt.Result.Content is { } savedContent
+            && savedContent.Properties.FirstOrDefault(p => p.Alias == rootAlias) is { } savedRootProperty)
+        {
+            var savedRequest = request with
+            {
+                RootValue = valueReader.GetEditorValueNode(savedRootProperty, rootVariant.Culture, rootVariant.Segment),
+            };
+
+            if (reader.TryReadValue(savedRequest, out var savedValue) && !HasContent(savedValue))
+            {
+                properties[0].Value = rootValue is null ? null : NormalizeIncomingValue(rootValue.Deserialize<JsonElement>());
+                var restoreAttempt = await contentEditingService.UpdateAsync(contentKey, updateModel, authResult.UserKey!.Value);
+
+                return ContentPropertyValueOperationOutcome.Fail(
+                    $"The value for '{path[^1].Alias}' was not saved because the property editor could not read it" +
+                    (restoreAttempt.Success ? ", so the previous value has been kept. " : ", and the previous value could not be restored. ") +
+                    "Call get_property_value_schema to check the expected shape and try again.");
+            }
+        }
+
         return ContentPropertyValueOperationOutcome.Ok(dispatchResult.BlockKey);
     }
+
+    /// <summary>
+    /// Fills in the culture when the caller left it out. On a culture-variant item, a missing culture
+    /// reads every culture-variant property as empty, which surfaces as misleading errors further down
+    /// (e.g. "Block was not found") — so use the item's only culture when there is one, and otherwise
+    /// ask for it, listing the options.
+    /// </summary>
+    internal static bool TryResolveCulture(IContent content, string? culture, out string? resolvedCulture, [NotNullWhen(false)] out string? error)
+    {
+        resolvedCulture = string.IsNullOrWhiteSpace(culture) ? null : culture;
+        error = null;
+
+        if (resolvedCulture is not null || !content.ContentType.Variations.HasFlag(ContentVariation.Culture))
+        {
+            return true;
+        }
+
+        var cultures = content.AvailableCultures.ToArray();
+        if (cultures.Length == 1)
+        {
+            resolvedCulture = cultures[0];
+            return true;
+        }
+
+        error = cultures.Length == 0
+            ? "This content item varies by culture, so a Culture is required."
+            : $"This content item varies by culture, so a Culture is required. Available cultures: {string.Join(", ", cultures)}.";
+        return false;
+    }
+
+    /// <summary>
+    /// Whether a value carries something to store: not null, not an empty string, array or object.
+    /// </summary>
+    private static bool HasContent(JsonNode? value) => value switch
+    {
+        null => false,
+        JsonValue v when v.GetValueKind() == JsonValueKind.Null => false,
+        JsonValue v when v.GetValueKind() == JsonValueKind.String => !string.IsNullOrWhiteSpace(v.GetValue<string>()),
+        JsonArray a => a.Count > 0,
+        JsonObject o => o.Count > 0,
+        _ => true,
+    };
 
     private static AIPropertyPathSegment ToSegment(UmbracoPropertyPathSegmentArg segment) => segment switch
     {

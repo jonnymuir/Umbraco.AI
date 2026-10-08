@@ -8,6 +8,8 @@ using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Actions;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.ContentEditing;
+using Umbraco.Cms.Core.PropertyEditors;
+using Umbraco.Cms.Core.Serialization;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Services.OperationStatus;
 using Umbraco.Extensions;
@@ -24,7 +26,7 @@ public class UpdateUmbracoContentToolTests
     {
         _contentEditingServiceMock = new Mock<IContentEditingService>();
         _authorizerMock = new Mock<IUmbracoWriteAuthorizer>();
-        _tool = new UpdateUmbracoContentTool(_contentEditingServiceMock.Object, _authorizerMock.Object);
+        _tool = new UpdateUmbracoContentTool(_contentEditingServiceMock.Object, _authorizerMock.Object, new PropertyEditorCollection(new DataEditorCollection(() => [])), Mock.Of<IJsonSerializer>());
     }
 
     private static Mock<IContent> CreateContentMock(Guid key, string name, string contentTypeAlias, IEnumerable<IProperty>? properties = null)
@@ -99,6 +101,28 @@ public class UpdateUmbracoContentToolTests
         var typed = result.ShouldBeOfType<UpdateUmbracoContentResult>();
         typed.Success.ShouldBeFalse();
         typed.Message.ShouldBe("no permission");
+        _contentEditingServiceMock.Verify(
+            x => x.UpdateAsync(It.IsAny<Guid>(), It.IsAny<ContentUpdateModel>(), It.IsAny<Guid>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_VariantContentWithoutCultureAndSeveralCultures_AsksForCulture()
+    {
+        var key = Guid.NewGuid();
+        _authorizerMock
+            .Setup(x => x.AuthorizeContentAsync(ActionUpdate.ActionLetter, key, null))
+            .ReturnsAsync(UmbracoWriteAuthorizationResult.Allowed(Guid.NewGuid()));
+        var contentMock = CreateContentMock(key, "Home", "homePage");
+        Mock.Get(contentMock.Object.ContentType).Setup(x => x.Variations).Returns(ContentVariation.Culture);
+        contentMock.Setup(x => x.AvailableCultures).Returns(["en-US", "da-DK"]);
+        _contentEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync(contentMock.Object);
+
+        var result = await _tool.ExecuteAsync(new UpdateUmbracoContentArgs(key, "New Name", null), CancellationToken.None);
+
+        var typed = result.ShouldBeOfType<UpdateUmbracoContentResult>();
+        typed.Success.ShouldBeFalse();
+        typed.Message.ShouldContain("en-US, da-DK");
         _contentEditingServiceMock.Verify(
             x => x.UpdateAsync(It.IsAny<Guid>(), It.IsAny<ContentUpdateModel>(), It.IsAny<Guid>()),
             Times.Never);

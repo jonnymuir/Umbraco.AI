@@ -181,8 +181,10 @@ export abstract class PropertyValueOperationToolBase
         const documentMetadata: DocumentMetadata = {
             contentTypeKey: workspace.getContentTypeUnique?.() ?? "",
             variants: this.#resolveVariants(workspace),
-            isVariant: variant?.culture != null,
-            isSegmented: variant?.segment != null,
+            // Document-level flags follow the edited variant, not the root property: an invariant
+            // block list on a culture-variant document still holds culture-variant block values.
+            isVariant: variantHint?.culture != null,
+            isSegmented: variantHint?.segment != null,
             name: workspace.getName?.(),
         };
 
@@ -192,6 +194,9 @@ export abstract class PropertyValueOperationToolBase
             args: built.args,
             rootValue,
             documentMetadata,
+            // The un-normalised edited variant: values nested inside blocks are narrowed server-side
+            // to each nested property's own variance, independent of the root property's.
+            variant: variantHint,
         });
 
         if (!response.success || response.error) {

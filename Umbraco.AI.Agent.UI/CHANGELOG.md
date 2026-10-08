@@ -5,6 +5,12 @@ All notable changes to Umbraco.AI.Agent.UI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.2.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.UI@18.1.0...Umbraco.AI.Agent.UI@18.2.0) (2026-10-05)
+
+### feat
+
+* **agent-ui,agent:** Send the previous auto pick with each run ([aa41c24](https://github.com/umbraco/Umbraco.AI/commit/aa41c24b5d921e49eff22bd035fec5ae407385ae))
+
 ## [18.1.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.UI@18.1.0-rc.4...Umbraco.AI.Agent.UI@18.1.0) (2026-10-01)
 
 ### feat

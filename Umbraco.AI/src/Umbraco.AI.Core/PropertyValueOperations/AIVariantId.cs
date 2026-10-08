@@ -1,3 +1,6 @@
+using Umbraco.Cms.Core.Models;
+using Umbraco.Extensions;
+
 namespace Umbraco.AI.Core.PropertyValueOperations;
 
 /// <summary>
@@ -16,4 +19,14 @@ public sealed record AIVariantId(string? Culture, string? Segment)
     /// Gets a value indicating whether this identifier represents invariant, non-segmented content.
     /// </summary>
     public bool IsInvariant => Culture is null && Segment is null;
+
+    /// <summary>
+    /// Narrows a variant to the dimensions a property type (or element type) actually varies by.
+    /// Mirrors the CMS rule for block values: a value carries a culture only when its own property
+    /// type varies by culture, and a segment only when it varies by segment.
+    /// </summary>
+    internal static AIVariantId ForVariations(AIVariantId? variant, ContentVariation variations)
+        => new(
+            variations.VariesByCulture() ? variant?.Culture : null,
+            variations.VariesBySegment() ? variant?.Segment : null);
 }
