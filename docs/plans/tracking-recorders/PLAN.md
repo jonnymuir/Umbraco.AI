@@ -66,7 +66,7 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
   - Doc comments and `docs/reference/` that still describe the old tracker.
   - The recorder contracts themselves: anything added "for later" that no recorder ended up using.
 
-- [ ] **T6. Turn package validation back on** (after T5, so it baselines the finished shape).
+- [x] **T6. Turn package validation back on** (after T5, so it baselines the finished shape).
   `EnablePackageValidation` is `false` in every product's `Directory.Build.props`, with a stale
   `PackageValidationBaselineVersion` of `1.0.0`, and no `CompatibilitySuppressions.xml` exists. So
   nothing currently catches a public API break.

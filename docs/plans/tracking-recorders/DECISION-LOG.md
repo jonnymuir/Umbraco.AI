@@ -72,6 +72,18 @@
   them for another reason.
 - 08-10-2026 (T5): The recorder contracts have nothing unused: `EnterScope` is used by audit,
   `ResponseData` by audit, `Blocked` by audit and analytics.
+- 08-10-2026 (T6): Package validation is on for every product through a shared
+  `PackageValidation.props`, baselined on `X.0.0` with X read from the product's `version.json`.
+  Every product has an `X.0.0` on NuGet, so no per-product baseline was needed.
+- 08-10-2026 (T6): Every break since 18.0.0 was accepted as baseline suppressions rather than
+  restored, as none are meant for outside callers:
+  - The chat, embedding and speech-to-text tracking middleware became internal (this refactor).
+  - `AIUsageRecord.Status` became `AIUsageRecordStatus` (T3).
+  - `IAIUmbracoMediaResolver.GetMediaType` and the `approvalPolicy` parameter on
+    `IAIAgentFactory.CreateAgentAsync` only break custom implementations of those interfaces.
+    The agent factory change already shipped in Agent 18.1.0, and nothing outside Agent calls it.
+  - Changed constructors on the five content tools, `AIUsageTelemetryProvider`,
+    `ProviderMapDefinition` and `CapabilitiesConnectionController` are only called by DI.
 - 08-10-2026: Added T7. The refactor was built by hand rather than through `umb-build-loop`, so no
   task had its reviewer gate. T7 runs the playbook's reviewer agent over every task's diff at the
   end, compares the work with how the build loop would have shaped it, and writes the missing
