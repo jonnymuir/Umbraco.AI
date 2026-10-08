@@ -242,4 +242,19 @@ internal sealed class AIUsageAggregationService : IAIUsageAggregationService
             throw;
         }
     }
+
+    /// <inheritdoc />
+    public async Task<DateTime> GetLastDayReadyForRollupAsync(DateTime latestDay, CancellationToken ct = default)
+    {
+        // Hourly aggregation deletes each hour's raw records, so a day that still has raw records has
+        // hours it hasn't reached yet. Rolling that day up now would leave them out of its daily total.
+        var firstRecordTimestamp = await _recordRepository.GetFirstRecordTimestampAsync(ct);
+        if (firstRecordTimestamp is null)
+        {
+            return latestDay;
+        }
+
+        var dayBeforeFirstRecord = firstRecordTimestamp.Value.Date.AddDays(-1);
+        return dayBeforeFirstRecord < latestDay ? dayBeforeFirstRecord : latestDay;
+    }
 }

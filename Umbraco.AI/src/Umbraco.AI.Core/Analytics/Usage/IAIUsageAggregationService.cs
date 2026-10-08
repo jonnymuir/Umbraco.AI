@@ -20,4 +20,12 @@ internal interface IAIUsageAggregationService
     /// <param name="day">The day to aggregate (must be at midnight UTC).</param>
     /// <param name="ct">Cancellation token.</param>
     Task AggregateDailyAsync(DateTime day, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the last day, up to <paramref name="latestDay"/>, whose hours have all been aggregated into
+    /// hourly statistics, so it can be rolled up without leaving any of them out.
+    /// </summary>
+    /// <param name="latestDay">The latest day the caller wants to roll up (midnight UTC).</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task<DateTime> GetLastDayReadyForRollupAsync(DateTime latestDay, CancellationToken ct = default);
 }

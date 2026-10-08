@@ -15,7 +15,6 @@ namespace Umbraco.AI.Core.Analytics.Usage;
 internal sealed class AIUsageDailyRollupJob : UmbracoAIRecurringHostedServiceBase
 {
     private readonly IAIUsageAggregationService _aggregationService;
-    private readonly IAIUsageRecordRepository _recordRepository;
     private readonly IAIUsageStatisticsRepository _statisticsRepository;
     private readonly IOptionsMonitor<AIAnalyticsOptions> _options;
     private readonly IRuntimeState _runtimeState;
@@ -29,7 +28,6 @@ internal sealed class AIUsageDailyRollupJob : UmbracoAIRecurringHostedServiceBas
 
     public AIUsageDailyRollupJob(
         IAIUsageAggregationService aggregationService,
-        IAIUsageRecordRepository recordRepository,
         IAIUsageStatisticsRepository statisticsRepository,
         IOptionsMonitor<AIAnalyticsOptions> options,
         IRuntimeState runtimeState,
@@ -39,7 +37,6 @@ internal sealed class AIUsageDailyRollupJob : UmbracoAIRecurringHostedServiceBas
         : base(logger, CheckInterval, StartupDelay)
     {
         _aggregationService = aggregationService;
-        _recordRepository = recordRepository;
         _statisticsRepository = statisticsRepository;
         _options = options;
         _runtimeState = runtimeState;
@@ -97,12 +94,8 @@ internal sealed class AIUsageDailyRollupJob : UmbracoAIRecurringHostedServiceBas
         var yesterday = GetDayStart(now.AddDays(-1)); // Only process completed days (yesterday and earlier)
 
         // A day is rolled up from its hourly statistics, so it must wait until the hourly job has
-        // aggregated all its hours. That job deletes each hour's raw records, so any day that still has
-        // raw records isn't ready: rolling it up now would leave those hours out of its daily total.
-        var firstRecordTimestamp = await _recordRepository.GetFirstRecordTimestampAsync(ct);
-        var lastReadyDay = firstRecordTimestamp is null
-            ? yesterday
-            : Min(yesterday, GetDayStart(firstRecordTimestamp.Value).AddDays(-1));
+        // aggregated all its hours, or its daily total would leave them out for good.
+        var lastReadyDay = await _aggregationService.GetLastDayReadyForRollupAsync(yesterday, ct);
 
         // Get last aggregated daily period
         var lastAggregatedPeriod = await _statisticsRepository.GetLastAggregatedDailyPeriodAsync(ct);
