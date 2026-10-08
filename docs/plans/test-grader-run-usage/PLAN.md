@@ -58,6 +58,16 @@ Paths are relative to `Umbraco.AI/`. Unit tests go in `tests/Umbraco.AI.Tests.Un
   tracker (core, API, TS client). Prompt transcript `usage` marked deprecated (removal v20).
   story: S1, S2 · depends-on: T9 · parallel-group: —
 
+- [x] **T11** — Whole-feature review fixes: correct API/XML docs (grader calls excluded; TokenUsage
+  describes counts, failures, duration, breakdown), stale tracker comment, Guid.Empty comment, named
+  arguments for the collector entry, leftover per-model test names. Names kept.
+  story: all · depends-on: T10 · parallel-group: —
+
+- [x] **T12** — New `AITestOutcome.Usage` (`AITestUsage`, `AITestUsageEntry`); `TokenUsage` and
+  `AITestTokenUsage` reverted to their dev shape, always null, `[Obsolete]` (v20). Same in the API
+  (`usage` new, `tokenUsage` obsolete). Stored in the existing `OutcomeTokenUsageJson` column.
+  story: all · depends-on: T11 · parallel-group: —
+
 - [ ] **T7** — Backport to `v17/dev` via the `backport` skill (separate worktree, draft PR).
   Confirm the v17 tracker/runner code matches before porting.
   story: all · depends-on: T6 and the v18 PR · parallel-group: —

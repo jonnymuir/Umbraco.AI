@@ -23,22 +23,22 @@ Out of scope: errored runs, cost/CO2e maths, a built-in budget grader.
 AC1.1 — Usage is ready before grading
   Given a test whose feature makes one tracked model call that reports 100 input and 20 output tokens
   When the run executes
-  Then the outcome a grader receives has `TokenUsage` with InputTokens 100, OutputTokens 20, TotalTokens 120
+  Then the outcome a grader receives has `Usage` with InputTokens 100, OutputTokens 20, TotalTokens 120
 
 AC1.2 — Multiple calls are summed
   Given a test whose feature makes three tracked model calls that each report usage
   When the run executes
-  Then `TokenUsage` totals equal the sum of the three calls
+  Then `Usage` totals equal the sum of the three calls
 
 AC1.3 — Call count
   Given a test whose feature makes three tracked model calls
   When the run executes
-  Then `TokenUsage.CallCount` is 3
+  Then `Usage.CallCount` is 3
 
 AC1.4 — Collected with analytics switched off
   Given usage analytics is disabled
   When a run makes a tracked model call that reports usage
-  Then `TokenUsage` still holds that call's tokens
+  Then `Usage` still holds that call's tokens
 
 **Sad path / edges**
 
@@ -55,17 +55,17 @@ AC1.6 — Unreported usage leaves totals as a lower bound
 AC1.7 — No tracked calls
   Given a test whose feature makes no tracked model call
   When the run executes
-  Then `TokenUsage` is null
+  Then `Usage` is null
 
 AC1.8 — Grader calls are excluded
   Given a grader that itself makes a tracked model call while grading
   When the run executes
-  Then that call is not counted in `TokenUsage`
+  Then that call is not counted in `Usage`
 
 AC1.9 — Concurrent runs are isolated
   Given two runs executing at the same time, each making its own tracked calls
   When both complete
-  Then each run's `TokenUsage` holds only its own calls
+  Then each run's `Usage` holds only its own calls
 
 AC1.10 — Errored run unchanged
   Given a feature that makes a tracked call and then throws
@@ -88,12 +88,12 @@ so that **I can pick the right price or emission factor and tell variations apar
 AC2.1 — Model identity
   Given a run whose calls use profile "p1" on provider "openai" with model "gpt-x"
   When the run executes
-  Then `TokenUsage.Breakdown` has one entry with that ProviderId, ModelId, ProfileId and ProfileAlias
+  Then `Usage.Breakdown` has one entry with that ProviderId, ModelId, ProfileId and ProfileAlias
 
 AC2.2 — Two models, two entries
   Given a run that calls two different models
   When the run executes
-  Then `TokenUsage.Breakdown` has two entries
+  Then `Usage.Breakdown` has two entries
 
 AC2.3 — Entry totals
   Given a run that calls two different models
@@ -126,14 +126,14 @@ so that **existing graders keep working and run details show usage**.
 **Happy path**
 
 AC3.1 — Round-trips through persistence
-  Given a run whose outcome has a `TokenUsage` with two model entries
+  Given a run whose outcome has a `Usage` with two model entries
   When it is saved and loaded again
-  Then the loaded `TokenUsage` has the same totals and the same two entries
+  Then the loaded `Usage` has the same totals and the same two entries
 
 AC3.2 — Exposed through the Management API
-  Given a run whose outcome has a populated `TokenUsage`
+  Given a run whose outcome has a populated `Usage`
   When it is mapped to `TestRunResponseModel`
-  Then `outcome.tokenUsage` carries callCount, unreportedCallCount and the models list
+  Then `outcome.usage` carries callCount, unreportedCallCount and the breakdown list
 
 AC3.3 — Visible on a real run
   Given the demo site with a working chat profile and a prompt or agent test

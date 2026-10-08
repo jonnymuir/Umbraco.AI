@@ -10,7 +10,7 @@ None new. This hooks into two existing internal seams in `Umbraco.AI.Core`:
    context already holds `ProviderId`, `ModelId`, `ProfileId` and `ProfileAlias`, set by
    `ScopedProfileChatClient` (and its embedding/image/STT siblings).
 2. **`AITestRunner.ExecuteSingleRunAsync`** (`Core/Tests/`). Wraps the feature execution in a
-   usage collection scope and copies the result onto `AITestOutcome.TokenUsage` before grading.
+   usage collection scope and copies the result onto `AITestOutcome.Usage` before grading.
 
 Checked facts that make this work:
 
@@ -28,21 +28,25 @@ Checked facts that make this work:
 
 ## Data model & persistence
 
-No migration. No entity or factory change.
+Usage lives on a new `AITestOutcome.Usage` (`AITestUsage`), persisted as JSON in
+`AITestRunEntity.OutcomeUsageJson`. That column was `OutcomeTokenUsageJson`, which only ever held
+null because the old `TokenUsage` was never populated. A rename migration
+(`UmbracoAI_RenameTestRunOutcomeUsageColumn`, SQL Server `20261008102116`, SQLite
+`20261008102119`) renames it in place. The v17 backport must reuse these exact migration IDs.
 
-`AITestTokenUsage` gains a breakdown list, one entry per model and feature. It is already persisted as JSON in
-`AITestRunEntity.OutcomeTokenUsageJson`, so the new list round-trips through the existing
-column. Older rows deserialize with an empty list.
+`AITestOutcome.TokenUsage` and `AITestTokenUsage` keep their original shape, are never set, and
+are `[Obsolete]` (removal in v20).
 
 ```
 AITestOutcome
-└── TokenUsage : AITestTokenUsage?          (existing, now populated)
-    ├── InputTokens / OutputTokens / TotalTokens   (existing, summed over the run)
-    ├── CallCount                                  (new)
-    ├── UnreportedCallCount                        (new: calls that returned no usage)
-    ├── FailedCallCount                            (new: calls that ended in FailAsync)
-    ├── DurationMs                                 (new: summed AI call time, not wall-clock)
-    └── Breakdown : List<AITestTokenUsageEntry>    (new)
+├── TokenUsage : AITestTokenUsage?          (existing, always null, obsolete)
+└── Usage : AITestUsage?                     (new, null when no tracked call)
+    ├── InputTokens / OutputTokens / TotalTokens   (summed over the run)
+    ├── CallCount
+    ├── UnreportedCallCount                        (calls that returned no usage)
+    ├── FailedCallCount                            (calls that ended in FailAsync)
+    ├── DurationMs                                 (summed AI call time, not wall-clock)
+    └── Breakdown : List<AITestUsageEntry>
         ├── Capability, ProviderId, ModelId, ProfileId?, ProfileAlias?
         ├── FeatureType?, FeatureId?, FeatureAlias?
         ├── InputTokens / OutputTokens / TotalTokens
@@ -51,12 +55,13 @@ AITestOutcome
 
 ## Connected systems
 
-- **Persistence:** covered by the existing JSON column (see above). No migration, so no v17/v18
-  migration-ID risk.
-- **Management API:** `TestTokenUsageResponseModel` gains the same new fields plus a `models`
-  list. Additive only. The generated TypeScript client is regenerated.
-- **Backoffice UI:** the run detail view already prints `outcome.tokenUsage` as raw JSON, so the
-  breakdown shows up with no UI code change.
+- **Persistence:** one JSON column, renamed by migration (see above). Migration IDs must match on
+  v17.
+- **Management API:** new `outcome.usage` (`TestUsageResponseModel`, `TestUsageEntryResponseModel`).
+  `outcome.tokenUsage` (`TestTokenUsageResponseModel`) keeps its shape, is never set and is
+  obsolete. The generated TypeScript client is regenerated.
+- **Backoffice UI:** the run detail view prints `outcome.usage` as raw JSON (one-line switch from
+  `tokenUsage`). A proper table is follow-up #523.
 - **Usage analytics:** shares one usage context with the collector, captured once in
   `BeginAsync` (as the audit log already did). This fixes analytics crediting tokens to a nested
   call's model. The collector runs independent of the analytics switch, so it works when analytics
@@ -86,10 +91,11 @@ AITestOutcome
    > ASSUMPTION: Kept internal (per the "internal plumbing, public contracts" rule). Making it a
    > public extension point can come later if someone needs to collect usage outside tests.
 
-3. **Breakdown lives on `AITestTokenUsage`, passed to graders through the existing `outcome`.**
+3. **Usage lives on a new `AITestOutcome.Usage`, passed to graders through the existing `outcome`.**
    Rationale: `GradeAsync(transcript, outcome, config, ct)` already hands graders the outcome.
-   Adding properties to a sealed class is non-breaking, so every existing grader keeps working
-   with no signature change, and the data persists for free.
+   Adding a property to a sealed class is non-breaking, so every existing grader keeps working
+   with no signature change. The old `TokenUsage` was always null, so it is simply left null and
+   obsoleted rather than repurposed under a name that only says tokens.
    Rejected: a new grader context type or `GradeAsync` overload. More public surface, and needs
    the obsolete-and-proxy dance, for no gain.
 
@@ -101,7 +107,7 @@ AITestOutcome
 5. **Grader calls are excluded by scope timing.** The collection scope is disposed before
    `GradeOutcomeAsync` runs, so an LLM-judge grader's own calls never count.
 
-6. **"Unknown" is not "zero".** `TokenUsage` is `null` only when the run made no tracked call.
+6. **"Unknown" is not "zero".** `Usage` is `null` only when the run made no tracked call.
    A call that returned no `UsageDetails` increments `UnreportedCallCount` instead of adding
    zeros silently, so a budget grader can tell the total is incomplete.
 
