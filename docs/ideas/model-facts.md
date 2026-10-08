@@ -128,6 +128,10 @@ choosing from a long list, instead of a plain `uui-select`:
 - Picking a row selects the model. The modal could later offer comparing two or three models side by
   side.
 
+![Mockup of the model picker: a "Choose a model" panel listing Anthropic models in a table with Context, Price and Est. CO2e per 1k tokens columns, sorted by CO2e, with "Retiring" warning tags and a "Not estimated" row](images/model-facts-picker.png)
+
+*Mockup with illustrative values. Source: [images/model-facts-picker.html](images/model-facts-picker.html).*
+
 **Selected model.** Under the Model field, core shows the chosen model's facts as a compact list:
 label, value, a tooltip for `Detail` and a warning style for `Tone = Warning`.
 
