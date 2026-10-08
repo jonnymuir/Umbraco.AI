@@ -111,7 +111,6 @@ internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBa
         Capability = AICapability.SpeechToText,
         PromptData = BuildPromptData(options),
         Metadata = AIAuditMetadata.ExtractFromRuntimeContext(_contextAccessor.Context),
-        RecordUsageWhenEmpty = true,
     };
 
     /// <summary>

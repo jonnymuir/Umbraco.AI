@@ -49,10 +49,8 @@ internal sealed class AIAnalyticsOperationRecorder : IAIOperationRecorder
                 return;
             }
 
-            if (outcome.Usage is null && !start.Descriptor.RecordUsageWhenEmpty)
-            {
-                return; // chat/embedding: no token counts => nothing to record
-            }
+            // Recorded even without token counts (speech-to-text never has them): the duration and
+            // status still count.
 
             var recordContext = AIUsageRecordContext.FromUsageContext(start.Identity);
             var result = new AIUsageRecordResult

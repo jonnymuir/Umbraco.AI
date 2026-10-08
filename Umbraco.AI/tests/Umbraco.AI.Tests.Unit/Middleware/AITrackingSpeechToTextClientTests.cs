@@ -111,7 +111,7 @@ public class AITrackingSpeechToTextClientTests
     [Fact]
     public async Task GetTextAsync_OnSuccess_RecordsUsageEvenWithoutUsageDetails()
     {
-        // Arrange — STT uses RecordUsageWhenEmpty=true, so a duration/status record is queued
+        // Arrange — Usage is always recorded, so a duration/status record is queued
         // even though there is no UsageDetails to report (STT has no token usage).
         var fakeClient = new FakeSpeechToTextClient();
         var client = CreateClient(fakeClient);
@@ -154,7 +154,7 @@ public class AITrackingSpeechToTextClientTests
         _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(
             It.IsAny<AIAuditLog>(), It.IsAny<AIAuditPrompt?>(), It.IsAny<AIAuditResponse?>(), It.IsAny<CancellationToken>()), Times.Never);
 
-        // RecordUsageWhenEmpty=true means even a failed operation with no usage records duration/status.
+        // Usage is always recorded, so even a failed operation with no usage records duration/status.
         var record = await AwaitOrTimeout(usageSignal.Task);
         record.Status.ShouldBe(AIUsageRecordStatus.Failed);
         record.ErrorMessage.ShouldBe("AI error");
@@ -249,7 +249,7 @@ public class AITrackingSpeechToTextClientTests
     [Fact]
     public async Task GetStreamingTextAsync_OnSuccess_RecordsUsageEvenWithoutUsageDetails()
     {
-        // Arrange — STT uses RecordUsageWhenEmpty=true even for the streaming path.
+        // Arrange — Usage is always recorded, on the streaming path too.
         var fakeClient = new FakeStreamingSpeechToTextClient("Hello");
         var client = CreateClient(fakeClient);
         var usageSignal = ArrangeUsageRecordingSignal();

@@ -37,7 +37,6 @@ internal sealed class AITrackingImageGenerationClient : AIBoundImageGeneratorBas
             Capability = AICapability.ImageGeneration,
             PromptData = BuildPromptData(request, options),
             Metadata = null,
-            RecordUsageWhenEmpty = true,
         };
 
         var tracked = await _tracker.TrackAsync(
