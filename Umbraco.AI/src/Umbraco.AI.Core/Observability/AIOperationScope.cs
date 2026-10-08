@@ -48,7 +48,8 @@ internal sealed class AIOperationScope : IDisposable
     public async Task CompleteAsync(UsageDetails? usage, AIAuditResponse? auditResponse)
     {
         _stopwatch.Stop();
-        _tracker.CollectUsage(_descriptor, _usageContext, usage);
+        var durationMs = _stopwatch.ElapsedMilliseconds;
+        _tracker.CollectUsage(_descriptor, _usageContext, usage, durationMs, succeeded: true);
 
         if (_auditLog is not null)
         {
@@ -57,13 +58,14 @@ internal sealed class AIOperationScope : IDisposable
         }
 
         _ = _tracker.RecordUsageAsync(
-            _descriptor, _usageContext, usage, _stopwatch.ElapsedMilliseconds, succeeded: true, errorMessage: null, _cancellationToken);
+            _descriptor, _usageContext, usage, durationMs, succeeded: true, errorMessage: null, _cancellationToken);
     }
 
     public async Task FailAsync(Exception exception, UsageDetails? usage = null)
     {
         _stopwatch.Stop();
-        _tracker.CollectUsage(_descriptor, _usageContext, usage);
+        var durationMs = _stopwatch.ElapsedMilliseconds;
+        _tracker.CollectUsage(_descriptor, _usageContext, usage, durationMs, succeeded: false);
 
         if (_auditLog is not null)
         {
@@ -72,7 +74,7 @@ internal sealed class AIOperationScope : IDisposable
         }
 
         _ = _tracker.RecordUsageAsync(
-            _descriptor, _usageContext, usage, _stopwatch.ElapsedMilliseconds, succeeded: false, errorMessage: exception.Message, _cancellationToken);
+            _descriptor, _usageContext, usage, durationMs, succeeded: false, errorMessage: exception.Message, _cancellationToken);
     }
 
     public void Dispose() => _auditScope?.Dispose();

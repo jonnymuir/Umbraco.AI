@@ -341,6 +341,8 @@ internal sealed class AITestRunner : IAITestRunner
             TotalTokens = snapshot.TotalTokens,
             CallCount = snapshot.CallCount,
             UnreportedCallCount = snapshot.UnreportedCallCount,
+            DurationMs = snapshot.DurationMs,
+            FailedCallCount = snapshot.FailedCallCount,
             Breakdown = snapshot.Breakdown
                 .Select(m => new AITestTokenUsageEntry
                 {
@@ -356,7 +358,9 @@ internal sealed class AITestRunner : IAITestRunner
                     OutputTokens = m.OutputTokens,
                     TotalTokens = m.TotalTokens,
                     CallCount = m.CallCount,
-                    UnreportedCallCount = m.UnreportedCallCount
+                    UnreportedCallCount = m.UnreportedCallCount,
+                    DurationMs = m.DurationMs,
+                    FailedCallCount = m.FailedCallCount
                 })
                 .ToList()
         };

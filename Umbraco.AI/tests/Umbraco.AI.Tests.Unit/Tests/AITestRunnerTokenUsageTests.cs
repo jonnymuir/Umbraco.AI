@@ -40,7 +40,9 @@ public class AITestRunnerTokenUsageTests
         int? TotalTokens = null,
         string? FeatureType = null,
         Guid? FeatureId = null,
-        string? FeatureAlias = null)
+        string? FeatureAlias = null,
+        int DelayMs = 0,
+        bool Fails = false)
     {
         public UsageDetails? Usage => InputTokens is null && OutputTokens is null && TotalTokens is null
             ? null
@@ -91,10 +93,30 @@ public class AITestRunnerTokenUsageTests
             analyticsOptions.Object,
             NullLogger<AIOperationTracker>.Instance);
 
-        await tracker.TrackAsync(
-            new AIOperationDescriptor { Capability = call.Capability, PromptData = "prompt" },
-            _ => Task.FromResult(new AITrackedOperationResult<string> { Result = "ok", Usage = call.Usage }),
-            CancellationToken.None);
+        try
+        {
+            await tracker.TrackAsync(
+                new AIOperationDescriptor { Capability = call.Capability, PromptData = "prompt" },
+                async _ =>
+                {
+                    if (call.DelayMs > 0)
+                    {
+                        await Task.Delay(call.DelayMs);
+                    }
+
+                    if (call.Fails)
+                    {
+                        throw new InvalidOperationException("provider failed");
+                    }
+
+                    return new AITrackedOperationResult<string> { Result = "ok", Usage = call.Usage };
+                },
+                CancellationToken.None);
+        }
+        catch (InvalidOperationException) when (call.Fails)
+        {
+            // The call is meant to fail; the tracker has recorded the failure before rethrowing.
+        }
     }
 
     private static async Task ReportAsync(params CallSpec[] calls)
@@ -322,6 +344,35 @@ public class AITestRunnerTokenUsageTests
         [Fact]
         public void ModelEntryCountsTheUnreportedCall() =>
             _usage.Breakdown.Single(m => m.ModelId == "model-b").UnreportedCallCount.ShouldBe(1);
+    }
+
+    public class GivenTimedCallsAndOneFailedCall
+    {
+        private readonly AITestTokenUsage _usage;
+
+        public GivenTimedCallsAndOneFailedCall()
+        {
+            var harness = new RunnerHarness(() => ReportAsync(
+                new CallSpec("openai", "model-a", ProfileA, "pa", TotalTokens: 10, DelayMs: 40),
+                new CallSpec("openai", "model-b", ProfileB, "pb", DelayMs: 40, Fails: true)));
+            _usage = harness.OutcomeSeenByGrader!.TokenUsage!;
+        }
+
+        [Fact]
+        public void GraderReceivesTheSummedDuration() => _usage.DurationMs.ShouldBeGreaterThanOrEqualTo(60);
+
+        [Fact]
+        public void TopLevelDurationEqualsSumOfEntries() => _usage.DurationMs.ShouldBe(_usage.Breakdown.Sum(e => e.DurationMs));
+
+        [Fact]
+        public void GraderReceivesTheFailedCallCount() => _usage.FailedCallCount.ShouldBe(1);
+
+        [Fact]
+        public void FailedCallIsAttributedToItsEntry() =>
+            _usage.Breakdown.Single(e => e.ModelId == "model-b").FailedCallCount.ShouldBe(1);
+
+        [Fact]
+        public void FailedCallStillCountsAsACall() => _usage.CallCount.ShouldBe(2);
     }
 
     public class GivenNoTrackedCalls

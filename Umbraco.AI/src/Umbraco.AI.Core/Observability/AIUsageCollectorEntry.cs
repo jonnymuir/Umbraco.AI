@@ -18,4 +18,6 @@ internal sealed record AIUsageCollectorEntry(
     int OutputTokens,
     int TotalTokens,
     int CallCount,
-    int UnreportedCallCount);
+    int UnreportedCallCount,
+    long DurationMs,
+    int FailedCallCount);

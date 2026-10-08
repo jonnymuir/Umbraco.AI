@@ -23,6 +23,8 @@ public class AITestTokenUsageSerializationTests
                 TotalTokens = 175,
                 CallCount = 3,
                 UnreportedCallCount = 1,
+                DurationMs = 1500,
+                FailedCallCount = 1,
                 Breakdown =
                 [
                     new AITestTokenUsageEntry
@@ -39,7 +41,9 @@ public class AITestTokenUsageSerializationTests
                         OutputTokens = 20,
                         TotalTokens = 120,
                         CallCount = 2,
-                        UnreportedCallCount = 0
+                        UnreportedCallCount = 0,
+                        DurationMs = 1100,
+                        FailedCallCount = 1
                     },
                     new AITestTokenUsageEntry
                     {
@@ -71,6 +75,18 @@ public class AITestTokenUsageSerializationTests
         public void KeepsTheCallCount()
         {
             _loaded.CallCount.ShouldBe(_original.CallCount);
+        }
+
+        [Fact]
+        public void KeepsTheDuration()
+        {
+            _loaded.DurationMs.ShouldBe(_original.DurationMs);
+        }
+
+        [Fact]
+        public void KeepsTheFailedCallCount()
+        {
+            _loaded.FailedCallCount.ShouldBe(_original.FailedCallCount);
         }
 
         [Fact]
@@ -118,6 +134,18 @@ public class AITestTokenUsageSerializationTests
         public void LoadsWithCallCountZero()
         {
             _loaded.CallCount.ShouldBe(0);
+        }
+
+        [Fact]
+        public void LoadsWithDurationZero()
+        {
+            _loaded.DurationMs.ShouldBe(0);
+        }
+
+        [Fact]
+        public void LoadsWithFailedCallCountZero()
+        {
+            _loaded.FailedCallCount.ShouldBe(0);
         }
     }
 }

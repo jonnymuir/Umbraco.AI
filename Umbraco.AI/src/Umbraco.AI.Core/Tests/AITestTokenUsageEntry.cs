@@ -74,4 +74,15 @@ public sealed class AITestTokenUsageEntry
     /// Number of calls in this entry that returned no usage details.
     /// </summary>
     public int UnreportedCallCount { get; set; }
+
+    /// <summary>
+    /// Sum of the durations, in milliseconds, of the calls in this entry. Overlapping calls are summed,
+    /// so this is AI time, not wall-clock time.
+    /// </summary>
+    public long DurationMs { get; set; }
+
+    /// <summary>
+    /// Number of calls in this entry that failed. Failed calls are included in <see cref="CallCount"/>.
+    /// </summary>
+    public int FailedCallCount { get; set; }
 }

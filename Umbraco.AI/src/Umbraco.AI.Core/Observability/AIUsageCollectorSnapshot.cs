@@ -9,4 +9,6 @@ internal sealed record AIUsageCollectorSnapshot(
     int TotalTokens,
     int CallCount,
     int UnreportedCallCount,
+    long DurationMs,
+    int FailedCallCount,
     IReadOnlyList<AIUsageCollectorEntry> Breakdown);

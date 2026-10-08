@@ -16,6 +16,8 @@ internal sealed class AIUsageCollector
     /// <summary>
     /// Records one AI call. A null <paramref name="usage"/>, or one with no token counts at all,
     /// counts the call as unreported and adds no tokens (unknown is not zero). Unknown provider or model stays null.
+    /// The call's <paramref name="durationMs"/> is always added, and a call that did not succeed counts as failed
+    /// (a failed call still counts towards the call count, and as unreported when it had no usage).
     /// </summary>
     public void RecordCall(
         AICapability capability,
@@ -26,7 +28,9 @@ internal sealed class AIUsageCollector
         string? featureType,
         Guid? featureId,
         string? featureAlias,
-        UsageDetails? usage)
+        UsageDetails? usage,
+        long durationMs,
+        bool succeeded)
     {
         var key = new GroupKey(capability, providerId, modelId, profileId, featureType, featureId);
 
@@ -41,6 +45,12 @@ internal sealed class AIUsageCollector
             group.ProfileAlias ??= profileAlias;
             group.FeatureAlias ??= featureAlias;
             group.CallCount++;
+            group.DurationMs += Math.Max(0, durationMs);
+
+            if (!succeeded)
+            {
+                group.FailedCallCount++;
+            }
 
             if (usage is null
                 || (usage.InputTokenCount is null && usage.OutputTokenCount is null && usage.TotalTokenCount is null))
@@ -79,7 +89,9 @@ internal sealed class AIUsageCollector
                     ClampToInt(pair.Value.OutputTokens),
                     ClampToInt(pair.Value.TotalTokens),
                     pair.Value.CallCount,
-                    pair.Value.UnreportedCallCount))
+                    pair.Value.UnreportedCallCount,
+                    pair.Value.DurationMs,
+                    pair.Value.FailedCallCount))
                 .OrderBy(e => e.Capability)
                 .ThenBy(e => e.ProviderId, StringComparer.Ordinal)
                 .ThenBy(e => e.ModelId, StringComparer.Ordinal)
@@ -94,6 +106,8 @@ internal sealed class AIUsageCollector
                 ClampToInt(_groups.Values.Sum(g => g.TotalTokens)),
                 _groups.Values.Sum(g => g.CallCount),
                 _groups.Values.Sum(g => g.UnreportedCallCount),
+                _groups.Values.Sum(g => g.DurationMs),
+                _groups.Values.Sum(g => g.FailedCallCount),
                 breakdown);
         }
     }
@@ -111,5 +125,7 @@ internal sealed class AIUsageCollector
         public long TotalTokens { get; set; }
         public int CallCount { get; set; }
         public int UnreportedCallCount { get; set; }
+        public long DurationMs { get; set; }
+        public int FailedCallCount { get; set; }
     }
 }

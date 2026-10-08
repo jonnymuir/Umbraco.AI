@@ -87,6 +87,9 @@ public class AIOperationTrackerUsageCollectionTests
         [Fact]
         public void CollectsTheModelFromTheRuntimeContext() => _snapshot.Breakdown.Single().ModelId.ShouldBe(ModelId);
 
+        [Fact]
+        public void CollectsTheCallAsSucceeded() => _snapshot.FailedCallCount.ShouldBe(0);
+
         public void Dispose() => _scope.Dispose();
     }
 
@@ -103,6 +106,30 @@ public class AIOperationTrackerUsageCollectionTests
 
         [Fact]
         public void StillCollectsTheCall() => _snapshot.CallCount.ShouldBe(1);
+
+        public void Dispose() => _scope.Dispose();
+    }
+
+    public class GivenATrackedCallThatTakesTime : IDisposable
+    {
+        private readonly AIUsageCollectionScope _scope = AIUsageCollectionScope.Begin();
+        private readonly AIUsageCollectorSnapshot _snapshot;
+
+        public GivenATrackedCallThatTakesTime()
+        {
+            CreateTracker().TrackAsync(
+                CreateDescriptor(),
+                async _ =>
+                {
+                    await Task.Delay(50);
+                    return new AITrackedOperationResult<string> { Result = "ok" };
+                },
+                CancellationToken.None).GetAwaiter().GetResult();
+            _snapshot = _scope.Collector.GetSnapshot();
+        }
+
+        [Fact]
+        public void CollectsTheMeasuredDuration() => _snapshot.DurationMs.ShouldBeGreaterThanOrEqualTo(40);
 
         public void Dispose() => _scope.Dispose();
     }
@@ -131,6 +158,9 @@ public class AIOperationTrackerUsageCollectionTests
 
         [Fact]
         public void CollectsThePartialTokens() => _snapshot.TotalTokens.ShouldBe(12);
+
+        [Fact]
+        public void CollectsTheCallAsFailed() => _snapshot.FailedCallCount.ShouldBe(1);
 
         public void Dispose() => _scope.Dispose();
     }

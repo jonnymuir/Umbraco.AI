@@ -780,6 +780,8 @@ export type TestTokenUsageEntryResponseModel = {
     totalTokens: number;
     callCount: number;
     unreportedCallCount: number;
+    durationMs: number;
+    failedCallCount: number;
 };
 
 export type TestTokenUsageResponseModel = {
@@ -788,6 +790,8 @@ export type TestTokenUsageResponseModel = {
     totalTokens: number;
     callCount: number;
     unreportedCallCount: number;
+    durationMs: number;
+    failedCallCount: number;
     breakdown: Array<TestTokenUsageEntryResponseModel>;
 };
 

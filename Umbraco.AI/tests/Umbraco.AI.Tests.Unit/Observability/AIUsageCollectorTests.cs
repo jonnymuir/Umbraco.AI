@@ -9,8 +9,9 @@ public class AIUsageCollectorTests
 {
     private static readonly Guid ProfileId = Guid.NewGuid();
 
-    private static void Record(AIUsageCollector collector, string? modelId, UsageDetails? usage) =>
-        collector.RecordCall(AICapability.Chat, "openai", modelId, ProfileId, "profile", null, null, null, usage);
+    private static void Record(
+        AIUsageCollector collector, string? modelId, UsageDetails? usage, long durationMs = 0, bool succeeded = true) =>
+        collector.RecordCall(AICapability.Chat, "openai", modelId, ProfileId, "profile", null, null, null, usage, durationMs, succeeded);
 
     private static UsageDetails Usage(long total) =>
         new() { InputTokenCount = total / 2, OutputTokenCount = total - total / 2, TotalTokenCount = total };
@@ -36,7 +37,7 @@ public class AIUsageCollectorTests
 
     private static void RecordForFeature(
         AIUsageCollector collector, string? featureType, Guid? featureId, string? featureAlias, UsageDetails? usage) =>
-        collector.RecordCall(AICapability.Chat, "openai", "gpt", ProfileId, "profile", featureType, featureId, featureAlias, usage);
+        collector.RecordCall(AICapability.Chat, "openai", "gpt", ProfileId, "profile", featureType, featureId, featureAlias, usage, 0, true);
 
     public class GivenTwoCallsToTheSameModelFromDifferentFeatures
     {
@@ -165,6 +166,73 @@ public class AIUsageCollectorTests
         public void StillCountsTheCall() => _snapshot.CallCount.ShouldBe(1);
     }
 
+    public class GivenTwoTimedCallsToTheSameModelAndOneToAnother
+    {
+        private readonly AIUsageCollectorSnapshot _snapshot;
+
+        public GivenTwoTimedCallsToTheSameModelAndOneToAnother()
+        {
+            var collector = new AIUsageCollector();
+            Record(collector, "model-a", Usage(10), durationMs: 100);
+            Record(collector, "model-a", Usage(10), durationMs: 250);
+            Record(collector, "model-b", Usage(10), durationMs: 40);
+            _snapshot = collector.GetSnapshot();
+        }
+
+        [Fact]
+        public void SumsTheDurationOfEachEntry() =>
+            _snapshot.Breakdown.Single(e => e.ModelId == "model-a").DurationMs.ShouldBe(350);
+
+        [Fact]
+        public void TotalsTheDurationOfTheEntries() => _snapshot.DurationMs.ShouldBe(390);
+    }
+
+    public class GivenAFailedCallAmongSuccessfulOnes
+    {
+        private readonly AIUsageCollectorSnapshot _snapshot;
+
+        public GivenAFailedCallAmongSuccessfulOnes()
+        {
+            var collector = new AIUsageCollector();
+            Record(collector, "gpt", Usage(10));
+            Record(collector, "gpt", Usage(10), succeeded: false);
+            _snapshot = collector.GetSnapshot();
+        }
+
+        [Fact]
+        public void CountsItInTheEntrysFailedCalls() => _snapshot.Breakdown.Single().FailedCallCount.ShouldBe(1);
+
+        [Fact]
+        public void CountsItInTheTotalFailedCalls() => _snapshot.FailedCallCount.ShouldBe(1);
+
+        [Fact]
+        public void StillCountsTheCall() => _snapshot.CallCount.ShouldBe(2);
+
+        [Fact]
+        public void DoesNotCountItAsUnreportedWhenItHadUsage() => _snapshot.UnreportedCallCount.ShouldBe(0);
+    }
+
+    public class GivenAFailedCallWithNoUsage
+    {
+        private readonly AIUsageCollectorSnapshot _snapshot;
+
+        public GivenAFailedCallWithNoUsage()
+        {
+            var collector = new AIUsageCollector();
+            Record(collector, "gpt", null, succeeded: false);
+            _snapshot = collector.GetSnapshot();
+        }
+
+        [Fact]
+        public void CountsItAsUnreported() => _snapshot.UnreportedCallCount.ShouldBe(1);
+
+        [Fact]
+        public void CountsItAsFailed() => _snapshot.FailedCallCount.ShouldBe(1);
+
+        [Fact]
+        public void StillCountsTheCall() => _snapshot.CallCount.ShouldBe(1);
+    }
+
     public class GivenAUsageObjectWithNoCounts
     {
         private readonly AIUsageCollectorSnapshot _snapshot;
@@ -187,7 +255,7 @@ public class AIUsageCollectorTests
         public GivenACallWithUnknownProviderAndModel()
         {
             var collector = new AIUsageCollector();
-            collector.RecordCall(AICapability.Chat, null, null, null, null, null, null, null, Usage(10));
+            collector.RecordCall(AICapability.Chat, null, null, null, null, null, null, null, Usage(10), 0, true);
             _snapshot = collector.GetSnapshot();
         }
 
@@ -235,7 +303,7 @@ public class AIUsageCollectorTests
                 for (var i = 0; i < calls; i++)
                 {
                     await Task.Yield();
-                    AIUsageCollectionScope.Current!.RecordCall(AICapability.Chat, "openai", "gpt", null, null, null, null, null, Usage(2));
+                    AIUsageCollectionScope.Current!.RecordCall(AICapability.Chat, "openai", "gpt", null, null, null, null, null, Usage(2), 0, true);
                 }
                 return scope.Collector.GetSnapshot().CallCount;
             });

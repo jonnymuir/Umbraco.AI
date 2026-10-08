@@ -230,6 +230,16 @@ public class TestTokenUsageResponseModel
     public int UnreportedCallCount { get; set; }
 
     /// <summary>
+    /// Sum of the durations, in milliseconds, of every tracked AI call in the run. Overlapping calls are summed (AI time, not wall-clock).
+    /// </summary>
+    public long DurationMs { get; set; }
+
+    /// <summary>
+    /// Number of tracked calls that failed (included in the call count).
+    /// </summary>
+    public int FailedCallCount { get; set; }
+
+    /// <summary>
     /// Token usage broken down by capability, provider, model, profile and feature.
     /// </summary>
     public IEnumerable<TestTokenUsageEntryResponseModel> Breakdown { get; set; } = [];
@@ -304,6 +314,16 @@ public class TestTokenUsageEntryResponseModel
     /// Number of calls in this entry whose provider reported no token usage.
     /// </summary>
     public int UnreportedCallCount { get; set; }
+
+    /// <summary>
+    /// Sum of the durations, in milliseconds, of the calls in this entry. Overlapping calls are summed (AI time, not wall-clock).
+    /// </summary>
+    public long DurationMs { get; set; }
+
+    /// <summary>
+    /// Number of tracked calls that failed (included in the call count).
+    /// </summary>
+    public int FailedCallCount { get; set; }
 }
 
 /// <summary>

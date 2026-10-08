@@ -31,7 +31,9 @@ public class TestMapDefinitionTokenUsageTests
             OutputTokens = 5,
             TotalTokens = 15,
             CallCount = 2,
-            UnreportedCallCount = 0
+            UnreportedCallCount = 0,
+            DurationMs = 900,
+            FailedCallCount = 1
         };
 
         private readonly TestTokenUsageResponseModel _tokenUsage;
@@ -55,6 +57,8 @@ public class TestMapDefinitionTokenUsageTests
                         TotalTokens = 20,
                         CallCount = 3,
                         UnreportedCallCount = 1,
+                        DurationMs = 1200,
+                        FailedCallCount = 1,
                         Breakdown =
                         [
                             _firstModel,
@@ -79,6 +83,18 @@ public class TestMapDefinitionTokenUsageTests
 
         [Fact]
         public void MapsTheUnreportedCallCount() => _tokenUsage.UnreportedCallCount.ShouldBe(1);
+
+        [Fact]
+        public void MapsTheDuration() => _tokenUsage.DurationMs.ShouldBe(1200);
+
+        [Fact]
+        public void MapsTheFailedCallCount() => _tokenUsage.FailedCallCount.ShouldBe(1);
+
+        [Fact]
+        public void MapsTheEntryDuration() => _tokenUsage.Breakdown.First().DurationMs.ShouldBe(900);
+
+        [Fact]
+        public void MapsTheEntryFailedCallCount() => _tokenUsage.Breakdown.First().FailedCallCount.ShouldBe(1);
 
         [Fact]
         public void MapsTheBreakdownEntries() => _tokenUsage.Breakdown.Count().ShouldBe(2);

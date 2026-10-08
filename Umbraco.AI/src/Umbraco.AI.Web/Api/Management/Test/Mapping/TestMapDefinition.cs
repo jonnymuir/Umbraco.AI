@@ -163,6 +163,8 @@ public class TestMapDefinition : IMapDefinition
                         TotalTokens = source.Outcome.TokenUsage.TotalTokens,
                         CallCount = source.Outcome.TokenUsage.CallCount,
                         UnreportedCallCount = source.Outcome.TokenUsage.UnreportedCallCount,
+                        DurationMs = source.Outcome.TokenUsage.DurationMs,
+                        FailedCallCount = source.Outcome.TokenUsage.FailedCallCount,
                         Breakdown = source.Outcome.TokenUsage.Breakdown.Select(m => new TestTokenUsageEntryResponseModel
                         {
                             Capability = m.Capability.ToString(),
@@ -177,7 +179,9 @@ public class TestMapDefinition : IMapDefinition
                             OutputTokens = m.OutputTokens,
                             TotalTokens = m.TotalTokens,
                             CallCount = m.CallCount,
-                            UnreportedCallCount = m.UnreportedCallCount
+                            UnreportedCallCount = m.UnreportedCallCount,
+                            DurationMs = m.DurationMs,
+                            FailedCallCount = m.FailedCallCount
                         }).ToList()
                     } : null
                 } : null,

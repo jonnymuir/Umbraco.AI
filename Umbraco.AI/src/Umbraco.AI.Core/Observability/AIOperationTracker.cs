@@ -107,7 +107,12 @@ internal sealed class AIOperationTracker : IAIOperationTracker
     /// Uses the usage context captured at <see cref="BeginAsync"/>, not the live runtime context.
     /// Never throws into the AI call.
     /// </summary>
-    internal void CollectUsage(AIOperationDescriptor descriptor, AIUsageContext? usageContext, UsageDetails? usage)
+    internal void CollectUsage(
+        AIOperationDescriptor descriptor,
+        AIUsageContext? usageContext,
+        UsageDetails? usage,
+        long durationMs,
+        bool succeeded)
     {
         try
         {
@@ -126,7 +131,9 @@ internal sealed class AIOperationTracker : IAIOperationTracker
                 usageContext?.FeatureType,
                 usageContext?.FeatureId == Guid.Empty ? null : usageContext?.FeatureId,
                 usageContext?.FeatureAlias,
-                usage);
+                usage,
+                durationMs,
+                succeeded);
         }
         catch (Exception ex)
         {
