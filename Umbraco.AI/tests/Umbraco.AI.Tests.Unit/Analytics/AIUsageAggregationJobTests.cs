@@ -114,6 +114,47 @@ public class AIUsageAggregationJobTests
         _aggregation.Verify(x => x.AggregateDailyAsync(Today.AddDays(-1), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task DailyJob_WaitsForADayWhoseHoursAreNotAllAggregated()
+    {
+        // Arrange: yesterday's last hour still has raw records (the hourly job hasn't reached it), and
+        // the daily rollup is due for yesterday. Rolling it up now would leave that hour out for good.
+        _statistics.Setup(x => x.GetFirstAggregatedHourlyPeriodAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Today.AddDays(-3));
+        _statistics.Setup(x => x.GetFirstAggregatedDailyPeriodAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Today.AddDays(-3));
+        _statistics.Setup(x => x.GetLastAggregatedDailyPeriodAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Today.AddDays(-2));
+        _records.Setup(x => x.GetFirstRecordTimestampAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Today.AddHours(-1).AddMinutes(30));
+
+        // Act
+        await CreateDailyJob().RunJobAsync(CancellationToken.None);
+
+        // Assert
+        _aggregation.Verify(x => x.AggregateDailyAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DailyJob_RollsUpADayOnceAllItsHoursAreAggregated()
+    {
+        // Arrange: the only raw records left are from today, so yesterday is fully in hourly statistics.
+        _statistics.Setup(x => x.GetFirstAggregatedHourlyPeriodAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Today.AddDays(-3));
+        _statistics.Setup(x => x.GetFirstAggregatedDailyPeriodAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Today.AddDays(-3));
+        _statistics.Setup(x => x.GetLastAggregatedDailyPeriodAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Today.AddDays(-2));
+        _records.Setup(x => x.GetFirstRecordTimestampAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Today.AddMinutes(10));
+
+        // Act
+        await CreateDailyJob().RunJobAsync(CancellationToken.None);
+
+        // Assert
+        _aggregation.Verify(x => x.AggregateDailyAsync(Today.AddDays(-1), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private AIUsageHourlyAggregationJob CreateHourlyJob() => new(
         _aggregation.Object,
         _records.Object,
@@ -123,6 +164,7 @@ public class AIUsageAggregationJobTests
 
     private AIUsageDailyRollupJob CreateDailyJob() => new(
         _aggregation.Object,
+        _records.Object,
         _statistics.Object,
         AnalyticsEnabled(),
         NullLogger<AIUsageDailyRollupJob>.Instance);
