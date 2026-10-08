@@ -231,9 +231,14 @@ public static partial class UmbracoBuilderExtensions
         services.AddSingleton<IAISpeechToTextClientFactory, AISpeechToTextClientFactory>();
         services.AddSingleton<IAIImageGeneratorFactory, AIImageGeneratorFactory>();
 
-        // Capability-agnostic usage + audit recorder (chat / embedding / speech-to-text / image),
-        // shared by every tracking middleware and the image escape-hatch helper.
+        // Capability-agnostic operation tracker (chat / embedding / speech-to-text / image), shared by
+        // every tracking middleware and the image escape-hatch helper.
         services.AddSingleton<IAIOperationTracker, AIOperationTracker>();
+
+        // What gets recorded for each tracked call. Internal, not an extension point: the tracker calls
+        // these in registration order, after the audit entry (see docs/plans/tracking-recorders).
+        services.AddSingleton<IAIOperationRecorder, AIAnalyticsOperationRecorder>();
+        services.AddSingleton<IAIOperationRecorder, AITestUsageOperationRecorder>();
 
         // High-level services
         services.AddSingleton<IAIChatService, AIChatService>();

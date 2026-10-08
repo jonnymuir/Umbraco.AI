@@ -1,3 +1,4 @@
+using Umbraco.AI.Tests.Unit.Observability;
 // S1, S2, S3 — Graders receive run token usage and breakdown.
 // Entry point: the real AITestRunner.ExecuteTestAsync, with a fake IAITestFeature that reports
 // calls into the ambient collector through a real AIOperationTracker, and a recording grader that
@@ -88,9 +89,7 @@ public class AITestRunnerUsageTests
             new Mock<IAIAuditLogService>().Object,
             new Mock<IAIAuditLogFactory>().Object,
             auditOptions.Object,
-            new Mock<IAIUsageRecordingService>().Object,
-            new Mock<IAIUsageRecordFactory>().Object,
-            analyticsOptions.Object,
+            TestOperationRecorders.Default(new Mock<IAIUsageRecordingService>().Object, new Mock<IAIUsageRecordFactory>().Object, analyticsOptions.Object),
             NullLogger<AIOperationTracker>.Instance);
 
         try
