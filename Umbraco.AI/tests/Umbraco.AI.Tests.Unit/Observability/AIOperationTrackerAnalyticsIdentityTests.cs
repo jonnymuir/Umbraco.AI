@@ -118,7 +118,7 @@ public class AIOperationTrackerAnalyticsIdentityTests
         public GivenANestedCallChangesTheRuntimeContextBeforeCompletion()
         {
             var harness = new Harness();
-            using var operation = harness.Tracker.BeginAsync(CreateDescriptor(), CancellationToken.None).GetAwaiter().GetResult();
+            var operation = harness.Tracker.BeginAsync(CreateDescriptor(), CancellationToken.None).GetAwaiter().GetResult();
             OverwriteAsNestedCall(harness.RuntimeContext);
 
             operation.CompleteAsync(
@@ -148,7 +148,7 @@ public class AIOperationTrackerAnalyticsIdentityTests
         public GivenANestedCallChangesTheRuntimeContextBeforeFailure()
         {
             var harness = new Harness();
-            using var operation = harness.Tracker.BeginAsync(CreateDescriptor(), CancellationToken.None).GetAwaiter().GetResult();
+            var operation = harness.Tracker.BeginAsync(CreateDescriptor(), CancellationToken.None).GetAwaiter().GetResult();
             OverwriteAsNestedCall(harness.RuntimeContext);
 
             operation.FailAsync(new InvalidOperationException("boom")).GetAwaiter().GetResult();
