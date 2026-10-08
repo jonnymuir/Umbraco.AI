@@ -835,7 +835,7 @@ public class UmbracoAIDbContext : DbContext
             entity.Property(e => e.OutcomeFinishReason)
                 .HasMaxLength(100);
 
-            entity.Property(e => e.OutcomeTokenUsageJson);
+            entity.Property(e => e.OutcomeUsageJson);
 
             entity.Property(e => e.GraderResultsJson);
 

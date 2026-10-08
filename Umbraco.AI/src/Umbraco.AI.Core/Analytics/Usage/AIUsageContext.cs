@@ -56,6 +56,11 @@ public sealed class AIUsageContext
     public Guid? FeatureId { get; init; }
 
     /// <summary>
+    /// Gets the feature alias (prompt or agent alias, or a built-in feature such as "guardrail-llm-evaluator") that initiated this operation.
+    /// </summary>
+    public string? FeatureAlias { get; init; }
+
+    /// <summary>
     /// Extracts usage context from runtime context.
     /// </summary>
     /// <param name="capability">The AI capability being used.</param>
@@ -77,7 +82,8 @@ public sealed class AIUsageContext
             EntityId = runtimeContext.GetValue<string>(Constants.ContextKeys.EntityId),
             EntityType = runtimeContext.GetValue<string>(Constants.ContextKeys.EntityType),
             FeatureType = runtimeContext.GetValue<string>(Constants.ContextKeys.FeatureType),
-            FeatureId = runtimeContext.GetValue<Guid>(Constants.ContextKeys.FeatureId)
+            FeatureId = runtimeContext.GetValue<Guid>(Constants.ContextKeys.FeatureId),
+            FeatureAlias = runtimeContext.GetValue<string>(Constants.ContextKeys.FeatureAlias)
         };
     }
 }

@@ -89,16 +89,67 @@ internal sealed class AIOperationTracker : IAIOperationTracker
         // Enrich ambient Activity regardless of audit toggle (falls back to runtime context).
         AIActivityEnricher.EnrichCurrentActivity(auditLog, _contextAccessor);
 
-        return new AIOperationScope(this, descriptor, auditScope, auditLog, auditPrompt, cancellationToken);
+        // Captured now, while the context still belongs to this call: nested AI calls (guardrail judge,
+        // semantic search embeddings) overwrite these keys before this call completes. Serves both
+        // usage analytics and test usage collection, so completion never re-reads the live context.
+        var usageContext = _contextAccessor.Context is { } context
+            ? AIUsageContext.ExtractFromRuntimeContext(descriptor.Capability, context)
+            : null;
+
+        return new AIOperationScope(
+            this, descriptor, auditScope, auditLog, auditPrompt, usageContext, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reports a finished call to the ambient <see cref="AIUsageCollectionScope"/>, if one is open.
+    /// Runs synchronously on the caller's flow, because it reads the ambient collector from it,
+    /// independent of the analytics toggle and <see cref="AIOperationDescriptor.RecordUsageWhenEmpty"/>.
+    /// Uses the usage context captured at <see cref="BeginAsync"/>, not the live runtime context.
+    /// Never throws into the AI call.
+    /// </summary>
+    internal void CollectUsage(
+        AIOperationDescriptor descriptor,
+        AIUsageContext? usageContext,
+        UsageDetails? usage,
+        long durationMs,
+        bool succeeded)
+    {
+        try
+        {
+            var collector = AIUsageCollectionScope.Current;
+            if (collector is null)
+            {
+                return;
+            }
+
+            collector.RecordCall(
+                descriptor.Capability,
+                usageContext?.ProviderId,
+                usageContext?.ModelId,
+                // GetValue<Guid> returns Guid.Empty for a missing key; normalised here rather than in
+                // AIUsageContext.ExtractFromRuntimeContext so persisted analytics values don't change.
+                usageContext?.ProfileId == Guid.Empty ? null : usageContext?.ProfileId,
+                usageContext?.ProfileAlias,
+                usageContext?.FeatureType,
+                usageContext?.FeatureId == Guid.Empty ? null : usageContext?.FeatureId,
+                usageContext?.FeatureAlias,
+                usage,
+                durationMs,
+                succeeded);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to collect AI usage for {Capability}", descriptor.Capability);
+        }
     }
 
     internal async Task RecordUsageAsync(
-        AIOperationDescriptor descriptor, UsageDetails? usage, long durationMs,
+        AIOperationDescriptor descriptor, AIUsageContext? usageContext, UsageDetails? usage, long durationMs,
         bool succeeded, string? errorMessage, CancellationToken cancellationToken)
     {
         try
         {
-            if (!_analyticsOptions.CurrentValue.Enabled || _contextAccessor.Context is null)
+            if (!_analyticsOptions.CurrentValue.Enabled || usageContext is null)
             {
                 return;
             }
@@ -108,7 +159,6 @@ internal sealed class AIOperationTracker : IAIOperationTracker
                 return; // chat/embedding: no token counts => nothing to record
             }
 
-            var usageContext = AIUsageContext.ExtractFromRuntimeContext(descriptor.Capability, _contextAccessor.Context);
             var recordContext = AIUsageRecordContext.FromUsageContext(usageContext);
             var result = new AIUsageRecordResult
             {
