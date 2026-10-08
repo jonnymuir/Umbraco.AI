@@ -16,14 +16,10 @@ namespace Umbraco.AI.Core.Chat.Middleware;
 internal sealed class AITrackingChatClient : AIBoundChatClientBase
 {
     private readonly IAIOperationTracker _tracker;
-    private readonly IAIRuntimeContextAccessor _contextAccessor;
 
-    public AITrackingChatClient(IChatClient innerClient, IAIOperationTracker tracker, IAIRuntimeContextAccessor contextAccessor)
+    public AITrackingChatClient(IChatClient innerClient, IAIOperationTracker tracker)
         : base(innerClient)
-    {
-        _tracker = tracker;
-        _contextAccessor = contextAccessor;
-    }
+        => _tracker = tracker;
 
     /// <inheritdoc />
     public override async Task<ChatResponse> GetResponseAsync(
@@ -123,7 +119,6 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
     {
         Capability = AICapability.Chat,
         PromptData = messages,
-        Metadata = AIAuditMetadata.ExtractFromRuntimeContext(_contextAccessor.Context),
     };
 }
 

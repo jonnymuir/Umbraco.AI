@@ -5,9 +5,13 @@ using Umbraco.AI.Core.RuntimeContext;
 namespace Umbraco.AI.Core.Analytics.Usage;
 
 /// <summary>
-/// Contains metadata for an AI usage operation.
-/// Extracted from ChatOptions/EmbeddingGenerationOptions AdditionalProperties.
+/// The identity of an AI call: capability, profile, provider, model, entity and feature, with versions.
+/// Read from the runtime context once, when a tracked call starts, and shared by every recorder (usage
+/// analytics, the audit log, trace tags, test-run usage).
 /// </summary>
+/// <remarks>
+/// The name predates that wider use; it is kept because the type is public.
+/// </remarks>
 public sealed class AIUsageContext
 {
     /// <summary>

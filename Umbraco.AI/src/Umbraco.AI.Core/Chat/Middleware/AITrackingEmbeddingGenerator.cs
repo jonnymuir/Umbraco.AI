@@ -15,17 +15,12 @@ namespace Umbraco.AI.Core.Chat.Middleware;
 internal sealed class AITrackingEmbeddingGenerator : AIBoundEmbeddingGeneratorBase<string, Embedding<float>>
 {
     private readonly IAIOperationTracker _tracker;
-    private readonly IAIRuntimeContextAccessor _contextAccessor;
 
     public AITrackingEmbeddingGenerator(
         IEmbeddingGenerator<string, Embedding<float>> innerGenerator,
-        IAIOperationTracker tracker,
-        IAIRuntimeContextAccessor contextAccessor)
+        IAIOperationTracker tracker)
         : base(innerGenerator)
-    {
-        _tracker = tracker;
-        _contextAccessor = contextAccessor;
-    }
+        => _tracker = tracker;
 
     /// <inheritdoc />
     public override async Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
@@ -36,7 +31,6 @@ internal sealed class AITrackingEmbeddingGenerator : AIBoundEmbeddingGeneratorBa
         {
             Capability = AICapability.Embedding,
             PromptData = valueList,
-            Metadata = AIAuditMetadata.ExtractFromRuntimeContext(_contextAccessor.Context),
         };
 
         var tracked = await _tracker.TrackAsync(
