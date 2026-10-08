@@ -12,3 +12,7 @@
   the first commit of T1 rather than its own PR. Gaps listed in `PLAN.md`.
 - 08-10-2026: Five design calls need confirming before T1 starts. See "Decisions to confirm" in
   `ARCHITECTURE.md`.
+- 08-10-2026: All five confirmed by the maintainer: (1) recorder failures are isolated, including
+  the audit factory's missing-profile throw; (2) every end write uses `CancellationToken.None`;
+  (3) fixed order audit, trace, analytics, test usage; (4) plain internal ordered DI list, not a
+  collection builder; (5) `Blocked` becomes a real outcome, counted as a failure on the dashboard.

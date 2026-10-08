@@ -77,10 +77,11 @@ internal sealed record AIOperationOutcome(
 
 `AIUsageObservation` (#517) folds into `AIOperationStart` + `AIOperationOutcome`.
 
-## Decisions to confirm
+## Decisions
 
 These change behaviour slightly, or pick between two reasonable options. Each one is listed
-again in `PLAN.md` at the step that makes it.
+again in `PLAN.md` at the step that makes it. All five were confirmed on 08-10-2026 (see
+`DECISION-LOG.md`).
 
 1. **Recorder failures are isolated.** A recorder that throws in `BeginAsync` or `EndAsync` is
    logged and skipped; the AI call carries on. Today one case doesn't do this:
