@@ -14,14 +14,12 @@ namespace Umbraco.AI.Core.Observability;
 /// A tracking scope for a single AI operation. Created by <see cref="AIOperationTracker.BeginAsync"/>.
 /// Completing or failing the scope reports the call's usage once (see <see cref="AIOperationTracker.ReportUsage"/>)
 /// and queues the audit status (awaited, on <see cref="CancellationToken.None"/>).
-/// Dispose ends the ambient <see cref="AIAuditScope"/>.
 /// </summary>
-internal sealed class AIOperationScope : IDisposable
+internal sealed class AIOperationScope
 {
     private readonly AIOperationTracker _tracker;
     private readonly AIOperationDescriptor _descriptor;
     private readonly AIUsageContext? _usageContext;
-    private readonly AIAuditScope? _auditScope;
     private readonly AIAuditLog? _auditLog;
     private readonly AIAuditPrompt? _auditPrompt;
     private readonly Stopwatch _stopwatch;
@@ -30,7 +28,6 @@ internal sealed class AIOperationScope : IDisposable
     internal AIOperationScope(
         AIOperationTracker tracker,
         AIOperationDescriptor descriptor,
-        AIAuditScope? auditScope,
         AIAuditLog? auditLog,
         AIAuditPrompt? auditPrompt,
         AIUsageContext? usageContext,
@@ -39,7 +36,6 @@ internal sealed class AIOperationScope : IDisposable
         _tracker = tracker;
         _descriptor = descriptor;
         _usageContext = usageContext;
-        _auditScope = auditScope;
         _auditLog = auditLog;
         _auditPrompt = auditPrompt;
         _cancellationToken = cancellationToken;
@@ -74,5 +70,14 @@ internal sealed class AIOperationScope : IDisposable
         }
     }
 
-    public void Dispose() => _auditScope?.Dispose();
+    /// <summary>
+    /// Makes this call's audit entry the parent of any AI call made while the returned scope is open, and
+    /// restores the previous parent on dispose. Returns null when the call has no audit entry.
+    /// </summary>
+    /// <remarks>
+    /// Enter it in the caller's own frame, directly around the work (for a stream, around each step of the
+    /// inner enumerator): <see cref="AIAuditScope"/> is AsyncLocal, and AsyncLocal changes made inside an
+    /// async method or iterator do not survive its return or a yield.
+    /// </remarks>
+    public AIAuditScope? EnterAuditScope() => _auditLog is null ? null : AIAuditScope.Begin(_auditLog.Id);
 }

@@ -93,6 +93,33 @@ public class AIAuditLogServiceTests
             Times.Never);
     }
 
+    [Fact]
+    public async Task QueueStartAuditLogAsync_InsideItsOwnScope_LeavesParentEmpty()
+    {
+        var audit = new AIAuditLog { Id = Guid.NewGuid() };
+
+        using (AIAuditScope.Begin(audit.Id))
+        {
+            await _service.QueueStartAuditLogAsync(audit);
+        }
+
+        audit.ParentAuditLogId.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task QueueStartAuditLogAsync_InsideAnOuterScope_UsesItAsParent()
+    {
+        var parentId = Guid.NewGuid();
+        var audit = new AIAuditLog { Id = Guid.NewGuid() };
+
+        using (AIAuditScope.Begin(parentId))
+        {
+            await _service.QueueStartAuditLogAsync(audit);
+        }
+
+        audit.ParentAuditLogId.ShouldBe(parentId);
+    }
+
     private AIAuditLogService CreateService(AIAuditLogOptions options)
     {
         var optionsMock = new Mock<IOptionsMonitor<AIAuditLogOptions>>();
