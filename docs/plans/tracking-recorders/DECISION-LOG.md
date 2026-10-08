@@ -35,5 +35,14 @@
   `object? ResponseData` on both the outcome and `AITrackedOperationResult`; the audit recorder
   builds `AIAuditResponse` from it plus the outcome's usage. This also removes usage being passed
   twice per call (#528). `AIAuditResponse` stays: the public audit service uses it.
+- 08-10-2026 (T3): `AIUsageRecordResult` is public with a required `Succeeded`, so `Blocked` is an
+  added optional flag rather than a change to `Succeeded`. Usage records store "Blocked"; hourly
+  aggregation and live statistics count it in `FailureCount`, so dashboard totals are unchanged.
+  The audit log still decides `Blocked` from the exception in the public
+  `QueueRecordAuditLogFailureAsync`; it agrees with the tracker because both check
+  `AIGuardrailBlockedException`.
+- 08-10-2026 (T3): A non-streamed call that returns a failure (response ending on `ErrorContent`)
+  is signalled through an optional `AITrackedOperationResult.Failure`, so the caller still gets the
+  response while recorders see a failed call. Same rule the streaming path already applied.
 - 08-10-2026 (T2): `IAIOperationRecording.EnterScope` returns `IDisposable?` rather than
   `AIAuditScope?`, and `AIOperationScope.EnterScope` opens every recording's scope.

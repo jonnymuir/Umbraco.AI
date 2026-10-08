@@ -24,7 +24,7 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
   - Behaviour change, own commit: end writes use `CancellationToken.None` (decision 2). Fixes
     #531.
 
-- [ ] **T2. Audit and tracing as recorders.**
+- [x] **T2. Audit and tracing as recorders.** #539 (v18), #540 (v17).
   - `AIAuditOperationRecorder` owns entry creation, the parent lookup, `EnterScope`, and
     start/end status. `AIOperationScope` stops reaching into `tracker.AuditLogService`; the
     tracker stops referencing `AIAuditScope`. The service's own parent fallback in
@@ -41,11 +41,14 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
     check `AIAuditLogService` makes today), shared by audit and analytics (decision 5).
   - Same provider-error check for streaming and non-streaming chat (non-streaming never checks
     for streamed error content today).
+  - Not covered here: `AIChatExecutedNotification.IsSuccess` is still true for a response that ends
+    on a provider error. Notifications are raised by the services, outside the tracker; moved to T4.
 
 - [ ] **T4. Smaller duplicates from #528** (can run in any order after T2): five copies of
   `PopulateProfileMetadata`; the error category worked out twice; two context extractors with
   different field sets; out-of-date docs on `RecordUsageWhenEmpty`. (`AITrackedOperationResult`'s
-  doc was fixed in T2, when its audit response became neutral `ResponseData`.)
+  doc was fixed in T2, when its audit response became neutral `ResponseData`.) Also the chat
+  Executed notification reporting success for a response that ends on a provider error (from T3).
 
 - [ ] **T5. Final review of what the refactor left behind** (last, after T1 to T4 have merged).
   Moving responsibilities out leaves some types thinner than their names and interfaces suggest.
