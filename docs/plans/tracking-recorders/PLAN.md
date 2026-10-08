@@ -43,6 +43,20 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
   `PopulateProfileMetadata`; the error category worked out twice; two context extractors with
   different field sets; out-of-date docs on `RecordUsageWhenEmpty` and `AITrackedOperationResult`.
 
+- [ ] **T5. Final review of what the refactor left behind** (last, after T1 to T4 have merged).
+  Moving responsibilities out leaves some types thinner than their names and interfaces suggest.
+  Look at each one and decide, in one PR, whether to keep it, merge it into its caller, or
+  replace it with something shared:
+  - Services reduced to "wrap a save in a background job and queue it":
+    `AIUsageRecordingService` after T1, and the `Queue*` methods of `AIAuditLogService` after T2.
+    If both end up the same shape, one shared internal helper for queued repository saves.
+    Merging into the recorders is ruled out: a recorder must not reach a repository directly.
+  - Names that no longer fit what a type does (e.g. `AIUsageRecordingService` only queues).
+  - Members left without callers (e.g. `IAIUsageRecordRepository.GetLastRecordTimestampAsync`
+    since #534, and anything T1 to T4 strand).
+  - Doc comments and `docs/reference/` that still describe the old tracker.
+  - The recorder contracts themselves: anything added "for later" that no recorder ended up using.
+
 ## Test gaps to fill in T1
 
 Existing coverage is strong: about 60 tests across `AIOperationTrackerTests`,

@@ -16,3 +16,9 @@
   the audit factory's missing-profile throw; (2) every end write uses `CancellationToken.None`;
   (3) fixed order audit, trace, analytics, test usage; (4) plain internal ordered DI list, not a
   collection builder; (5) `Blocked` becomes a real outcome, counted as a failure on the dashboard.
+- 08-10-2026 (T1, #537): `AIUsageRecordingService` is left with one job, queueing a save. Kept as
+  is rather than merged into the analytics recorder (a recorder must not touch a repository) or
+  made generic (only one example so far). Revisited in T5, once audit has moved and there is a
+  second example to compare.
+- 08-10-2026: Added T5, an explicit final review of thin types, stale names, stranded members and
+  docs, so these calls aren't made piecemeal in each refactor PR.
