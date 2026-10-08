@@ -75,6 +75,11 @@ public sealed class AIAuditContext
     /// <summary>
     /// Gets extensible metadata for feature-specific context (e.g., AgentRunId, ThreadId, ConversationId).
     /// </summary>
+    /// <remarks>
+    /// Never populated or read: the audit entry's metadata comes from the declared log keys, passed to
+    /// <see cref="IAIAuditLogFactory"/> separately.
+    /// </remarks>
+    [Obsolete("Never populated; audit metadata comes from the declared log keys. Will be removed in v20.")]
     public Dictionary<string, string>? Metadata { get; } = new();
 
     /// <summary>
