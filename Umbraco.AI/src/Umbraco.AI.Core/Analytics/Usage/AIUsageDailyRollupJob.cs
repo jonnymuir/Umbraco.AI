@@ -14,21 +14,18 @@ internal sealed class AIUsageDailyRollupJob : RecurringBackgroundJobBase
     private static readonly TimeSpan StartupDelay = TimeSpan.FromMinutes(1);
 
     private readonly IAIUsageAggregationService _aggregationService;
-    private readonly IAIUsageRecordRepository _recordRepository;
     private readonly IAIUsageStatisticsRepository _statisticsRepository;
     private readonly IOptionsMonitor<AIAnalyticsOptions> _options;
     private readonly ILogger<AIUsageDailyRollupJob> _logger;
 
     public AIUsageDailyRollupJob(
         IAIUsageAggregationService aggregationService,
-        IAIUsageRecordRepository recordRepository,
         IAIUsageStatisticsRepository statisticsRepository,
         IOptionsMonitor<AIAnalyticsOptions> options,
         ILogger<AIUsageDailyRollupJob> logger)
         : base(CheckInterval)
     {
         _aggregationService = aggregationService;
-        _recordRepository = recordRepository;
         _statisticsRepository = statisticsRepository;
         _options = options;
         _logger = logger;
@@ -53,12 +50,8 @@ internal sealed class AIUsageDailyRollupJob : RecurringBackgroundJobBase
         var yesterday = GetDayStart(now.AddDays(-1)); // Only process completed days (yesterday and earlier)
 
         // A day is rolled up from its hourly statistics, so it must wait until the hourly job has
-        // aggregated all its hours. That job deletes each hour's raw records, so any day that still has
-        // raw records isn't ready: rolling it up now would leave those hours out of its daily total.
-        var firstRecordTimestamp = await _recordRepository.GetFirstRecordTimestampAsync(ct);
-        var lastReadyDay = firstRecordTimestamp is null
-            ? yesterday
-            : Min(yesterday, GetDayStart(firstRecordTimestamp.Value).AddDays(-1));
+        // aggregated all its hours, or its daily total would leave them out for good.
+        var lastReadyDay = await _aggregationService.GetLastDayReadyForRollupAsync(yesterday, ct);
 
         var lastAggregatedPeriod = await _statisticsRepository.GetLastAggregatedDailyPeriodAsync(ct);
 
