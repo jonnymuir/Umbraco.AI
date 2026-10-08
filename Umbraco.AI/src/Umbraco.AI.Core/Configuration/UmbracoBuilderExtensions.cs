@@ -22,7 +22,6 @@ using Umbraco.AI.Core.Embeddings;
 using Umbraco.AI.Core.EntityAdapter;
 using Umbraco.AI.Core.EntityAdapter.Adapters;
 using Umbraco.AI.Core.AuditLog;
-using Umbraco.AI.Core.AuditLog.Middleware;
 using Umbraco.AI.Core.Chat.Middleware;
 using Umbraco.AI.Core.Models;
 using Umbraco.AI.Core.Observability;
@@ -237,7 +236,10 @@ public static partial class UmbracoBuilderExtensions
         services.AddSingleton<IAIOperationTracker, AIOperationTracker>();
 
         // What gets recorded for each tracked call. Internal, not an extension point: the tracker calls
-        // these in registration order, after the audit entry (see docs/plans/tracking-recorders).
+        // these in registration order (see docs/plans/tracking-recorders). Audit first, so its entry and
+        // its trace link exist before anything else records the call.
+        services.AddSingleton<IAIOperationRecorder, AIAuditOperationRecorder>();
+        services.AddSingleton<IAIOperationRecorder, AITraceOperationRecorder>();
         services.AddSingleton<IAIOperationRecorder, AIAnalyticsOperationRecorder>();
         services.AddSingleton<IAIOperationRecorder, AITestUsageOperationRecorder>();
 

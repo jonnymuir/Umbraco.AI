@@ -71,8 +71,8 @@ internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBa
             SpeechToTextResponseUpdate current;
             try
             {
-                // Entered per step: the audit scope is AsyncLocal and doesn't survive this iterator's yields.
-                using (scope.EnterAuditScope())
+                // Entered per step: recording scopes are AsyncLocal and don't survive this iterator's yields.
+                using (scope.EnterScope())
                 {
                     if (!await enumerator.MoveNextAsync())
                     {

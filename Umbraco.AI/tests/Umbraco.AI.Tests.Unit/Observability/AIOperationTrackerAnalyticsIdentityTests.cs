@@ -88,10 +88,7 @@ public class AIOperationTrackerAnalyticsIdentityTests
 
             Tracker = new AIOperationTracker(
                 contextAccessor.Object,
-                new Mock<IAIAuditLogService>().Object,
-                new Mock<IAIAuditLogFactory>().Object,
-                auditOptions.Object,
-                TestOperationRecorders.Default(recordingService.Object, recordFactory.Object, analyticsOptions.Object),
+                TestOperationRecorders.Default(new Mock<IAIAuditLogService>().Object, new Mock<IAIAuditLogFactory>().Object, auditOptions.Object, recordingService.Object, recordFactory.Object, analyticsOptions.Object),
                 NullLogger<AIOperationTracker>.Instance);
         }
 
