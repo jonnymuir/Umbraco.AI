@@ -1,5 +1,4 @@
 using Microsoft.Extensions.AI;
-using Umbraco.AI.Core.AuditLog;
 
 namespace Umbraco.AI.Core.Observability;
 
@@ -10,13 +9,16 @@ namespace Umbraco.AI.Core.Observability;
 /// <param name="Usage">Token usage reported by the provider, if any. A failed call can still carry partial usage.</param>
 /// <param name="DurationMs">Wall-clock duration of the call.</param>
 /// <param name="Exception">The failure, when the call failed.</param>
-/// <param name="Response">What the call returned, for the audit log. Null when the call failed.</param>
+/// <param name="ResponseData">
+/// What the call returned (see <see cref="AITrackedOperationResult{TResult}.ResponseData"/>). Null when the
+/// call failed.
+/// </param>
 internal sealed record AIOperationOutcome(
     AIOperationStatus Status,
     UsageDetails? Usage,
     long DurationMs,
     Exception? Exception,
-    AIAuditResponse? Response = null)
+    object? ResponseData = null)
 {
     /// <summary>Whether the call succeeded.</summary>
     public bool Succeeded => Status == AIOperationStatus.Succeeded;

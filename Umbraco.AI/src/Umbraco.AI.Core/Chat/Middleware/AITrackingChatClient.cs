@@ -40,7 +40,7 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
                 {
                     Result = response,
                     Usage = response.Usage,
-                    AuditResponse = new AIAuditResponse { Data = response.Messages, Usage = response.Usage },
+                    ResponseData = response.Messages,
                 };
             },
             cancellationToken);
@@ -109,7 +109,7 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
         {
             await scope.CompleteAsync(
                 aggregated.Usage,
-                new AIAuditResponse { Data = aggregated.Messages, Usage = aggregated.Usage });
+                aggregated.Messages);
         }
     }
 

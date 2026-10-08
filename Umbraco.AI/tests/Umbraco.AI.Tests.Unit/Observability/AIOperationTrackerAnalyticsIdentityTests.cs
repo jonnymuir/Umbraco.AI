@@ -118,7 +118,7 @@ public class AIOperationTrackerAnalyticsIdentityTests
 
             operation.CompleteAsync(
                 new UsageDetails { InputTokenCount = 10, OutputTokenCount = 2, TotalTokenCount = 12 },
-                auditResponse: null).GetAwaiter().GetResult();
+                responseData: null).GetAwaiter().GetResult();
 
             _recorded = harness.AwaitRecordedContext();
         }
