@@ -57,6 +57,7 @@ internal sealed class AIUsageAnalyticsService : IAIUsageAnalyticsService
         return new AIUsageSummary
         {
             TotalRequests = totalRequests,
+            NestedRequestCount = statsList.Sum(s => s.NestedRequestCount),
             InputTokens = statsList.Sum(s => s.InputTokens),
             CachedInputTokens = AIUsageTokenAggregation.SumOrNull(statsList, s => s.CachedInputTokens),
             OutputTokens = statsList.Sum(s => s.OutputTokens),
