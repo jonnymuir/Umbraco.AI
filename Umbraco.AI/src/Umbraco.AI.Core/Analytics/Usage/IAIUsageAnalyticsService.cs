@@ -114,6 +114,12 @@ public sealed class AIUsageSummary
     public int NestedRequestCount { get; init; }
 
     /// <summary>
+    /// Gets how many of <see cref="TotalRequests"/> were requests of their own rather than nested in another,
+    /// e.g. one per agent run or prompt execution.
+    /// </summary>
+    public int TopLevelRequestCount => TotalRequests - NestedRequestCount;
+
+    /// <summary>
     /// Gets the total number of input tokens consumed.
     /// </summary>
     public required long InputTokens { get; init; }
