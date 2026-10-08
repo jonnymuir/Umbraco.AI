@@ -263,6 +263,43 @@ public class AIOperationTrackerTests
             _auditLog, It.IsAny<AIAuditPrompt?>(), exception, CancellationToken.None), Times.Once);
     }
 
+    // #531: a cancelled call still gets its usage record, marked failed with the usage it reported.
+    [Fact]
+    public async Task TrackAsync_WhenTheCallIsCancelled_StillQueuesAFailedUsageRecord()
+    {
+        // Arrange
+        var tracker = CreateTracker();
+        var queuedWith = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+        AIUsageRecord? queued = null;
+        _usageRecordingServiceMock
+            .Setup(x => x.QueueRecordUsageAsync(It.IsAny<AIUsageRecord>(), It.IsAny<CancellationToken>()))
+            .Callback<AIUsageRecord, CancellationToken>((record, token) =>
+            {
+                queued = record;
+                queuedWith.TrySetResult(token);
+            })
+            .Returns((AIUsageRecord _, CancellationToken token) =>
+                token.IsCancellationRequested ? ValueTask.FromCanceled(token) : ValueTask.CompletedTask);
+        using var cts = new CancellationTokenSource();
+
+        // Act
+        await Should.ThrowAsync<OperationCanceledException>(() =>
+            tracker.TrackAsync<string>(
+                CreateDescriptor(recordUsageWhenEmpty: true),
+                ct =>
+                {
+                    cts.Cancel();
+                    ct.ThrowIfCancellationRequested();
+                    return Task.FromResult(new AITrackedOperationResult<string> { Result = "never" });
+                },
+                cts.Token));
+
+        // Assert
+        (await queuedWith.Task.WaitAsync(TimeSpan.FromSeconds(2))).ShouldBe(CancellationToken.None);
+        queued.ShouldNotBeNull();
+        queued.Status.ShouldBe("Failed");
+    }
+
     // Test 8: audit log is created with parentId = AIAuditScope.Current when nested.
     [Fact]
     public async Task TrackAsync_NestedScope_ParentsAuditLog()

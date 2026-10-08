@@ -28,22 +28,19 @@ internal sealed class AIAnalyticsOperationRecorder : IAIOperationRecorder
     }
 
     public ValueTask<IAIOperationRecording?> BeginAsync(AIOperationStart start, CancellationToken cancellationToken)
-        => ValueTask.FromResult<IAIOperationRecording?>(new Recording(this, start, cancellationToken));
+        => ValueTask.FromResult<IAIOperationRecording?>(new Recording(this, start));
 
-    private sealed class Recording(
-        AIAnalyticsOperationRecorder recorder,
-        AIOperationStart start,
-        CancellationToken cancellationToken) : IAIOperationRecording
+    private sealed class Recording(AIAnalyticsOperationRecorder recorder, AIOperationStart start) : IAIOperationRecording
     {
         public ValueTask EndAsync(AIOperationOutcome outcome)
         {
-            // Fire-and-forget, as before: queueing the record must not hold up the AI call's result.
-            _ = recorder.RecordAsync(start, outcome, cancellationToken);
+            // Fire-and-forget: queueing the record must not hold up the AI call's result.
+            _ = recorder.RecordAsync(start, outcome);
             return ValueTask.CompletedTask;
         }
     }
 
-    private async Task RecordAsync(AIOperationStart start, AIOperationOutcome outcome, CancellationToken cancellationToken)
+    private async Task RecordAsync(AIOperationStart start, AIOperationOutcome outcome)
     {
         try
         {
@@ -66,8 +63,10 @@ internal sealed class AIAnalyticsOperationRecorder : IAIOperationRecorder
                 ErrorMessage = outcome.Exception?.Message,
             };
 
+            // Not the call's own token: a cancelled call is still a call to record, and the audit log
+            // already queues its end status the same way.
             var record = _usageRecordFactory.Create(recordContext, result);
-            await _usageRecordingService.QueueRecordUsageAsync(record, cancellationToken);
+            await _usageRecordingService.QueueRecordUsageAsync(record, CancellationToken.None);
         }
         catch (Exception ex)
         {
