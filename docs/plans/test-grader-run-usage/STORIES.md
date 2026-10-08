@@ -88,12 +88,12 @@ so that **I can pick the right price or emission factor and tell variations apar
 AC2.1 — Model identity
   Given a run whose calls use profile "p1" on provider "openai" with model "gpt-x"
   When the run executes
-  Then `TokenUsage.Models` has one entry with that ProviderId, ModelId, ProfileId and ProfileAlias
+  Then `TokenUsage.Breakdown` has one entry with that ProviderId, ModelId, ProfileId and ProfileAlias
 
 AC2.2 — Two models, two entries
   Given a run that calls two different models
   When the run executes
-  Then `TokenUsage.Models` has two entries
+  Then `TokenUsage.Breakdown` has two entries
 
 AC2.3 — Entry totals
   Given a run that calls two different models
@@ -145,7 +145,7 @@ AC3.3 — Visible on a real run
 AC3.4 — Old rows still load
   Given stored token usage JSON written before this change (no new fields)
   When it is loaded
-  Then `Models` is an empty list and `CallCount` is 0
+  Then `Breakdown` is an empty list and `CallCount` is 0
 
 AC3.5 — Grader contract unchanged
   Given the built-in graders and `IAITestGrader` / `AITestGraderBase`

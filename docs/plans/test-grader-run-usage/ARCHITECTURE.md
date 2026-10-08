@@ -30,7 +30,7 @@ Checked facts that make this work:
 
 No migration. No entity or factory change.
 
-`AITestTokenUsage` gains a per-model breakdown list. It is already persisted as JSON in
+`AITestTokenUsage` gains a breakdown list, one entry per model and feature. It is already persisted as JSON in
 `AITestRunEntity.OutcomeTokenUsageJson`, so the new list round-trips through the existing
 column. Older rows deserialize with an empty list.
 
@@ -40,8 +40,9 @@ AITestOutcome
     ├── InputTokens / OutputTokens / TotalTokens   (existing, summed over the run)
     ├── CallCount                                  (new)
     ├── UnreportedCallCount                        (new: calls that returned no usage)
-    └── Models : List<AITestModelTokenUsage>       (new)
+    └── Breakdown : List<AITestTokenUsageEntry>    (new)
         ├── Capability, ProviderId, ModelId, ProfileId?, ProfileAlias?
+        ├── FeatureType?, FeatureId?, FeatureAlias?
         ├── InputTokens / OutputTokens / TotalTokens
         └── CallCount / UnreportedCallCount
 ```
@@ -92,7 +93,7 @@ AITestOutcome
 
 4. **Resolved profile comes from the breakdown, not a new run field.**
    `AITestRun.ProfileId` stays as-is (the variation override, null when none). The profile each
-   call actually resolved to is on each `Models` entry.
+   call actually resolved to is on each `Breakdown` entry.
    Rejected: a new `ResolvedProfileId` on the run, which would need a column and a migration.
 
 5. **Grader calls are excluded by scope timing.** The collection scope is disposed before

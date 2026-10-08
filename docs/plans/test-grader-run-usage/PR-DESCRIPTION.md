@@ -2,16 +2,17 @@ Closes #516 | [Plan folder](https://github.com/umbraco/Umbraco.AI/tree/v18/featu
 
 ## Why the change
 
-Test graders never saw how many tokens a run used or which model produced it, so cost, token-budget and CO2e graders were impossible; this fills `AITestOutcome.TokenUsage` with the run's summed usage plus a per-model breakdown.
+Test graders never saw how many tokens a run used or which model produced it, so cost, token-budget and CO2e graders were impossible; this fills `AITestOutcome.TokenUsage` with the run's summed usage plus a breakdown by model and feature.
 
 ## Special things to note
 
 - **Behaviour change in usage analytics (bug fix):** analytics used to read provider, model, profile and feature from the shared runtime context when a call *finished*. Nested calls rewrite that context partway through: the LLM guardrail judge (`AIGuardrailChatMiddleware` → `IAIChatService`) and the semantic search tool's embedding call. So the outer chat call's tokens could be logged against the judge or embedding model. `BeginAsync` now captures the usage context once, as the audit log already did, and both analytics and test collection use that single capture. Dashboard numbers may shift between models compared with before. Not live-checked on the demo site; covered by `AIOperationTrackerAnalyticsIdentityTests`.
-- **Needs a decision:** Prompt tests now report usage in two places. `PromptTestFeature` still writes its single call's usage into `transcript.FinalOutput.Usage`, while `outcome.TokenUsage` sums every tracked call in the run (guardrail judges and nested tool calls included). The two numbers can differ. Keep both, drop or relabel the transcript copy, or just document which one to trust?
+- **Breakdown is split by feature as well as model.** Each entry carries `FeatureType`, `FeatureId` and `FeatureAlias`, so a grader can sum just the prompt's own call, just the guardrail judge calls (`inline-chat` / `guardrail-llm-evaluator`), or everything. To support this, the public `AIUsageContext` gains `FeatureAlias` (additive only).
+- Prompt tests still write their single call's usage into `transcript.FinalOutput.Usage`. It is kept so custom graders that read it keep working. `outcome.TokenUsage` covers every tracked call in the run, and its `Breakdown` holds the prompt's own entry.
 - Grader-made calls (for example an LLM-judge grader) are deliberately **not** counted. The collection scope closes before grading (`AITestRunner.cs:270`). The live check confirmed this: the judge's 439/102 tokens were left out of the agent run's totals.
 - A call that reports no usage, or a `UsageDetails` with all three counts null, adds to `CallCount` and `UnreportedCallCount` and not to the totals, so "unknown" is never shown as zero (`AIUsageCollector.cs:41`).
-- All tracked capabilities are counted, not only chat. Embedding, image and speech calls get their own `Models` entry tagged with `Capability`. The model ID comes from the profile (same source as the analytics dashboard), not from `ChatResponse.ModelId`.
-- No migration. The new fields ride in the existing `OutcomeTokenUsageJson` column. Runs saved before this change load with an empty `Models` list and zero counts.
+- All tracked capabilities are counted, not only chat. Embedding, image and speech calls get their own `Breakdown` entry tagged with `Capability`. The model ID comes from the profile (same source as the analytics dashboard), not from `ChatResponse.ModelId`.
+- No migration. The new fields ride in the existing `OutcomeTokenUsageJson` column. Runs saved before this change load with an empty `Breakdown` list and zero counts.
 - Public API changes are additive only. `IAITestGrader`, `AITestGraderBase` and the built-in graders are untouched, and graders read the data from the `outcome` they already receive. The collector types are `internal`.
 - Errored runs are unchanged (status `Error`, no outcome, no usage).
 - A stream that its consumer abandons partway is not collected. This matches analytics today. Test features always read streams to the end.
@@ -28,8 +29,9 @@ The contract graders see grows, with additions only:
      ├── InputTokens / OutputTokens / TotalTokens
 +    ├── CallCount
 +    ├── UnreportedCallCount
-+    └── Models : List<AITestModelTokenUsage>
++    └── Breakdown : List<AITestTokenUsageEntry>
 +        ├── Capability, ProviderId?, ModelId?, ProfileId?, ProfileAlias?
++        ├── FeatureType?, FeatureId?, FeatureAlias?
 +        ├── InputTokens / OutputTokens / TotalTokens
 +        └── CallCount / UnreportedCallCount
 ```
@@ -70,9 +72,9 @@ New internal types in `Umbraco.AI.Core/Observability/`:
 +AIUsageCollectionScope.cs       // AsyncLocal ambient scope, restores parent on dispose
 +AIUsageCollector.cs             // thread-safe, groups by capability/provider/model/profile
 +AIUsageCollectorSnapshot.cs
-+AIUsageCollectorModelEntry.cs
++AIUsageCollectorEntry.cs
 ```
 
-Management API adds the same fields to `TestTokenUsageResponseModel` (`callCount`, `unreportedCallCount`, `models[]`) and the TS client is regenerated. The run detail view already prints `outcome.tokenUsage` as JSON, so it needs no UI code change.
+Management API adds the same fields to `TestTokenUsageResponseModel` (`callCount`, `unreportedCallCount`, `breakdown[]`) and the TS client is regenerated. The run detail view already prints `outcome.tokenUsage` as JSON, so it needs no UI code change.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
