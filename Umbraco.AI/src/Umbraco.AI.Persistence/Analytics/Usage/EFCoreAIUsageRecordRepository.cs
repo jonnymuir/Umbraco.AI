@@ -117,18 +117,4 @@ internal sealed class EFCoreAIUsageRecordRepository : IAIUsageRecordRepository
         scope.Complete();
         return firstTimestamp;
     }
-
-    /// <inheritdoc />
-    public async Task<DateTime?> GetLastRecordTimestampAsync(CancellationToken ct = default)
-    {
-        using IEfCoreScope<UmbracoAIDbContext> scope = _scopeProvider.CreateScope();
-
-        var lastTimestamp = await scope.ExecuteWithContextAsync(async db =>
-            await db.UsageRecords.MaxAsync(r => (DateTime?)r.Timestamp, ct));
-
-        _logger.LogDebug("Last usage record timestamp: {Timestamp}", lastTimestamp);
-
-        scope.Complete();
-        return lastTimestamp;
-    }
 }
