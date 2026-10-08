@@ -22,3 +22,18 @@
   second example to compare.
 - 08-10-2026: Added T5, an explicit final review of thin types, stale names, stranded members and
   docs, so these calls aren't made piecemeal in each refactor PR.
+- 08-10-2026 (T2): `IAIAuditLogService` is public, so its unused synchronous write methods are
+  marked `[Obsolete]` (removal in v20) instead of removed, and the parent fallback inside
+  `QueueStartAuditLogAsync` stays for external callers. The tracker itself no longer reads
+  `AIAuditScope`.
+- 08-10-2026 (T2): The trace recorder can't see the audit entry, so the audit recorder tags the
+  Activity with its own entry ID (the link belongs to the entry's owner) and the trace recorder
+  reads the user from the back-office user, as the audit factory does. Side effect: the user tag
+  is now set when auditing is off too. The profile ID tag is no longer set when the ID is empty.
+- 08-10-2026 (T2): `AIOperationOutcome` carried an `AIAuditResponse`, which leaked audit into the
+  neutral outcome and made every tracking client build an audit type. Replaced with
+  `object? ResponseData` on both the outcome and `AITrackedOperationResult`; the audit recorder
+  builds `AIAuditResponse` from it plus the outcome's usage. This also removes usage being passed
+  twice per call (#528). `AIAuditResponse` stays: the public audit service uses it.
+- 08-10-2026 (T2): `IAIOperationRecording.EnterScope` returns `IDisposable?` rather than
+  `AIAuditScope?`, and `AIOperationScope.EnterScope` opens every recording's scope.

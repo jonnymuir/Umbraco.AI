@@ -43,7 +43,7 @@ internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBa
                 {
                     Result = response,
                     Usage = null,
-                    AuditResponse = new AIAuditResponse { Data = response.Text },
+                    ResponseData = response.Text,
                 };
             },
             cancellationToken);
@@ -71,8 +71,8 @@ internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBa
             SpeechToTextResponseUpdate current;
             try
             {
-                // Entered per step: the audit scope is AsyncLocal and doesn't survive this iterator's yields.
-                using (scope.EnterAuditScope())
+                // Entered per step: recording scopes are AsyncLocal and don't survive this iterator's yields.
+                using (scope.EnterScope())
                 {
                     if (!await enumerator.MoveNextAsync())
                     {
@@ -103,7 +103,7 @@ internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBa
         }
 
         var concatenatedText = string.Concat(textParts);
-        await scope.CompleteAsync(null, new AIAuditResponse { Data = concatenatedText });
+        await scope.CompleteAsync(null, concatenatedText);
     }
 
     private AIOperationDescriptor BuildDescriptor(SpeechToTextOptions? options) => new()

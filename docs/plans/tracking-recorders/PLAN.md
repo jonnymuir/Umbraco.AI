@@ -12,7 +12,7 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
 
 ## Tasks
 
-- [ ] **T1. Recorder contracts, analytics and test usage as recorders.**
+- [x] **T1. Recorder contracts, analytics and test usage as recorders.** #537 (v18), #538 (v17).
   - First commit: fill the test gaps below, against today's code, so they pin current behaviour.
   - Add `IAIOperationRecorder`, `IAIOperationRecording`, `AIOperationStart`,
     `AIOperationOutcome`. The tracker builds start and outcome once and calls an ordered list of
@@ -25,13 +25,16 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
     #531.
 
 - [ ] **T2. Audit and tracing as recorders.**
-  - `AIAuditOperationRecorder` owns entry creation, the parent lookup (one place, not two),
-    `EnterScope`, and start/end status. `AIOperationScope` stops reaching into
-    `tracker.AuditLogService`; the tracker stops referencing `AIAuditScope`.
-  - `AITraceOperationRecorder` takes the `AIActivityEnricher` call and the audit entry's
-    `TraceId` assignment.
-  - Remove the unused synchronous `AIAuditLogService` write methods.
-  - Behaviour change, own commit: recorder failures are isolated (decision 1).
+  - `AIAuditOperationRecorder` owns entry creation, the parent lookup, `EnterScope`, and
+    start/end status. `AIOperationScope` stops reaching into `tracker.AuditLogService`; the
+    tracker stops referencing `AIAuditScope`. The service's own parent fallback in
+    `QueueStartAuditLogAsync` stays: it is public behaviour (see decision log).
+  - `AITraceOperationRecorder` replaces `AIActivityEnricher`. The audit recorder links entry and
+    trace both ways (`TraceId` on the entry, audit ID tag on the Activity).
+  - Mark the unused synchronous `AIAuditLogService` write methods obsolete (the interface is
+    public, so they can't simply be removed).
+  - Recorder failures are isolated (decision 1). The guard already exists from T1, so moving audit
+    behind it is what changes the behaviour; a separate commit adds the test for it.
 
 - [ ] **T3. One outcome for every recorder.**
   - `AIOperationStatus.Blocked` when the call fails with `AIGuardrailBlockedException` (the same
@@ -41,7 +44,8 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
 
 - [ ] **T4. Smaller duplicates from #528** (can run in any order after T2): five copies of
   `PopulateProfileMetadata`; the error category worked out twice; two context extractors with
-  different field sets; out-of-date docs on `RecordUsageWhenEmpty` and `AITrackedOperationResult`.
+  different field sets; out-of-date docs on `RecordUsageWhenEmpty`. (`AITrackedOperationResult`'s
+  doc was fixed in T2, when its audit response became neutral `ResponseData`.)
 
 - [ ] **T5. Final review of what the refactor left behind** (last, after T1 to T4 have merged).
   Moving responsibilities out leaves some types thinner than their names and interfaces suggest.

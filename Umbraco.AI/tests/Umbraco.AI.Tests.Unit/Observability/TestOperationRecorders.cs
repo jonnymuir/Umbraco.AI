@@ -2,7 +2,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Umbraco.AI.Core.Analytics;
 using Umbraco.AI.Core.Analytics.Usage;
+using Umbraco.AI.Core.AuditLog;
 using Umbraco.AI.Core.Observability;
+using Umbraco.AI.Core.Telemetry;
+using Umbraco.Cms.Core.Security;
 
 namespace Umbraco.AI.Tests.Unit.Observability;
 
@@ -13,10 +16,16 @@ namespace Umbraco.AI.Tests.Unit.Observability;
 internal static class TestOperationRecorders
 {
     public static IAIOperationRecorder[] Default(
+        IAIAuditLogService auditLogService,
+        IAIAuditLogFactory auditLogFactory,
+        IOptionsMonitor<AIAuditLogOptions> auditLogOptions,
         IAIUsageRecordingService usageRecordingService,
         IAIUsageRecordFactory usageRecordFactory,
-        IOptionsMonitor<AIAnalyticsOptions> analyticsOptions) =>
+        IOptionsMonitor<AIAnalyticsOptions> analyticsOptions,
+        IBackOfficeSecurityAccessor? securityAccessor = null) =>
     [
+        new AIAuditOperationRecorder(auditLogService, auditLogFactory, auditLogOptions),
+        new AITraceOperationRecorder(securityAccessor ?? Mock.Of<IBackOfficeSecurityAccessor>()),
         new AIAnalyticsOperationRecorder(
             usageRecordingService,
             usageRecordFactory,

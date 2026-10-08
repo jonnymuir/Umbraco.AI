@@ -71,10 +71,7 @@ public class AIImageGenerationServiceTests
         // so the usage/audit assertions exercise it through a real tracker built from these mocks.
         var tracker = new AIOperationTracker(
             _contextAccessorMock.Object,
-            _auditLogServiceMock.Object,
-            _auditLogFactoryMock.Object,
-            auditOptions.Object,
-            TestOperationRecorders.Default(_usageRecordingServiceMock.Object, _usageRecordFactoryMock.Object, analyticsOptions.Object),
+            TestOperationRecorders.Default(_auditLogServiceMock.Object, _auditLogFactoryMock.Object, auditOptions.Object, _usageRecordingServiceMock.Object, _usageRecordFactoryMock.Object, analyticsOptions.Object),
             NullLogger<AIOperationTracker>.Instance);
 
         _service = new AIImageGenerationService(

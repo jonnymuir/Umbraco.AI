@@ -49,7 +49,7 @@ internal sealed class AITrackingEmbeddingGenerator : AIBoundEmbeddingGeneratorBa
                 {
                     Result = result,
                     Usage = result.Usage,
-                    AuditResponse = new AIAuditResponse { Data = result, Usage = result.Usage },
+                    ResponseData = result,
                 };
             },
             cancellationToken);
