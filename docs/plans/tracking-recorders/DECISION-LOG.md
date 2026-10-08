@@ -56,6 +56,10 @@
   `FeatureVersion`, so the audit and trace recorders build from it and the runtime context is read
   once per call. `AIOperationStart.RuntimeContext` is gone. The name `AIUsageContext` now
   undersells it; left for T5's naming review.
+- 08-10-2026: Added T7. The refactor was built by hand rather than through `umb-build-loop`, so no
+  task had its reviewer gate. T7 runs the playbook's reviewer agent over every task's diff at the
+  end, compares the work with how the build loop would have shaped it, and writes the missing
+  `BUILD-LOG.md`.
 - 08-10-2026: Added T6, re-enabling package validation at the end, baselined on each branch's
   major base release (18.0.0 / 17.0.0), with suppressions for the breaks accepted along the way.
 - 08-10-2026 (T3): A non-streamed call that returns a failure (response ending on `ErrorContent`)

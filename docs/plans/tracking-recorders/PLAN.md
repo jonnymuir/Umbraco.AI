@@ -82,6 +82,22 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
   - Applies to the whole repo, not just this refactor; touches every product's props, so one PR
     per line.
 
+- [ ] **T7. Review the whole refactor as the build loop would have** (last, after T6).
+  T0 to T4 were built by hand, not through the playbook's `umb-build-loop`, so no task went
+  through its builder/reviewer gate and there is no `BUILD-LOG.md`. Close that gap after the fact:
+  - For each merged task (T0 #532, #530's #534, T1 #537, T2 #539, T3 #541, T4 #543, and T5/T6 when
+    done), run the `umbraco-claude-playbook:reviewer` agent on the task's v18 diff, as
+    `umb-build-loop` would have after the builder: code, conventions and security gate, PASS or
+    FAIL with findings.
+  - Compare each task with how the build loop would have shaped it: one task per plan item, tests
+    written before the change, a self-test before review, and a commit only on PASS. Note where the
+    hand-built version differs (e.g. tasks that grew mid-review, like T2's `ResponseData` and T3's
+    enum).
+  - Write a `BUILD-LOG.md` for this plan from the result: one entry per task with its PRs, the
+    reviewer verdict and any findings.
+  - Fix FAIL findings as follow-up PRs on both lines; record anything accepted as-is in the
+    decision log with the reason.
+
 ## Test gaps to fill in T1
 
 Existing coverage is strong: about 60 tests across `AIOperationTrackerTests`,
