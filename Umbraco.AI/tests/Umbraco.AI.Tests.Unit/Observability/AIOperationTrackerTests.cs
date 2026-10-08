@@ -553,6 +553,40 @@ public class AIOperationTrackerTests
         _auditLogServiceMock.Verify(x => x.QueueStartAuditLogAsync(It.IsAny<AIAuditLog>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    // Decision 5: a guardrail block is its own outcome, so analytics stores "Blocked" as audit does.
+    [Fact]
+    public async Task TrackAsync_WhenAGuardrailBlocksTheCall_RecordsItAsBlocked()
+    {
+        // Arrange
+        AIUsageRecordResult? recorded = null;
+        var usageSignal = ArrangeUsageRecordingSignal();
+        _usageRecordFactoryMock
+            .Setup(x => x.Create(It.IsAny<AIUsageRecordContext>(), It.IsAny<AIUsageRecordResult>()))
+            .Callback<AIUsageRecordContext, AIUsageRecordResult>((_, result) => recorded = result)
+            .Returns((AIUsageRecordContext ctx, AIUsageRecordResult result) => BuildUsageRecord(ctx, result));
+        var blocked = new Umbraco.AI.Core.Guardrails.AIGuardrailBlockedException(
+            new Umbraco.AI.Core.Guardrails.Evaluators.AIGuardrailEvaluationResult
+            {
+                Action = Umbraco.AI.Core.Guardrails.AIGuardrailAction.Block,
+                Phase = Umbraco.AI.Core.Guardrails.AIGuardrailPhase.PreGenerate,
+                RuleResults = [],
+            });
+        var tracker = CreateTracker();
+
+        // Act
+        await Should.ThrowAsync<Umbraco.AI.Core.Guardrails.AIGuardrailBlockedException>(() =>
+            tracker.TrackAsync<string>(
+                CreateDescriptor(recordUsageWhenEmpty: true),
+                _ => Task.FromException<AITrackedOperationResult<string>>(blocked),
+                CancellationToken.None));
+        await AwaitOrTimeout(usageSignal.Task);
+
+        // Assert
+        recorded.ShouldNotBeNull();
+        recorded.Succeeded.ShouldBeFalse();
+        recorded.Blocked.ShouldBeTrue();
+    }
+
     // The user tag used to come from the audit entry, so it was missing when auditing was off.
     [Fact]
     public async Task TrackAsync_WithAuditDisabled_StillTagsTheCurrentActivityWithTheUser()

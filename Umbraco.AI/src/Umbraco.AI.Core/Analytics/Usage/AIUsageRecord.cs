@@ -105,7 +105,7 @@ public sealed class AIUsageRecord
     public required long DurationMs { get; init; }
 
     /// <summary>
-    /// Gets the status of the operation (Succeeded or Failed).
+    /// Gets the status of the operation: Succeeded, Failed, or Blocked (stopped by a guardrail, counted as a failure).
     /// </summary>
     public required string Status { get; init; }
 
