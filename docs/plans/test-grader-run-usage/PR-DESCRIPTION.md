@@ -8,7 +8,8 @@ Test graders never saw how many tokens a run used or which model produced it, so
 
 - **Behaviour change in usage analytics (bug fix):** analytics used to read provider, model, profile and feature from the shared runtime context when a call *finished*. Nested calls rewrite that context partway through: the LLM guardrail judge (`AIGuardrailChatMiddleware` → `IAIChatService`) and the semantic search tool's embedding call. So the outer chat call's tokens could be logged against the judge or embedding model. `BeginAsync` now captures the usage context once, as the audit log already did, and both analytics and test collection use that single capture. Dashboard numbers may shift between models compared with before. Not live-checked on the demo site; covered by `AIOperationTrackerAnalyticsIdentityTests`.
 - **Breakdown is split by feature as well as model.** Each entry carries `FeatureType`, `FeatureId` and `FeatureAlias`, so a grader can sum just the prompt's own call, just the guardrail judge calls (`inline-chat` / `guardrail-llm-evaluator`), or everything. To support this, the public `AIUsageContext` gains `FeatureAlias` (additive only).
-- Prompt tests still write their single call's usage into `transcript.FinalOutput.Usage`. It is kept so custom graders that read it keep working. `outcome.TokenUsage` covers every tracked call in the run, and its `Breakdown` holds the prompt's own entry.
+- **Deprecation:** prompt tests still write their single call's usage into `transcript.FinalOutput.Usage`. It is kept so custom graders that read the transcript JSON keep working, and is documented as deprecated, to be removed in v20 (`PromptTestFeature.cs:193`). It is raw JSON, so `[Obsolete]` can't reach it; this needs a release-notes line. `outcome.TokenUsage` covers every tracked call in the run, and its `Breakdown` holds the prompt's own entry.
+- **Duration and failures come from the tracker too.** Each entry and the totals carry `DurationMs` and `FailedCallCount`, using the same stopwatch value analytics already records (no second timer). `DurationMs` sums overlapping calls, so it is AI time, not wall-clock, and for streaming it includes the caller's time between chunks (as analytics always has). The features' own `timing` and `error` transcript JSON stays, since it covers the whole feature run and the error text.
 - Grader-made calls (for example an LLM-judge grader) are deliberately **not** counted. The collection scope closes before grading (`AITestRunner.cs:270`). The live check confirmed this: the judge's 439/102 tokens were left out of the agent run's totals.
 - A call that reports no usage, or a `UsageDetails` with all three counts null, adds to `CallCount` and `UnreportedCallCount` and not to the totals, so "unknown" is never shown as zero (`AIUsageCollector.cs:41`).
 - All tracked capabilities are counted, not only chat. Embedding, image and speech calls get their own `Breakdown` entry tagged with `Capability`. The model ID comes from the profile (same source as the analytics dashboard), not from `ChatResponse.ModelId`.
@@ -29,11 +30,13 @@ The contract graders see grows, with additions only:
      ├── InputTokens / OutputTokens / TotalTokens
 +    ├── CallCount
 +    ├── UnreportedCallCount
++    ├── FailedCallCount
++    ├── DurationMs                         // summed AI call time, not wall-clock
 +    └── Breakdown : List<AITestTokenUsageEntry>
 +        ├── Capability, ProviderId?, ModelId?, ProfileId?, ProfileAlias?
 +        ├── FeatureType?, FeatureId?, FeatureAlias?
 +        ├── InputTokens / OutputTokens / TotalTokens
-+        └── CallCount / UnreportedCallCount
++        └── CallCount / UnreportedCallCount / FailedCallCount / DurationMs
 ```
 
 The runner opens an ambient collection scope (`AsyncLocal`) around feature execution only:
@@ -75,6 +78,6 @@ New internal types in `Umbraco.AI.Core/Observability/`:
 +AIUsageCollectorEntry.cs
 ```
 
-Management API adds the same fields to `TestTokenUsageResponseModel` (`callCount`, `unreportedCallCount`, `breakdown[]`) and the TS client is regenerated. The run detail view already prints `outcome.tokenUsage` as JSON, so it needs no UI code change.
+Management API adds the same fields to `TestTokenUsageResponseModel` (`callCount`, `unreportedCallCount`, `failedCallCount`, `durationMs`, `breakdown[]`) and the TS client is regenerated. The run detail view already prints `outcome.tokenUsage` as JSON, so it needs no UI code change.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

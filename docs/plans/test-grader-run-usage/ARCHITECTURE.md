@@ -40,11 +40,13 @@ AITestOutcome
     ├── InputTokens / OutputTokens / TotalTokens   (existing, summed over the run)
     ├── CallCount                                  (new)
     ├── UnreportedCallCount                        (new: calls that returned no usage)
+    ├── FailedCallCount                            (new: calls that ended in FailAsync)
+    ├── DurationMs                                 (new: summed AI call time, not wall-clock)
     └── Breakdown : List<AITestTokenUsageEntry>    (new)
         ├── Capability, ProviderId, ModelId, ProfileId?, ProfileAlias?
         ├── FeatureType?, FeatureId?, FeatureAlias?
         ├── InputTokens / OutputTokens / TotalTokens
-        └── CallCount / UnreportedCallCount
+        └── CallCount / UnreportedCallCount / FailedCallCount / DurationMs
 ```
 
 ## Connected systems

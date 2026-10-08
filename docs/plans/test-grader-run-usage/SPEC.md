@@ -11,13 +11,15 @@
 | `TotalTokens` | `int` (existing) | Same, total tokens. Uses the provider's total when given, else input + output |
 | `CallCount` | `int` (new) | Number of tracked AI calls in the run |
 | `UnreportedCallCount` | `int` (new) | Calls that returned no usage. `> 0` means the totals are a lower bound |
+| `FailedCallCount` | `int` (new) | Calls that failed. A failed call also counts in `CallCount`, and in `UnreportedCallCount` when it reported no usage |
+| `DurationMs` | `long` (new) | Summed duration of every tracked call. Overlapping calls are summed, so this is AI time, not wall-clock |
 | `Breakdown` | `List<AITestTokenUsageEntry>` (new, never null) | One entry per distinct (capability, provider, model, profile, feature type, feature ID). Graders sum the entries they care about |
 
 ### `AITestTokenUsageEntry` (new sealed class)
 
 `Capability` (`AICapability`), `ProviderId` (`string?`), `ModelId` (`string?`), `ProfileId`
 (`Guid?`), `ProfileAlias` (`string?`), `FeatureType` (`string?`), `FeatureId` (`Guid?`),
-`FeatureAlias` (`string?`, first alias seen for the entry), `InputTokens`, `OutputTokens`, `TotalTokens`,
+`FeatureAlias` (`string?`, first alias seen for the entry), `FailedCallCount`, `DurationMs`, `InputTokens`, `OutputTokens`, `TotalTokens`,
 `CallCount`, `UnreportedCallCount`.
 
 ### Behavior
@@ -40,15 +42,17 @@
 12. Run data saved before this change still loads. Its `Breakdown` list is empty and new counts are 0.
 13. Calls to the same model from two features (for example the prompt and an LLM guardrail judge)
     produce two `Breakdown` entries, told apart by `FeatureType`, `FeatureId` and `FeatureAlias`.
+14. A call that fails adds to `FailedCallCount` and `CallCount`. Every call's measured duration adds
+    to `DurationMs` (the same value usage analytics records).
 
 ## Management API surface
 
 No new routes. Additive change to an existing response model:
 
 - `TestTokenUsageResponseModel` (returned inside `TestRunResponseModel.outcome.tokenUsage` on
-  the existing test run endpoints) gains `callCount`, `unreportedCallCount` and `breakdown`
+  the existing test run endpoints) gains `callCount`, `unreportedCallCount`, `failedCallCount`, `durationMs` and `breakdown`
   (array of `TestTokenUsageEntryResponseModel`: `capability`, `providerId`, `modelId`,
-  `profileId`, `profileAlias`, `featureType`, `featureId`, `featureAlias`, `inputTokens`, `outputTokens`, `totalTokens`, `callCount`,
+  `profileId`, `profileAlias`, `featureType`, `featureId`, `featureAlias`, `failedCallCount`, `durationMs`, `inputTokens`, `outputTokens`, `totalTokens`, `callCount`,
   `unreportedCallCount`).
 - Existing fields keep their names and meaning. Auth is unchanged (same endpoints, same policy).
 - The generated TypeScript client in `Umbraco.AI.Web.StaticAssets` is regenerated.

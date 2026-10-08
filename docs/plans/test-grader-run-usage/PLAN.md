@@ -54,6 +54,10 @@ Paths are relative to `Umbraco.AI/`. Unit tests go in `tests/Umbraco.AI.Tests.Un
   features give separate entries; feature identity captured at begin; runner and mapping carry it.
   story: S2 · depends-on: T8 · parallel-group: —
 
+- [x] **T10** — Breakdown entries and totals gain `DurationMs` and `FailedCallCount` from the
+  tracker (core, API, TS client). Prompt transcript `usage` marked deprecated (removal v20).
+  story: S1, S2 · depends-on: T9 · parallel-group: —
+
 - [ ] **T7** — Backport to `v17/dev` via the `backport` skill (separate worktree, draft PR).
   Confirm the v17 tracker/runner code matches before porting.
   story: all · depends-on: T6 and the v18 PR · parallel-group: —
