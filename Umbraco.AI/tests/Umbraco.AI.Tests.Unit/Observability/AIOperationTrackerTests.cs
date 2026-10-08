@@ -107,15 +107,12 @@ public class AIOperationTrackerTests
     }
 
     // Test 2: exception path queues audit failure + a failed usage record, then rethrows.
-    // Uses RecordUsageWhenEmpty=true (image/STT-style) because the failure path always reports
-    // null Usage — a capability with RecordUsageWhenEmpty=false (chat/embedding) would legitimately
-    // skip the usage record on failure too, which is covered separately by Test 5.
     [Fact]
     public async Task TrackAsync_OnException_QueuesAuditFailure_AndFailedUsage_AndRethrows()
     {
         // Arrange
         var tracker = CreateTracker();
-        var descriptor = CreateDescriptor(recordUsageWhenEmpty: true);
+        var descriptor = CreateDescriptor();
         var usageSignal = ArrangeUsageRecordingSignal();
         var exception = new InvalidOperationException("boom");
 
@@ -190,33 +187,13 @@ public class AIOperationTrackerTests
         _usageRecordingServiceMock.Verify(x => x.QueueRecordUsageAsync(It.IsAny<AIUsageRecord>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    // Test 5: RecordUsageWhenEmpty=false + null Usage => NO usage record queued.
+    // Test 6: null Usage => usage record still queued (duration and status only).
     [Fact]
-    public async Task TrackAsync_NullUsage_WithRecordWhenEmptyFalse_SkipsUsage()
+    public async Task TrackAsync_NullUsage_StillRecordsUsage()
     {
         // Arrange
         var tracker = CreateTracker();
-        var descriptor = CreateDescriptor(recordUsageWhenEmpty: false);
-
-        // Act
-        await tracker.TrackAsync(
-            descriptor,
-            _ => Task.FromResult(new AITrackedOperationResult<string> { Result = "success", Usage = null }),
-            CancellationToken.None);
-
-        await EnsureNoUsageRecorded();
-
-        // Assert
-        _usageRecordingServiceMock.Verify(x => x.QueueRecordUsageAsync(It.IsAny<AIUsageRecord>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    // Test 6: RecordUsageWhenEmpty=true + null Usage => usage record queued (duration only).
-    [Fact]
-    public async Task TrackAsync_NullUsage_WithRecordWhenEmptyTrue_RecordsUsage()
-    {
-        // Arrange
-        var tracker = CreateTracker();
-        var descriptor = CreateDescriptor(recordUsageWhenEmpty: true);
+        var descriptor = CreateDescriptor();
         var usageSignal = ArrangeUsageRecordingSignal();
 
         // Act
@@ -289,7 +266,7 @@ public class AIOperationTrackerTests
         // Act
         await Should.ThrowAsync<OperationCanceledException>(() =>
             tracker.TrackAsync<string>(
-                CreateDescriptor(recordUsageWhenEmpty: true),
+                CreateDescriptor(),
                 ct =>
                 {
                     cts.Cancel();
@@ -455,7 +432,7 @@ public class AIOperationTrackerTests
 
         // Act
         var result = await tracker.TrackAsync(
-            CreateDescriptor(recordUsageWhenEmpty: true),
+            CreateDescriptor(),
             _ => Task.FromResult(new AITrackedOperationResult<string>
             {
                 Result = "success",
@@ -543,7 +520,7 @@ public class AIOperationTrackerTests
 
         // Act
         var result = await tracker.TrackAsync(
-            CreateDescriptor(recordUsageWhenEmpty: true),
+            CreateDescriptor(),
             _ => Task.FromResult(new AITrackedOperationResult<string> { Result = "success" }),
             CancellationToken.None);
 
@@ -576,7 +553,7 @@ public class AIOperationTrackerTests
         // Act
         await Should.ThrowAsync<Umbraco.AI.Core.Guardrails.AIGuardrailBlockedException>(() =>
             tracker.TrackAsync<string>(
-                CreateDescriptor(recordUsageWhenEmpty: true),
+                CreateDescriptor(),
                 _ => Task.FromException<AITrackedOperationResult<string>>(blocked),
                 CancellationToken.None));
         await AwaitOrTimeout(usageSignal.Task);
@@ -615,11 +592,10 @@ public class AIOperationTrackerTests
         TestOperationRecorders.Default(_auditLogServiceMock.Object, _auditLogFactoryMock.Object, _auditLogOptionsMock.Object, _usageRecordingServiceMock.Object, _usageRecordFactoryMock.Object, _analyticsOptionsMock.Object, securityAccessor),
         NullLogger<AIOperationTracker>.Instance);
 
-    private static AIOperationDescriptor CreateDescriptor(bool recordUsageWhenEmpty = false) => new()
+    private static AIOperationDescriptor CreateDescriptor() => new()
     {
         Capability = AICapability.Chat,
         PromptData = "prompt data",
-        RecordUsageWhenEmpty = recordUsageWhenEmpty,
     };
 
     private static AIUsageRecord BuildUsageRecord(AIUsageRecordContext ctx, AIUsageRecordResult result) => new()

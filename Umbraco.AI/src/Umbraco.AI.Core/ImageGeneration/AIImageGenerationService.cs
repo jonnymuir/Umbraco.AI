@@ -162,7 +162,6 @@ internal sealed class AIImageGenerationService : IAIImageGenerationService
                 Capability = AICapability.ImageGeneration,
                 PromptData = promptData,
                 Metadata = null,
-                RecordUsageWhenEmpty = true,
             };
 
             UsageDetails? usage = null;

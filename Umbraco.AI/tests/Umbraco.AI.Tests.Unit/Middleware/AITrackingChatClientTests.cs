@@ -173,7 +173,7 @@ public class AITrackingChatClientTests
         _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(
             It.IsAny<AIAuditLog>(), It.IsAny<AIAuditPrompt?>(), It.IsAny<AIAuditResponse?>(), It.IsAny<CancellationToken>()), Times.Never);
 
-        // RecordUsageWhenEmpty=true means even a failed operation with no usage records duration/status.
+        // Usage is always recorded, so even a failed operation with no usage records duration/status.
         var record = await AwaitOrTimeout(usageSignal.Task);
         record.Status.ShouldBe(AIUsageRecordStatus.Failed);
         record.ErrorMessage.ShouldBe("AI error");
@@ -185,7 +185,7 @@ public class AITrackingChatClientTests
     [Fact]
     public async Task GetResponseAsync_NullUsage_StillRecordsUsageRow()
     {
-        // Arrange — Chat now uses RecordUsageWhenEmpty=true, so a null Usage still queues a
+        // Arrange — Chat always records usage, so a null Usage still queues a
         // record (with null token usage) capturing duration/status rather than being dropped.
         var responseMessage = new ChatMessage(ChatRole.Assistant, "Response");
         var fakeClient = new FakeChatClient((_, _, _) =>
@@ -282,7 +282,7 @@ public class AITrackingChatClientTests
     public async Task GetStreamingResponseAsync_OnSuccess_RecordsUsageEvenWithoutUsageDetails()
     {
         // Arrange — FakeChatClient's streaming updates carry no UsageContent, so the aggregated
-        // Usage is null. Chat now uses RecordUsageWhenEmpty=true even for the streaming path, so
+        // Usage is null. Usage is always recorded, on the streaming path too, so
         // a duration/status record is still queued.
         var fakeClient = new FakeChatClient("Hello world");
         var client = CreateClient(fakeClient);

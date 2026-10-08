@@ -4,7 +4,7 @@ namespace Umbraco.AI.Core.Observability;
 
 /// <summary>
 /// Adds every tracked AI call to the ambient <see cref="AIUsageCollectionScope"/>, if one is open
-/// (a test run). Independent of the analytics toggle and <see cref="AIOperationDescriptor.RecordUsageWhenEmpty"/>.
+/// (a test run). Independent of the analytics toggle.
 /// </summary>
 internal sealed class AITestUsageOperationRecorder : IAIOperationRecorder
 {

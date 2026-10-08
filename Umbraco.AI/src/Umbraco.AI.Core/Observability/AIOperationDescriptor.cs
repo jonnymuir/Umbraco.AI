@@ -16,10 +16,4 @@ internal sealed class AIOperationDescriptor
 
     /// <summary>Optional audit metadata (LogKeys), pre-extracted by the caller from its own source.</summary>
     public IReadOnlyDictionary<string, string>? Metadata { get; init; }
-
-    /// <summary>
-    /// When true, a usage record is written even if no <c>UsageDetails</c> are available
-    /// (duration/status only). Chat/Embedding = false; SpeechToText/ImageGeneration = true.
-    /// </summary>
-    public bool RecordUsageWhenEmpty { get; init; }
 }

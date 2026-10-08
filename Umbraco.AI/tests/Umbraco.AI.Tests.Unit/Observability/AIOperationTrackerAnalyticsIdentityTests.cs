@@ -103,7 +103,6 @@ public class AIOperationTrackerAnalyticsIdentityTests
     {
         Capability = AICapability.Chat,
         PromptData = "prompt data",
-        RecordUsageWhenEmpty = true,
     };
 
     public class GivenANestedCallChangesTheRuntimeContextBeforeCompletion
