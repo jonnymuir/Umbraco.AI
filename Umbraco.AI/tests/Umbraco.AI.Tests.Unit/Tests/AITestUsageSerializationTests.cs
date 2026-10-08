@@ -5,18 +5,18 @@ using Umbraco.AI.Core.Tests;
 
 namespace Umbraco.AI.Tests.Unit.Tests;
 
-public class AITestTokenUsageSerializationTests
+public class AITestUsageSerializationTests
 {
     private static readonly JsonSerializerOptions Options = Umbraco.AI.Core.Constants.DefaultJsonSerializerOptions;
 
-    public class GivenTokenUsageWithTwoBreakdownEntries
+    public class GivenUsageWithTwoBreakdownEntries
     {
-        private readonly AITestTokenUsage _original;
-        private readonly AITestTokenUsage _loaded;
+        private readonly AITestUsage _original;
+        private readonly AITestUsage _loaded;
 
-        public GivenTokenUsageWithTwoBreakdownEntries()
+        public GivenUsageWithTwoBreakdownEntries()
         {
-            _original = new AITestTokenUsage
+            _original = new AITestUsage
             {
                 InputTokens = 130,
                 OutputTokens = 45,
@@ -27,7 +27,7 @@ public class AITestTokenUsageSerializationTests
                 FailedCallCount = 1,
                 Breakdown =
                 [
-                    new AITestTokenUsageEntry
+                    new AITestUsageEntry
                     {
                         Capability = AICapability.Chat,
                         ProviderId = "openai",
@@ -45,7 +45,7 @@ public class AITestTokenUsageSerializationTests
                         DurationMs = 1100,
                         FailedCallCount = 1
                     },
-                    new AITestTokenUsageEntry
+                    new AITestUsageEntry
                     {
                         Capability = AICapability.Embedding,
                         ProviderId = "openai",
@@ -62,7 +62,7 @@ public class AITestTokenUsageSerializationTests
             };
 
             var json = JsonSerializer.Serialize(_original, Options);
-            _loaded = JsonSerializer.Deserialize<AITestTokenUsage>(json, Options)!;
+            _loaded = JsonSerializer.Deserialize<AITestUsage>(json, Options)!;
         }
 
         [Fact]
@@ -104,7 +104,7 @@ public class AITestTokenUsageSerializationTests
 
     public class GivenJsonWithTheOldModelsProperty
     {
-        private readonly AITestTokenUsage _loaded = JsonSerializer.Deserialize<AITestTokenUsage>(
+        private readonly AITestUsage _loaded = JsonSerializer.Deserialize<AITestUsage>(
             """{"inputTokens":10,"outputTokens":5,"totalTokens":15,"models":[{"modelId":"gpt-x","totalTokens":15}]}""", Options)!;
 
         [Fact]
@@ -116,11 +116,11 @@ public class AITestTokenUsageSerializationTests
 
     public class GivenJsonWrittenBeforeThisChange
     {
-        private readonly AITestTokenUsage _loaded;
+        private readonly AITestUsage _loaded;
 
         public GivenJsonWrittenBeforeThisChange()
         {
-            _loaded = JsonSerializer.Deserialize<AITestTokenUsage>(
+            _loaded = JsonSerializer.Deserialize<AITestUsage>(
                 """{"inputTokens":10,"outputTokens":5,"totalTokens":15}""", Options)!;
         }
 

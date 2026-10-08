@@ -705,6 +705,7 @@ export type TestOutcomeResponseModel = {
     outputType: string;
     outputValue?: null | string;
     finishReason?: null | string;
+    usage?: null | TestUsageResponseModel;
     tokenUsage?: null | TestTokenUsageResponseModel;
 };
 
@@ -766,7 +767,22 @@ export type TestRunResponseModel = {
     variationName?: null | string;
 };
 
-export type TestTokenUsageEntryResponseModel = {
+export type TestTokenUsageResponseModel = {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+};
+
+export type TestTranscriptResponseModel = {
+    id: string;
+    messages?: null | JsonElement;
+    toolCalls?: null | JsonElement;
+    reasoning?: null | JsonElement;
+    timing?: null | JsonElement;
+    finalOutput?: null | JsonElement;
+};
+
+export type TestUsageEntryResponseModel = {
     capability: string;
     providerId?: null | string;
     modelId?: null | string;
@@ -784,7 +800,7 @@ export type TestTokenUsageEntryResponseModel = {
     failedCallCount: number;
 };
 
-export type TestTokenUsageResponseModel = {
+export type TestUsageResponseModel = {
     inputTokens: number;
     outputTokens: number;
     totalTokens: number;
@@ -792,16 +808,7 @@ export type TestTokenUsageResponseModel = {
     unreportedCallCount: number;
     durationMs: number;
     failedCallCount: number;
-    breakdown: Array<TestTokenUsageEntryResponseModel>;
-};
-
-export type TestTranscriptResponseModel = {
-    id: string;
-    messages?: null | JsonElement;
-    toolCalls?: null | JsonElement;
-    reasoning?: null | JsonElement;
-    timing?: null | JsonElement;
-    finalOutput?: null | JsonElement;
+    breakdown: Array<TestUsageEntryResponseModel>;
 };
 
 export type TestVariationComparisonResponseModel = {

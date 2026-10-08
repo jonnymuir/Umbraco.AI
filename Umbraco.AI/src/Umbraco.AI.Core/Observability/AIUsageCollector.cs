@@ -77,21 +77,21 @@ internal sealed class AIUsageCollector
         {
             var breakdown = _groups
                 .Select(pair => new AIUsageCollectorEntry(
-                    pair.Key.Capability,
-                    pair.Key.ProviderId,
-                    pair.Key.ModelId,
-                    pair.Key.ProfileId,
-                    pair.Value.ProfileAlias,
-                    pair.Key.FeatureType,
-                    pair.Key.FeatureId,
-                    pair.Value.FeatureAlias,
-                    ClampToInt(pair.Value.InputTokens),
-                    ClampToInt(pair.Value.OutputTokens),
-                    ClampToInt(pair.Value.TotalTokens),
-                    pair.Value.CallCount,
-                    pair.Value.UnreportedCallCount,
-                    pair.Value.DurationMs,
-                    pair.Value.FailedCallCount))
+                    Capability: pair.Key.Capability,
+                    ProviderId: pair.Key.ProviderId,
+                    ModelId: pair.Key.ModelId,
+                    ProfileId: pair.Key.ProfileId,
+                    ProfileAlias: pair.Value.ProfileAlias,
+                    FeatureType: pair.Key.FeatureType,
+                    FeatureId: pair.Key.FeatureId,
+                    FeatureAlias: pair.Value.FeatureAlias,
+                    InputTokens: ClampToInt(pair.Value.InputTokens),
+                    OutputTokens: ClampToInt(pair.Value.OutputTokens),
+                    TotalTokens: ClampToInt(pair.Value.TotalTokens),
+                    CallCount: pair.Value.CallCount,
+                    UnreportedCallCount: pair.Value.UnreportedCallCount,
+                    DurationMs: pair.Value.DurationMs,
+                    FailedCallCount: pair.Value.FailedCallCount))
                 .OrderBy(e => e.Capability)
                 .ThenBy(e => e.ProviderId, StringComparer.Ordinal)
                 .ThenBy(e => e.ModelId, StringComparer.Ordinal)

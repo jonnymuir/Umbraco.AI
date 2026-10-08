@@ -2,7 +2,7 @@ using Microsoft.Extensions.AI;
 using Umbraco.AI.Core.Models;
 using Umbraco.AI.Core.Observability;
 
-// S1, S2 — Run token totals and per-model breakdown at the collector level (AC1.9, AC1.11).
+// S1, S2 — Run token totals and breakdown at the collector level (AC1.9, AC1.11).
 namespace Umbraco.AI.Tests.Unit.Observability;
 
 public class AIUsageCollectorTests
@@ -122,15 +122,15 @@ public class AIUsageCollectorTests
 
         [Fact]
         public void KeepsOnlyItsOwnTokensInEachEntry() =>
-            _snapshot.Breakdown.Single(m => m.ModelId == "model-a").TotalTokens.ShouldBe(10);
+            _snapshot.Breakdown.Single(e => e.ModelId == "model-a").TotalTokens.ShouldBe(10);
 
         [Fact]
         public void TotalsTheSumOfTheEntries() =>
-            _snapshot.TotalTokens.ShouldBe(_snapshot.Breakdown.Sum(m => m.TotalTokens));
+            _snapshot.TotalTokens.ShouldBe(_snapshot.Breakdown.Sum(e => e.TotalTokens));
 
         [Fact]
         public void OrdersEntriesByModel() =>
-            _snapshot.Breakdown.Select(m => m.ModelId).ShouldBe(["model-a", "model-b"]);
+            _snapshot.Breakdown.Select(e => e.ModelId).ShouldBe(["model-a", "model-b"]);
     }
 
     public class GivenNoTotalFromTheProvider

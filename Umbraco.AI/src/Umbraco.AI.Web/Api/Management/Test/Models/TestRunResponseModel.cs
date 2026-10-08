@@ -194,15 +194,45 @@ public class TestOutcomeResponseModel
     public string? FinishReason { get; set; }
 
     /// <summary>
-    /// Token usage statistics for the execution.
+    /// AI usage for the execution (tokens, call counts, duration and breakdown). Null when the run made no tracked AI call.
     /// </summary>
+    public TestUsageResponseModel? Usage { get; set; }
+
+    /// <summary>
+    /// Always null. Use <see cref="Usage"/> instead.
+    /// </summary>
+    [Obsolete("Always null. Use Usage instead. Will be removed in v20")]
+#pragma warning disable CS0618 // Declares the obsolete TestTokenUsageResponseModel for compatibility
     public TestTokenUsageResponseModel? TokenUsage { get; set; }
+#pragma warning restore CS0618
 }
 
 /// <summary>
-/// Response model for token usage statistics.
+/// Response model for token usage statistics. Always null on the outcome; use <see cref="TestUsageResponseModel"/>.
 /// </summary>
+[Obsolete("Always null. Use TestUsageResponseModel instead. Will be removed in v20")]
 public class TestTokenUsageResponseModel
+{
+    /// <summary>
+    /// Number of input tokens consumed.
+    /// </summary>
+    public int InputTokens { get; set; }
+
+    /// <summary>
+    /// Number of output tokens generated.
+    /// </summary>
+    public int OutputTokens { get; set; }
+
+    /// <summary>
+    /// Total tokens (input + output).
+    /// </summary>
+    public int TotalTokens { get; set; }
+}
+
+/// <summary>
+/// Response model for the AI usage of a test execution: tokens, call counts, summed call duration and a breakdown. Covers tracked AI calls made by the test feature; grader calls are excluded.
+/// </summary>
+public class TestUsageResponseModel
 {
     /// <summary>
     /// Number of input tokens consumed.
@@ -220,7 +250,7 @@ public class TestTokenUsageResponseModel
     public int TotalTokens { get; set; }
 
     /// <summary>
-    /// Number of AI calls made during the execution (test target and graders).
+    /// Number of tracked AI calls made by the test feature during the execution, including calls that reported no usage and failed calls. Grader calls are not included.
     /// </summary>
     public int CallCount { get; set; }
 
@@ -240,15 +270,15 @@ public class TestTokenUsageResponseModel
     public int FailedCallCount { get; set; }
 
     /// <summary>
-    /// Token usage broken down by capability, provider, model, profile and feature.
+    /// Usage broken down by capability, provider, model, profile and feature.
     /// </summary>
-    public IEnumerable<TestTokenUsageEntryResponseModel> Breakdown { get; set; } = [];
+    public IEnumerable<TestUsageEntryResponseModel> Breakdown { get; set; } = [];
 }
 
 /// <summary>
-/// Response model for token usage attributed to a single breakdown entry (capability, provider, model, profile and feature).
+/// Response model for the usage attributed to a single breakdown entry (capability, provider, model, profile and feature).
 /// </summary>
-public class TestTokenUsageEntryResponseModel
+public class TestUsageEntryResponseModel
 {
     /// <summary>
     /// The capability the calls were made with (for example Chat or Embedding).

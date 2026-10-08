@@ -102,8 +102,8 @@ internal sealed class AIOperationTracker : IAIOperationTracker
 
     /// <summary>
     /// Reports a finished call to the ambient <see cref="AIUsageCollectionScope"/>, if one is open.
-    /// Runs synchronously on the caller's flow (so the ambient collector and runtime context are the
-    /// call's own), independent of the analytics toggle and <see cref="AIOperationDescriptor.RecordUsageWhenEmpty"/>.
+    /// Runs synchronously on the caller's flow, because it reads the ambient collector from it,
+    /// independent of the analytics toggle and <see cref="AIOperationDescriptor.RecordUsageWhenEmpty"/>.
     /// Uses the usage context captured at <see cref="BeginAsync"/>, not the live runtime context.
     /// Never throws into the AI call.
     /// </summary>
@@ -126,6 +126,8 @@ internal sealed class AIOperationTracker : IAIOperationTracker
                 descriptor.Capability,
                 usageContext?.ProviderId,
                 usageContext?.ModelId,
+                // GetValue<Guid> returns Guid.Empty for a missing key; normalised here rather than in
+                // AIUsageContext.ExtractFromRuntimeContext so persisted analytics values don't change.
                 usageContext?.ProfileId == Guid.Empty ? null : usageContext?.ProfileId,
                 usageContext?.ProfileAlias,
                 usageContext?.FeatureType,

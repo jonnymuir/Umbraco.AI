@@ -13,11 +13,11 @@ using Xunit;
 
 namespace Umbraco.AI.Tests.Unit.Api.Management.Test;
 
-public class TestMapDefinitionTokenUsageTests
+public class TestMapDefinitionUsageTests
 {
-    public class GivenARunWithPopulatedTokenUsage
+    public class GivenARunWithPopulatedUsage
     {
-        private readonly AITestTokenUsageEntry _firstModel = new()
+        private readonly AITestUsageEntry _firstModel = new()
         {
             Capability = AICapability.Chat,
             ProviderId = "openai",
@@ -36,9 +36,10 @@ public class TestMapDefinitionTokenUsageTests
             FailedCallCount = 1
         };
 
-        private readonly TestTokenUsageResponseModel _tokenUsage;
+        private readonly TestUsageResponseModel _usage;
+        private readonly TestOutcomeResponseModel _outcome;
 
-        public GivenARunWithPopulatedTokenUsage()
+        public GivenARunWithPopulatedUsage()
         {
             var mapper = new UmbracoMapper(
                 new MapDefinitionCollection(() => new IMapDefinition[] { new TestMapDefinition() }),
@@ -50,7 +51,7 @@ public class TestMapDefinitionTokenUsageTests
                 TestId = Guid.NewGuid(),
                 Outcome = new AITestOutcome
                 {
-                    TokenUsage = new AITestTokenUsage
+                    Usage = new AITestUsage
                     {
                         InputTokens = 14,
                         OutputTokens = 6,
@@ -62,7 +63,7 @@ public class TestMapDefinitionTokenUsageTests
                         Breakdown =
                         [
                             _firstModel,
-                            new AITestTokenUsageEntry
+                            new AITestUsageEntry
                             {
                                 Capability = AICapability.Embedding,
                                 ModelId = "text-embedding-3-small",
@@ -75,34 +76,40 @@ public class TestMapDefinitionTokenUsageTests
             };
 
             var response = mapper.Map<TestRunResponseModel>(run)!;
-            _tokenUsage = response.Outcome!.TokenUsage!;
+            _outcome = response.Outcome!;
+            _usage = _outcome.Usage!;
         }
 
         [Fact]
-        public void MapsTheCallCount() => _tokenUsage.CallCount.ShouldBe(3);
+#pragma warning disable CS0618 // Asserting the obsolete property is never populated
+        public void LeavesTheObsoleteTokenUsageNull() => _outcome.TokenUsage.ShouldBeNull();
+#pragma warning restore CS0618
 
         [Fact]
-        public void MapsTheUnreportedCallCount() => _tokenUsage.UnreportedCallCount.ShouldBe(1);
+        public void MapsTheCallCount() => _usage.CallCount.ShouldBe(3);
 
         [Fact]
-        public void MapsTheDuration() => _tokenUsage.DurationMs.ShouldBe(1200);
+        public void MapsTheUnreportedCallCount() => _usage.UnreportedCallCount.ShouldBe(1);
 
         [Fact]
-        public void MapsTheFailedCallCount() => _tokenUsage.FailedCallCount.ShouldBe(1);
+        public void MapsTheDuration() => _usage.DurationMs.ShouldBe(1200);
 
         [Fact]
-        public void MapsTheEntryDuration() => _tokenUsage.Breakdown.First().DurationMs.ShouldBe(900);
+        public void MapsTheFailedCallCount() => _usage.FailedCallCount.ShouldBe(1);
 
         [Fact]
-        public void MapsTheEntryFailedCallCount() => _tokenUsage.Breakdown.First().FailedCallCount.ShouldBe(1);
+        public void MapsTheEntryDuration() => _usage.Breakdown.First().DurationMs.ShouldBe(900);
 
         [Fact]
-        public void MapsTheBreakdownEntries() => _tokenUsage.Breakdown.Count().ShouldBe(2);
+        public void MapsTheEntryFailedCallCount() => _usage.Breakdown.First().FailedCallCount.ShouldBe(1);
+
+        [Fact]
+        public void MapsTheBreakdownEntries() => _usage.Breakdown.Count().ShouldBe(2);
 
         [Fact]
         public void MapsTheEntryIdentity()
         {
-            var first = _tokenUsage.Breakdown.First();
+            var first = _usage.Breakdown.First();
 
             (first.Capability, first.ProviderId, first.ModelId, first.ProfileId, first.ProfileAlias)
                 .ShouldBe((nameof(AICapability.Chat), _firstModel.ProviderId, _firstModel.ModelId, _firstModel.ProfileId, _firstModel.ProfileAlias));
@@ -111,7 +118,7 @@ public class TestMapDefinitionTokenUsageTests
         [Fact]
         public void MapsTheFeatureIdentity()
         {
-            var first = _tokenUsage.Breakdown.First();
+            var first = _usage.Breakdown.First();
 
             (first.FeatureType, first.FeatureId, first.FeatureAlias)
                 .ShouldBe((_firstModel.FeatureType, _firstModel.FeatureId, _firstModel.FeatureAlias));

@@ -292,7 +292,7 @@ internal sealed class AITestRunner : IAITestRunner
                 OutputType = AITestOutputType.Text,
                 OutputValue = testFeature.ExtractOutputValue(transcript),
                 FinishReason = "completed",
-                TokenUsage = MapTokenUsage(usage)
+                Usage = MapUsage(usage)
             };
 
             // Store outcome
@@ -325,16 +325,16 @@ internal sealed class AITestRunner : IAITestRunner
     }
 
     /// <summary>
-    /// Maps the collected usage snapshot to the outcome's token usage; null when no tracked call was made.
+    /// Maps the collected usage snapshot to the outcome's usage; null when no tracked call was made.
     /// </summary>
-    private static AITestTokenUsage? MapTokenUsage(AIUsageCollectorSnapshot snapshot)
+    private static AITestUsage? MapUsage(AIUsageCollectorSnapshot snapshot)
     {
         if (snapshot.CallCount == 0)
         {
             return null;
         }
 
-        return new AITestTokenUsage
+        return new AITestUsage
         {
             InputTokens = snapshot.InputTokens,
             OutputTokens = snapshot.OutputTokens,
@@ -344,23 +344,23 @@ internal sealed class AITestRunner : IAITestRunner
             DurationMs = snapshot.DurationMs,
             FailedCallCount = snapshot.FailedCallCount,
             Breakdown = snapshot.Breakdown
-                .Select(m => new AITestTokenUsageEntry
+                .Select(e => new AITestUsageEntry
                 {
-                    Capability = m.Capability,
-                    ProviderId = m.ProviderId,
-                    ModelId = m.ModelId,
-                    ProfileId = m.ProfileId,
-                    ProfileAlias = m.ProfileAlias,
-                    FeatureType = m.FeatureType,
-                    FeatureId = m.FeatureId,
-                    FeatureAlias = m.FeatureAlias,
-                    InputTokens = m.InputTokens,
-                    OutputTokens = m.OutputTokens,
-                    TotalTokens = m.TotalTokens,
-                    CallCount = m.CallCount,
-                    UnreportedCallCount = m.UnreportedCallCount,
-                    DurationMs = m.DurationMs,
-                    FailedCallCount = m.FailedCallCount
+                    Capability = e.Capability,
+                    ProviderId = e.ProviderId,
+                    ModelId = e.ModelId,
+                    ProfileId = e.ProfileId,
+                    ProfileAlias = e.ProfileAlias,
+                    FeatureType = e.FeatureType,
+                    FeatureId = e.FeatureId,
+                    FeatureAlias = e.FeatureAlias,
+                    InputTokens = e.InputTokens,
+                    OutputTokens = e.OutputTokens,
+                    TotalTokens = e.TotalTokens,
+                    CallCount = e.CallCount,
+                    UnreportedCallCount = e.UnreportedCallCount,
+                    DurationMs = e.DurationMs,
+                    FailedCallCount = e.FailedCallCount
                 })
                 .ToList()
         };

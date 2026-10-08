@@ -1,4 +1,4 @@
-// S1, S2, S3 — Graders receive run token usage and per-model breakdown.
+// S1, S2, S3 — Graders receive run token usage and breakdown.
 // Entry point: the real AITestRunner.ExecuteTestAsync, with a fake IAITestFeature that reports
 // calls into the ambient collector through a real AIOperationTracker, and a recording grader that
 // captures the outcome it receives.
@@ -18,7 +18,7 @@ using Umbraco.AI.Core.Tests;
 
 namespace Umbraco.AI.Tests.Unit.Tests;
 
-public class AITestRunnerTokenUsageTests
+public class AITestRunnerUsageTests
 {
     private const string GraderTypeId = "recording-grader";
 
@@ -220,7 +220,7 @@ public class AITestRunnerTokenUsageTests
         private readonly RunnerHarness _harness = new(() => ReportAsync(
             new CallSpec("openai", "gpt-x", ProfileA, "p1", InputTokens: 100, OutputTokens: 20, TotalTokens: 120)));
 
-        private AITestTokenUsage Usage => _harness.OutcomeSeenByGrader!.TokenUsage!;
+        private AITestUsage Usage => _harness.OutcomeSeenByGrader!.Usage!;
 
         [Fact]
         public void GraderReceivesInputTokens() => Usage.InputTokens.ShouldBe(100);
@@ -233,16 +233,21 @@ public class AITestRunnerTokenUsageTests
 
         [Fact]
         public void GraderReceivesTheModelIdentity() =>
-            Usage.Breakdown.Select(m => (m.ProviderId, m.ModelId, m.ProfileId, m.ProfileAlias))
+            Usage.Breakdown.Select(e => (e.ProviderId, e.ModelId, e.ProfileId, e.ProfileAlias))
                 .ShouldBe([("openai", "gpt-x", (Guid?)ProfileA, "p1")]);
 
         [Fact]
-        public void RunOutcomeIsPersistedWithUsage() => _harness.SavedRun.Outcome!.TokenUsage.ShouldNotBeNull();
+        public void RunOutcomeIsPersistedWithUsage() => _harness.SavedRun.Outcome!.Usage.ShouldNotBeNull();
+
+        [Fact]
+#pragma warning disable CS0618 // Asserting the obsolete property is never set
+        public void ObsoleteTokenUsageStaysNull() => _harness.OutcomeSeenByGrader!.TokenUsage.ShouldBeNull();
+#pragma warning restore CS0618
     }
 
     public class GivenThreeCallsWithUsage
     {
-        private readonly AITestTokenUsage _usage;
+        private readonly AITestUsage _usage;
 
         public GivenThreeCallsWithUsage()
         {
@@ -250,7 +255,7 @@ public class AITestRunnerTokenUsageTests
                 ChatCall("gpt-x", ProfileA, "p1", 10),
                 ChatCall("gpt-x", ProfileA, "p1", 20),
                 ChatCall("gpt-x", ProfileA, "p1", 30)));
-            _usage = harness.OutcomeSeenByGrader!.TokenUsage!;
+            _usage = harness.OutcomeSeenByGrader!.Usage!;
         }
 
         [Fact]
@@ -262,7 +267,7 @@ public class AITestRunnerTokenUsageTests
 
     public class GivenCallsToTwoModels
     {
-        private readonly AITestTokenUsage _usage;
+        private readonly AITestUsage _usage;
 
         public GivenCallsToTwoModels()
         {
@@ -270,27 +275,27 @@ public class AITestRunnerTokenUsageTests
                 ChatCall("model-a", ProfileA, "pa", 10),
                 ChatCall("model-b", ProfileB, "pb", 20),
                 new CallSpec("openai", "model-b", ProfileB, "pb", AICapability.Embedding, TotalTokens: 5)));
-            _usage = harness.OutcomeSeenByGrader!.TokenUsage!;
+            _usage = harness.OutcomeSeenByGrader!.Usage!;
         }
 
         [Fact]
         public void HasAnEntryPerModelAndCapability() => _usage.Breakdown.Count.ShouldBe(3);
 
         [Fact]
-        public void TopLevelTotalEqualsSumOfEntries() => _usage.TotalTokens.ShouldBe(_usage.Breakdown.Sum(m => m.TotalTokens));
+        public void TopLevelTotalEqualsSumOfEntries() => _usage.TotalTokens.ShouldBe(_usage.Breakdown.Sum(e => e.TotalTokens));
 
         [Fact]
         public void EachEntryHoldsOnlyItsOwnTokens() =>
-            _usage.Breakdown.Single(m => m.ModelId == "model-a").TotalTokens.ShouldBe(10);
+            _usage.Breakdown.Single(e => e.ModelId == "model-a").TotalTokens.ShouldBe(10);
 
         [Fact]
         public void EntriesCarryTheirCapability() =>
-            _usage.Breakdown.Count(m => m.Capability == AICapability.Embedding).ShouldBe(1);
+            _usage.Breakdown.Count(e => e.Capability == AICapability.Embedding).ShouldBe(1);
     }
 
     public class GivenAPromptCallAndAGuardrailJudgeCallOnTheSameModel
     {
-        private readonly AITestTokenUsage _usage;
+        private readonly AITestUsage _usage;
         private static readonly Guid PromptId = Guid.NewGuid();
 
         public GivenAPromptCallAndAGuardrailJudgeCallOnTheSameModel()
@@ -300,7 +305,7 @@ public class AITestRunnerTokenUsageTests
                     FeatureType: "prompt", FeatureId: PromptId, FeatureAlias: "my-prompt"),
                 new CallSpec("openai", "gpt-x", ProfileA, "p1", TotalTokens: 40,
                     FeatureType: "inline-chat", FeatureAlias: "guardrail-llm-evaluator")));
-            _usage = harness.OutcomeSeenByGrader!.TokenUsage!;
+            _usage = harness.OutcomeSeenByGrader!.Usage!;
         }
 
         [Fact]
@@ -325,14 +330,14 @@ public class AITestRunnerTokenUsageTests
 
     public class GivenOneReportedAndOneUnreportedCall
     {
-        private readonly AITestTokenUsage _usage;
+        private readonly AITestUsage _usage;
 
         public GivenOneReportedAndOneUnreportedCall()
         {
             var harness = new RunnerHarness(() => ReportAsync(
                 ChatCall("model-a", ProfileA, "pa", 50),
                 new CallSpec("openai", "model-b", ProfileB, "pb")));
-            _usage = harness.OutcomeSeenByGrader!.TokenUsage!;
+            _usage = harness.OutcomeSeenByGrader!.Usage!;
         }
 
         [Fact]
@@ -342,20 +347,20 @@ public class AITestRunnerTokenUsageTests
         public void TotalIsALowerBound() => _usage.TotalTokens.ShouldBe(50);
 
         [Fact]
-        public void ModelEntryCountsTheUnreportedCall() =>
-            _usage.Breakdown.Single(m => m.ModelId == "model-b").UnreportedCallCount.ShouldBe(1);
+        public void BreakdownEntryCountsTheUnreportedCall() =>
+            _usage.Breakdown.Single(e => e.ModelId == "model-b").UnreportedCallCount.ShouldBe(1);
     }
 
     public class GivenTimedCallsAndOneFailedCall
     {
-        private readonly AITestTokenUsage _usage;
+        private readonly AITestUsage _usage;
 
         public GivenTimedCallsAndOneFailedCall()
         {
             var harness = new RunnerHarness(() => ReportAsync(
                 new CallSpec("openai", "model-a", ProfileA, "pa", TotalTokens: 10, DelayMs: 40),
                 new CallSpec("openai", "model-b", ProfileB, "pb", DelayMs: 40, Fails: true)));
-            _usage = harness.OutcomeSeenByGrader!.TokenUsage!;
+            _usage = harness.OutcomeSeenByGrader!.Usage!;
         }
 
         [Fact]
@@ -380,7 +385,7 @@ public class AITestRunnerTokenUsageTests
         private readonly RunnerHarness _harness = new(() => Task.CompletedTask);
 
         [Fact]
-        public void TokenUsageIsNull() => _harness.OutcomeSeenByGrader!.TokenUsage.ShouldBeNull();
+        public void UsageIsNull() => _harness.OutcomeSeenByGrader!.Usage.ShouldBeNull();
     }
 
     public class GivenAGraderThatMakesItsOwnCall
@@ -390,7 +395,7 @@ public class AITestRunnerTokenUsageTests
             () => ReportAsync(ChatCall("judge", ProfileB, "pb", 999)));
 
         [Fact]
-        public void GraderCallIsNotCounted() => _harness.SavedRun.Outcome!.TokenUsage!.TotalTokens.ShouldBe(10);
+        public void GraderCallIsNotCounted() => _harness.SavedRun.Outcome!.Usage!.TotalTokens.ShouldBe(10);
     }
 
     public class GivenAFeatureThatThrowsAfterACall

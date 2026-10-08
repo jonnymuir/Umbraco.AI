@@ -3,11 +3,11 @@ using Umbraco.AI.Core.Models;
 namespace Umbraco.AI.Core.Tests;
 
 /// <summary>
-/// Token usage for one breakdown entry (a capability, provider, model, profile and feature combination)
+/// Usage (tokens, call counts and duration) for one breakdown entry (a capability, provider, model, profile and feature combination)
 /// within a test execution. The feature identifies what made the calls, for example a prompt, an agent, or a
 /// guardrail judge, so graders can sum just the entries they care about.
 /// </summary>
-public sealed class AITestTokenUsageEntry
+public sealed class AITestUsageEntry
 {
     /// <summary>
     /// The capability the calls were made with (for example Chat or Embedding).
