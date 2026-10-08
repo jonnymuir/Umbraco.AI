@@ -48,6 +48,8 @@ export interface PropertyValueOperationRequest {
     args?: unknown;
     rootValue?: unknown;
     documentMetadata: DocumentMetadata;
+    /** The culture/segment being edited. Defaults server-side to `documentMetadata.variants[0]`. */
+    variant?: VariantId;
 }
 
 /**

@@ -5,6 +5,35 @@ All notable changes to Umbraco.AI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.5.2](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.5.1...Umbraco.AI@18.5.2) (2026-10-07)
+
+### fix
+
+* **core:** Don't require AI section access for shared picker lookups ([e85fac8](https://github.com/umbraco/Umbraco.AI/commit/e85fac8d882c8b3508828514487f7bbf4bdab906)), closes [#509](https://github.com/umbraco/Umbraco.AI/issues/509)
+* **ui:** Rename analytics Dashboard tab to Usage ([6f8bb59](https://github.com/umbraco/Umbraco.AI/commit/6f8bb5948c3da609d83ce17b4566d572038c2f83))
+
+## [18.5.1](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.5.0...Umbraco.AI@18.5.1) (2026-10-06)
+
+### fix
+
+* **core:** Stop content write tools wiping pickers and dropdowns on save ([412edf6](https://github.com/umbraco/Umbraco.AI/commit/412edf698e039bbbcc7f522ef298865a1a2033f7))
+* **core:** Content value tools now use the item's only culture when none is given, or return an error listing the available cultures
+* **core:** `set_umbraco_content_value` now restores the previous value and returns an error when a value in the wrong shape would be saved as empty
+
+## [18.5.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.4.0...Umbraco.AI@18.5.0) (2026-10-05)
+
+### feat
+
+* **core,agent:** Add tool executing and executed notifications ([739cc8c](https://github.com/umbraco/Umbraco.AI/commit/739cc8c51d784066f04cb183152d1752ff445bb6))
+
+### fix
+
+* **core,copilot:** Respect culture variance for values inside blocks ([7180f55](https://github.com/umbraco/Umbraco.AI/commit/7180f55dfd890f36dcc0fa7738a55a618a48f7a2)), closes [#450](https://github.com/umbraco/Umbraco.AI/issues/450)
+* **core:** Let 17.x sites upgrade past the AddCachedInputTokens migration ([2587d40](https://github.com/umbraco/Umbraco.AI/commit/2587d4012527b6c7973e6156f40f03f4bf3aff58))
+* **core:** Report failed typed tools as failed in AIToolExecutedNotification ([8e57e96](https://github.com/umbraco/Umbraco.AI/commit/8e57e96fbbf9ee127edbf21733bc2d72bf1270f2))
+* **core:** Send the chat profile's system prompt to the model ([bb6f142](https://github.com/umbraco/Umbraco.AI/commit/bb6f1423a076abc18e2785d37c05a7c5780f0c80))
+* **imagegeneration:** Record token usage on image generation audit-log entries ([7824820](https://github.com/umbraco/Umbraco.AI/commit/7824820684f1143b4a4c21e0c15ae17ca30623c8)), closes [#473](https://github.com/umbraco/Umbraco.AI/issues/473)
+
 ## [18.4.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.4.0-rc.4...Umbraco.AI@18.4.0) (2026-10-01)
 
 ### feat

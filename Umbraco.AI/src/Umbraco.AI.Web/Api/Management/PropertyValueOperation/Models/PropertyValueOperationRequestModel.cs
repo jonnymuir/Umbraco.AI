@@ -44,4 +44,11 @@ public sealed class PropertyValueOperationRequestModel
         Variants: new List<AIVariantId> { new(null, null) },
         IsVariant: false,
         IsSegmented: false);
+
+    /// <summary>
+    /// The culture/segment being edited. Optional; when omitted, the first entry of
+    /// <see cref="AIDocumentMetadata.Variants"/> is used. Values nested inside blocks are read and
+    /// written for this variant, narrowed to each nested property type's own variance.
+    /// </summary>
+    public AIVariantId? Variant { get; set; }
 }

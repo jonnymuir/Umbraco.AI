@@ -5,6 +5,28 @@ All notable changes to Umbraco.AI.Agent will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.3.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent@18.2.0...Umbraco.AI.Agent@18.3.0) (2026-10-05)
+
+### feat
+
+* **agent-ui,agent:** Send the previous auto pick with each run ([aa41c24](https://github.com/umbraco/Umbraco.AI/commit/aa41c24b5d921e49eff22bd035fec5ae407385ae))
+* **agent:** Add agent selector types and collection builder ([3e6c2c8](https://github.com/umbraco/Umbraco.AI/commit/3e6c2c815a5def5da3bc55a179aa5ebc8f12cebf))
+* **agent:** Add AIAgentSelectedNotification ([3daf5c9](https://github.com/umbraco/Umbraco.AI/commit/3daf5c9456e9608bf933219ccf4c0b9f257e6d52))
+* **agent:** Add LLMAgentSelector ([b077a7f](https://github.com/umbraco/Umbraco.AI/commit/b077a7fda0b797f463e3f1d85cee385a7ff262de))
+* **agent:** Add opt-in StickyAgentSelector ([ab4ab57](https://github.com/umbraco/Umbraco.AI/commit/ab4ab57adf4f350ee41b7f029c16b43a3fa1dee2))
+* **agent:** Add the agent selection service ([7591f89](https://github.com/umbraco/Umbraco.AI/commit/7591f89a3c28b782e11059e33b8584fee02b0ae9))
+* **agent:** Publish AIAgentSelectedNotification and add AIAgentSelectorIds ([615651b](https://github.com/umbraco/Umbraco.AI/commit/615651b4d177e40958af0e55bea4dc3e835344e0))
+* **agent:** Record the auto selector and reason in agent run audit metadata ([70eff88](https://github.com/umbraco/Umbraco.AI/commit/70eff88e7d57a4f4e3c52349511c1405fe3404a0))
+* **agent:** Register LLMAgentSelector and proxy SelectAgentForPromptAsync ([afc5385](https://github.com/umbraco/Umbraco.AI/commit/afc53851cc1897bbe5d9972abf05892b4700cebc))
+* **agent:** Route auto agent selection through IAIAgentSelectionService ([a210090](https://github.com/umbraco/Umbraco.AI/commit/a210090e3b00556fd9553fd9fa52216489fc5307))
+* **core,agent:** Add tool executing and executed notifications ([739cc8c](https://github.com/umbraco/Umbraco.AI/commit/739cc8c51d784066f04cb183152d1752ff445bb6))
+
+### fix
+
+* **agent,copilot-workspace:** Require surface opt-in for explicitly named agents ([542f779](https://github.com/umbraco/Umbraco.AI/commit/542f7793491163a466d5ffb0aa21dafb53d688fb))
+* **agent:** Report failed AG-UI runs as failed in the executed notification ([f3c2abd](https://github.com/umbraco/Umbraco.AI/commit/f3c2abd16c239e9685fd7560b1e9430fa8580be1))
+* **agent:** Skip a selector that times out instead of failing auto selection ([1989754](https://github.com/umbraco/Umbraco.AI/commit/19897541f4dad8057ae7aaecc85095c578283d89))
+
 ## [18.2.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent@18.2.0-rc.4...Umbraco.AI.Agent@18.2.0) (2026-10-01)
 
 ### feat
