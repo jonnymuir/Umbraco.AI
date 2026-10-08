@@ -27,22 +27,30 @@ internal sealed class AIOperationTracker : IAIOperationTracker
         CancellationToken cancellationToken)
     {
         var scope = await BeginAsync(descriptor, cancellationToken);
+        AITrackedOperationResult<TResult> result;
         try
         {
-            AITrackedOperationResult<TResult> result;
             using (scope.EnterScope())
             {
                 result = await operation(cancellationToken);
             }
-
-            await scope.CompleteAsync(result.Usage, result.ResponseData);
-            return result;
         }
         catch (Exception ex)
         {
             await scope.FailAsync(ex);
             throw;
         }
+
+        if (result.Failure is { } failure)
+        {
+            await scope.FailAsync(failure, result.Usage);
+        }
+        else
+        {
+            await scope.CompleteAsync(result.Usage, result.ResponseData);
+        }
+
+        return result;
     }
 
     public async Task<AIOperationScope> BeginAsync(AIOperationDescriptor descriptor, CancellationToken cancellationToken)

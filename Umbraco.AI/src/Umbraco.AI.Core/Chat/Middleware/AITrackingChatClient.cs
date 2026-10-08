@@ -41,6 +41,11 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
                     Result = response,
                     Usage = response.Usage,
                     ResponseData = response.Messages,
+                    // Same check as the streaming path: a response that ends on a provider error is a
+                    // failed call, though it is still returned to the caller.
+                    Failure = FindTerminalProviderError(response) is { } providerError
+                        ? new AIProviderErrorContentException(providerError)
+                        : null,
                 };
             },
             cancellationToken);
@@ -103,7 +108,7 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
         // the usage it consumed; an error the model carried on past stays a success.
         if (FindTerminalProviderError(aggregated) is { } providerError)
         {
-            await scope.FailAsync(new AIStreamedProviderErrorException(providerError), aggregated.Usage);
+            await scope.FailAsync(new AIProviderErrorContentException(providerError), aggregated.Usage);
         }
         else
         {
@@ -150,10 +155,10 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
 }
 
 /// <summary>
-/// A provider failure reported as streamed <see cref="ErrorContent"/> rather than thrown, wrapped so
-/// the audit log can record it like any other failed call.
+/// A provider failure reported as <see cref="ErrorContent"/> in the response, streamed or not, rather than
+/// thrown. Wrapped so recorders can record it like any other failed call.
 /// </summary>
-internal sealed class AIStreamedProviderErrorException(ErrorContent error)
+internal sealed class AIProviderErrorContentException(ErrorContent error)
     : Exception(string.IsNullOrEmpty(error.ErrorCode)
         ? error.Message ?? "The provider returned an error."
         : $"{error.ErrorCode}: {error.Message ?? "The provider returned an error."}")
