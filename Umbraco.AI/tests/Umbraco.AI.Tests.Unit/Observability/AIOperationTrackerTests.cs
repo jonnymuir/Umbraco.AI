@@ -80,7 +80,7 @@ public class AIOperationTrackerTests
         var tracker = CreateTracker();
         var descriptor = CreateDescriptor();
         var usageSignal = ArrangeUsageRecordingSignal();
-        var expectedResponse = new AIAuditResponse { Data = "ok" };
+        var usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 5, TotalTokenCount = 15 };
 
         // Act
         var result = await tracker.TrackAsync(
@@ -88,8 +88,8 @@ public class AIOperationTrackerTests
             _ => Task.FromResult(new AITrackedOperationResult<string>
             {
                 Result = "success",
-                Usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 5, TotalTokenCount = 15 },
-                AuditResponse = expectedResponse,
+                Usage = usage,
+                ResponseData = "ok",
             }),
             CancellationToken.None);
 
@@ -98,7 +98,11 @@ public class AIOperationTrackerTests
         // Assert
         result.Result.ShouldBe("success");
         _auditLogServiceMock.Verify(x => x.QueueStartAuditLogAsync(_auditLog, It.IsAny<CancellationToken>()), Times.Once);
-        _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(_auditLog, It.IsAny<AIAuditPrompt?>(), expectedResponse, It.IsAny<CancellationToken>()), Times.Once);
+        _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(
+            _auditLog,
+            It.IsAny<AIAuditPrompt?>(),
+            It.Is<AIAuditResponse?>(r => r != null && (string?)r.Data == "ok" && r.Usage == usage),
+            It.IsAny<CancellationToken>()), Times.Once);
         _usageRecordingServiceMock.Verify(x => x.QueueRecordUsageAsync(It.IsAny<AIUsageRecord>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -396,18 +400,21 @@ public class AIOperationTrackerTests
         var tracker = CreateTracker();
         var descriptor = CreateDescriptor();
         var usageSignal = ArrangeUsageRecordingSignal();
-        var response = new AIAuditResponse { Data = "streamed result" };
         var usage = new UsageDetails { InputTokenCount = 3, OutputTokenCount = 7, TotalTokenCount = 10 };
 
         // Act
         var scope = await tracker.BeginAsync(descriptor, CancellationToken.None);
-        await scope.CompleteAsync(usage, response);
+        await scope.CompleteAsync(usage, "streamed result");
 
         await AwaitOrTimeout(usageSignal.Task);
 
         // Assert
         _auditLogServiceMock.Verify(x => x.QueueStartAuditLogAsync(_auditLog, It.IsAny<CancellationToken>()), Times.Once);
-        _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(_auditLog, It.IsAny<AIAuditPrompt?>(), response, It.IsAny<CancellationToken>()), Times.Once);
+        _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(
+            _auditLog,
+            It.IsAny<AIAuditPrompt?>(),
+            It.Is<AIAuditResponse?>(r => r != null && (string?)r.Data == "streamed result" && r.Usage == usage),
+            It.IsAny<CancellationToken>()), Times.Once);
         _usageRecordingServiceMock.Verify(x => x.QueueRecordUsageAsync(It.IsAny<AIUsageRecord>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 

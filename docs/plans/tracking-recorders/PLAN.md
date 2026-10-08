@@ -44,7 +44,8 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
 
 - [ ] **T4. Smaller duplicates from #528** (can run in any order after T2): five copies of
   `PopulateProfileMetadata`; the error category worked out twice; two context extractors with
-  different field sets; out-of-date docs on `RecordUsageWhenEmpty` and `AITrackedOperationResult`.
+  different field sets; out-of-date docs on `RecordUsageWhenEmpty`. (`AITrackedOperationResult`'s
+  doc was fixed in T2, when its audit response became neutral `ResponseData`.)
 
 - [ ] **T5. Final review of what the refactor left behind** (last, after T1 to T4 have merged).
   Moving responsibilities out leaves some types thinner than their names and interfaces suggest.

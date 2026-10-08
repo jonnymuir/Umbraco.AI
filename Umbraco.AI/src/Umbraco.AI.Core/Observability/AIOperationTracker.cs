@@ -35,7 +35,7 @@ internal sealed class AIOperationTracker : IAIOperationTracker
                 result = await operation(cancellationToken);
             }
 
-            await scope.CompleteAsync(result.Usage, result.AuditResponse);
+            await scope.CompleteAsync(result.Usage, result.ResponseData);
             return result;
         }
         catch (Exception ex)

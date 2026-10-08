@@ -43,7 +43,7 @@ internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBa
                 {
                     Result = response,
                     Usage = null,
-                    AuditResponse = new AIAuditResponse { Data = response.Text },
+                    ResponseData = response.Text,
                 };
             },
             cancellationToken);
@@ -103,7 +103,7 @@ internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBa
         }
 
         var concatenatedText = string.Concat(textParts);
-        await scope.CompleteAsync(null, new AIAuditResponse { Data = concatenatedText });
+        await scope.CompleteAsync(null, concatenatedText);
     }
 
     private AIOperationDescriptor BuildDescriptor(SpeechToTextOptions? options) => new()

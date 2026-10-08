@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using Microsoft.Extensions.AI;
-using Umbraco.AI.Core.AuditLog;
 
 namespace Umbraco.AI.Core.Observability;
 
@@ -22,12 +21,12 @@ internal sealed class AIOperationScope
         _stopwatch = Stopwatch.StartNew();
     }
 
-    public Task CompleteAsync(UsageDetails? usage, AIAuditResponse? auditResponse)
+    public Task CompleteAsync(UsageDetails? usage, object? responseData)
     {
         _stopwatch.Stop();
         return _tracker.EndRecordingsAsync(
             _recordings,
-            new AIOperationOutcome(AIOperationStatus.Succeeded, usage, _stopwatch.ElapsedMilliseconds, Exception: null, auditResponse));
+            new AIOperationOutcome(AIOperationStatus.Succeeded, usage, _stopwatch.ElapsedMilliseconds, Exception: null, responseData));
     }
 
     public Task FailAsync(Exception exception, UsageDetails? usage = null)

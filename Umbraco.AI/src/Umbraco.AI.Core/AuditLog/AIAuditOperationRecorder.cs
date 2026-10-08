@@ -67,8 +67,9 @@ internal sealed class AIAuditOperationRecorder : IAIOperationRecorder
         {
             if (outcome.Succeeded)
             {
+                var response = new AIAuditResponse { Data = outcome.ResponseData, Usage = outcome.Usage };
                 await auditLogService.QueueCompleteAuditLogAsync(
-                    auditLog, auditPrompt, outcome.Response, CancellationToken.None);
+                    auditLog, auditPrompt, response, CancellationToken.None);
             }
             else
             {

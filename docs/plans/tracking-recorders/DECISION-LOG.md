@@ -30,5 +30,10 @@
   Activity with its own entry ID (the link belongs to the entry's owner) and the trace recorder
   reads the user from the back-office user, as the audit factory does. Side effect: the user tag
   is now set when auditing is off too. The profile ID tag is no longer set when the ID is empty.
+- 08-10-2026 (T2): `AIOperationOutcome` carried an `AIAuditResponse`, which leaked audit into the
+  neutral outcome and made every tracking client build an audit type. Replaced with
+  `object? ResponseData` on both the outcome and `AITrackedOperationResult`; the audit recorder
+  builds `AIAuditResponse` from it plus the outcome's usage. This also removes usage being passed
+  twice per call (#528). `AIAuditResponse` stays: the public audit service uses it.
 - 08-10-2026 (T2): `IAIOperationRecording.EnterScope` returns `IDisposable?` rather than
   `AIAuditScope?`, and `AIOperationScope.EnterScope` opens every recording's scope.
