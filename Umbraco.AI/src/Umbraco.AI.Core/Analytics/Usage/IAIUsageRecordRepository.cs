@@ -39,6 +39,13 @@ internal interface IAIUsageRecordRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Gets the timestamp of the oldest usage record, which is the oldest usage not yet aggregated.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The oldest record timestamp, or null if no records exist.</returns>
+    Task<DateTime?> GetFirstRecordTimestampAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Gets the timestamp of the most recent usage record.
     /// Used for monitoring and health checks.
     /// </summary>
