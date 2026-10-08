@@ -32,4 +32,15 @@ public sealed record AIPropertyValueDispatchRequest(
     AIPropertyOperation Operation,
     JsonNode? Args,
     JsonNode? RootValue,
-    AIDocumentMetadata DocumentMetadata);
+    AIDocumentMetadata DocumentMetadata)
+{
+    /// <summary>
+    /// The culture/segment being edited. When <c>null</c>, the first entry of
+    /// <see cref="AIDocumentMetadata.Variants"/> is used.
+    /// </summary>
+    /// <remarks>
+    /// Values nested inside blocks are read and written for this variant, narrowed to the
+    /// dimensions each nested property type actually varies by.
+    /// </remarks>
+    public AIVariantId? Variant { get; init; }
+}

@@ -127,6 +127,15 @@ function Get-UmbracoAIProducts {
                     $productsByName[$subprojectName] = $productKey
                 }
             }
+
+            # Map frontend npm package names (e.g. @umbraco-ai/agent-ui) to this product too, so
+            # npm dependencies between products can be resolved the same way as .csproj ones.
+            foreach ($packageJson in Get-ProductPackageJsonFiles -SrcFolder $srcFolder) {
+                $npmName = (Get-Content $packageJson -Raw | ConvertFrom-Json).name
+                if ($npmName -and -not $productsByName.ContainsKey($npmName)) {
+                    $productsByName[$npmName] = $productKey
+                }
+            }
         }
     }
 
@@ -194,6 +203,62 @@ function Get-ProjectDependencies {
     }
 }
 
+function Get-ProductPackageJsonFiles {
+    <#
+    .SYNOPSIS
+    Returns the frontend package.json files of a product (src/<Project>/Client/package.json).
+
+    .DESCRIPTION
+    Looks only one level down instead of recursing, so node_modules is never scanned.
+    #>
+    param([string]$SrcFolder)
+
+    Get-ChildItem -Path $SrcFolder -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+        $packageJson = Join-Path $_.FullName "Client/package.json"
+        if (Test-Path $packageJson) { $packageJson }
+    }
+}
+
+function Get-NpmDependencies {
+    <#
+    .SYNOPSIS
+    Extracts Umbraco.AI dependencies from a frontend package.json.
+
+    .DESCRIPTION
+    A frontend can depend on another product's npm package (e.g. Copilot Workspace consumes
+    @umbraco-ai/agent-ui types) without any matching .csproj reference. Those dependencies
+    still decide build order, so they count towards the product's level.
+    #>
+    param(
+        [string]$PackageJsonPath,
+        [hashtable]$ProductsByName
+    )
+
+    try {
+        $packageJson = Get-Content $PackageJsonPath -Raw -ErrorAction Stop | ConvertFrom-Json
+        $dependencies = @()
+
+        foreach ($section in @('dependencies', 'peerDependencies', 'devDependencies')) {
+            if ($null -eq $packageJson.$section) { continue }
+
+            foreach ($name in $packageJson.$section.PSObject.Properties.Name) {
+                if ($name -like '@umbraco-ai/*' -and $ProductsByName.ContainsKey($name)) {
+                    $depKey = $ProductsByName[$name]
+                    if ($dependencies -notcontains $depKey) {
+                        $dependencies += $depKey
+                    }
+                }
+            }
+        }
+
+        return $dependencies
+    }
+    catch {
+        Write-Host "  Warning: Failed to parse $PackageJsonPath - $_" -ForegroundColor Yellow
+        return @()
+    }
+}
+
 function Get-AllProductDependencies {
     <#
     .SYNOPSIS
@@ -221,6 +286,15 @@ function Get-AllProductDependencies {
 
                 # Merge dependencies (exclude self-references and duplicates)
                 foreach ($dep in $deps) {
+                    if ($dep -and $dep -ne $productKey -and $allDeps -notcontains $dep) {
+                        $allDeps += $dep
+                    }
+                }
+            }
+
+            # Frontend npm dependencies on other products
+            foreach ($packageJson in Get-ProductPackageJsonFiles -SrcFolder $srcFolder) {
+                foreach ($dep in Get-NpmDependencies -PackageJsonPath $packageJson -ProductsByName $ProductsByName) {
                     if ($dep -and $dep -ne $productKey -and $allDeps -notcontains $dep) {
                         $allDeps += $dep
                     }

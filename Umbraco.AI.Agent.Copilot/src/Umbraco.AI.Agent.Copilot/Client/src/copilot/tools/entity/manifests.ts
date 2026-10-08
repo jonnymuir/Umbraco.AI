@@ -11,11 +11,16 @@ const PATH_DESCRIPTION =
 const VARIANT_PARAMS = {
     culture: {
         type: "string",
-        description: "Optional: Culture code for variant content (e.g., 'en-US'). Omit for invariant content.",
+        description:
+            "Optional. Leave empty to edit the language the user is currently viewing, which is almost " +
+            "always what they want. Only set it when the user explicitly asks to change a different " +
+            "language, using that language's culture code.",
     },
     segment: {
         type: "string",
-        description: "Optional: Segment name for segmented content. Omit for non-segmented content.",
+        description:
+            "Optional. Leave empty to edit the segment the user is currently viewing. Only set it when " +
+            "the user explicitly asks to change a different segment.",
     },
 } as const;
 

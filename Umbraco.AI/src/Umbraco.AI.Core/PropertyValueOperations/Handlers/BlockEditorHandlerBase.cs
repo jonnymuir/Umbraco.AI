@@ -54,13 +54,14 @@ public abstract class BlockEditorHandlerBase : IAIPropertyValueHandler
         CancellationToken cancellationToken = default)
     {
         var envelope = BlockEnvelopeOps.AsEnvelope(value, LayoutKey);
-        var variant = args.Variant ?? PrimaryVariant(context);
+        var variant = args.Variant ?? context.Variant;
 
         var contentTypeKey = ResolveContentTypeKey(args.ElementType);
+        var elementType = contentTypeKey == Guid.Empty ? null : _contentTypeService.Get(contentTypeKey);
         var contentKey = BlockEnvelopeOps.AddContentDataEntry(
             envelope,
             contentTypeKey,
-            BuildValuesArray(args.Values, variant));
+            BuildValuesArray(args.Values, variant, elementType));
 
         Guid? settingsKey = null;
         if (args.SettingsValues is not null)
@@ -70,13 +71,22 @@ public abstract class BlockEditorHandlerBase : IAIPropertyValueHandler
             settingsKey = BlockEnvelopeOps.AddSettingsDataEntry(
                 envelope,
                 contentTypeKey,
-                BuildValuesArray(args.SettingsValues, variant));
+                BuildValuesArray(args.SettingsValues, variant, elementType));
         }
 
         BlockEnvelopeOps.AddLayoutEntry(envelope, LayoutKey, BuildLayoutEntry(contentKey, settingsKey, args), args.Position);
 
+        // Expose entries follow the element type's variance: an invariant element type is exposed
+        // once with a null culture/segment, whatever the document's variants are.
+        var exposeVariants = elementType is null
+            ? context.DocumentMetadata.Variants
+            : context.DocumentMetadata.Variants
+                .Select(v => AIVariantId.ForVariations(v, elementType.Variations))
+                .Distinct()
+                .ToList();
+
         var exposeArray = BlockEnvelopeOps.GetOrCreateArray(envelope, BlockEnvelopeOps.ExposePropertyName);
-        foreach (var entry in ExposeBuilder.Build(contentKey, context.DocumentMetadata.Variants))
+        foreach (var entry in ExposeBuilder.Build(contentKey, exposeVariants))
         {
             exposeArray.Add(entry);
         }
@@ -176,9 +186,6 @@ public abstract class BlockEditorHandlerBase : IAIPropertyValueHandler
         return Task.FromResult<JsonNode?>(envelope);
     }
 
-    private static AIVariantId? PrimaryVariant(AIPropertyValueOperationContext context)
-        => context.DocumentMetadata.Variants.Count > 0 ? context.DocumentMetadata.Variants[0] : null;
-
     private Guid ResolveContentTypeKey(string? elementType)
     {
         if (string.IsNullOrWhiteSpace(elementType))
@@ -203,7 +210,7 @@ public abstract class BlockEditorHandlerBase : IAIPropertyValueHandler
         return property?.PropertyEditorAlias;
     }
 
-    private static JsonArray BuildValuesArray(JsonObject? values, AIVariantId? variant)
+    private static JsonArray BuildValuesArray(JsonObject? values, AIVariantId? variant, IContentTypeComposition? elementType)
     {
         var array = new JsonArray();
         if (values is null)
@@ -213,11 +220,17 @@ public abstract class BlockEditorHandlerBase : IAIPropertyValueHandler
 
         foreach (var (alias, node) in values)
         {
+            // Each value carries a culture/segment only when its own property type varies by it.
+            // Unknown element types/properties keep the requested variant as-is.
+            var propertyType = elementType?.CompositionPropertyTypes
+                .FirstOrDefault(p => string.Equals(p.Alias, alias, StringComparison.OrdinalIgnoreCase));
+            var valueVariant = propertyType is null ? variant : AIVariantId.ForVariations(variant, propertyType.Variations);
+
             array.Add(new JsonObject
             {
                 ["alias"] = alias,
-                ["culture"] = variant?.Culture,
-                ["segment"] = variant?.Segment,
+                ["culture"] = valueVariant?.Culture,
+                ["segment"] = valueVariant?.Segment,
                 ["value"] = node?.DeepClone(),
             });
         }

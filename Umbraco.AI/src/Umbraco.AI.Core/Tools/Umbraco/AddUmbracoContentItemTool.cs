@@ -2,8 +2,13 @@ using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using Umbraco.AI.Core.PropertyValueOperations;
 using Umbraco.AI.Core.Tools.Scopes;
+using Umbraco.Cms.Core.DependencyInjection;
+using Umbraco.Cms.Core.PropertyEditors;
+using Umbraco.Cms.Core.Serialization;
 using Umbraco.Cms.Core.Services;
 
 namespace Umbraco.AI.Core.Tools.Umbraco;
@@ -46,9 +51,30 @@ public record AddUmbracoContentItemArgs(
 public class AddUmbracoContentItemTool(
     IContentEditingService contentEditingService,
     IAIPropertyValueDispatcher dispatcher,
-    IUmbracoWriteAuthorizer authorizer)
+    IUmbracoWriteAuthorizer authorizer,
+    PropertyEditorCollection propertyEditors,
+    IJsonSerializer jsonSerializer)
     : AIToolBase<AddUmbracoContentItemArgs>
 {
+    private readonly ContentEditorValueReader _valueReader = new(propertyEditors, jsonSerializer);
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AddUmbracoContentItemTool"/> class.
+    /// </summary>
+    [Obsolete("Use the constructor that accepts a PropertyEditorCollection and an IJsonSerializer. Will be removed in v19")]
+    public AddUmbracoContentItemTool(
+        IContentEditingService contentEditingService,
+        IAIPropertyValueDispatcher dispatcher,
+        IUmbracoWriteAuthorizer authorizer)
+        : this(
+            contentEditingService,
+            dispatcher,
+            authorizer,
+            StaticServiceProvider.Instance.GetRequiredService<PropertyEditorCollection>(),
+            StaticServiceProvider.Instance.GetRequiredService<IJsonSerializer>())
+    {
+    }
+
     private static readonly JsonSerializerOptions AddItemArgsSerializerOptions = new(JsonSerializerDefaults.Web);
 
     /// <inheritdoc />
@@ -76,6 +102,7 @@ public class AddUmbracoContentItemTool(
             authorizer,
             contentEditingService,
             dispatcher,
+            _valueReader,
             args.Key,
             args.Path,
             AIPropertyOperation.AddItem,
