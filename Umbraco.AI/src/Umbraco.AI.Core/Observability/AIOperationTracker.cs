@@ -65,7 +65,7 @@ internal sealed class AIOperationTracker : IAIOperationTracker
             : null;
 
         var recordings = await BeginRecordingsAsync(
-            new AIOperationStart(descriptor, identity), cancellationToken);
+            new AIOperationStart(descriptor, identity, runtimeContext.GetLogValues()), cancellationToken);
 
         return new AIOperationScope(this, recordings);
     }

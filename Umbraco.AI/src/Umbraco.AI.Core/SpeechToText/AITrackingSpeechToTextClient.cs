@@ -17,14 +17,10 @@ namespace Umbraco.AI.Core.SpeechToText;
 internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBase
 {
     private readonly IAIOperationTracker _tracker;
-    private readonly IAIRuntimeContextAccessor _contextAccessor;
 
-    public AITrackingSpeechToTextClient(ISpeechToTextClient innerClient, IAIOperationTracker tracker, IAIRuntimeContextAccessor contextAccessor)
+    public AITrackingSpeechToTextClient(ISpeechToTextClient innerClient, IAIOperationTracker tracker)
         : base(innerClient)
-    {
-        _tracker = tracker;
-        _contextAccessor = contextAccessor;
-    }
+        => _tracker = tracker;
 
     /// <inheritdoc />
     public override async Task<SpeechToTextResponse> GetTextAsync(
@@ -110,7 +106,6 @@ internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBa
     {
         Capability = AICapability.SpeechToText,
         PromptData = BuildPromptData(options),
-        Metadata = AIAuditMetadata.ExtractFromRuntimeContext(_contextAccessor.Context),
     };
 
     /// <summary>

@@ -603,6 +603,31 @@ public class AIOperationTrackerTests
         captured.Prompt.ShouldBe("prompt data");
     }
 
+    // Log keys are read by the tracker for every capability; image calls used to pass none.
+    [Fact]
+    public async Task TrackAsync_PassesTheDeclaredLogValuesToTheAuditEntry_ForAnyCapability()
+    {
+        // Arrange
+        _runtimeContext.SetValue(Constants.ContextKeys.LogKeys, new[] { "RunId" });
+        _runtimeContext.SetValue("RunId", "run-42");
+        IReadOnlyDictionary<string, string>? captured = null;
+        _auditLogFactoryMock
+            .Setup(x => x.Create(It.IsAny<AIAuditContext>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<Guid?>()))
+            .Callback<AIAuditContext, IReadOnlyDictionary<string, string>?, Guid?>((_, metadata, _) => captured = metadata)
+            .Returns(_auditLog);
+        var tracker = CreateTracker();
+
+        // Act
+        await tracker.TrackAsync(
+            new AIOperationDescriptor { Capability = AICapability.ImageGeneration, PromptData = "a cat" },
+            _ => Task.FromResult(new AITrackedOperationResult<string> { Result = "1 image(s)" }),
+            CancellationToken.None);
+
+        // Assert
+        captured.ShouldNotBeNull();
+        captured["RunId"].ShouldBe("run-42");
+    }
+
     // The user tag used to come from the audit entry, so it was missing when auditing was off.
     [Fact]
     public async Task TrackAsync_WithAuditDisabled_StillTagsTheCurrentActivityWithTheUser()

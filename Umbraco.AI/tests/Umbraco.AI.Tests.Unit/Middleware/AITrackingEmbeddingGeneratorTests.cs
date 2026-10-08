@@ -235,7 +235,7 @@ public class AITrackingEmbeddingGeneratorTests
     #endregion
 
     private AITrackingEmbeddingGenerator CreateGenerator(IEmbeddingGenerator<string, Embedding<float>> innerGenerator) =>
-        new(innerGenerator, CreateTracker(), _contextAccessorMock.Object);
+        new(innerGenerator, CreateTracker());
 
     private AIOperationTracker CreateTracker() => new(
         _contextAccessorMock.Object,

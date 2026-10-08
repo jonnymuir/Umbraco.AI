@@ -12,6 +12,11 @@ namespace Umbraco.AI.Core.Observability;
 /// overwrite those keys before the outer call completes. Every recorder reads this, so the runtime context
 /// is read in one place. Null when the call has no runtime context.
 /// </param>
+/// <param name="LogValues">
+/// Values the caller asked to have logged with the call (<see cref="Constants.ContextKeys.LogKeys"/>),
+/// read at the same time as <paramref name="Identity"/>. Null when none were declared.
+/// </param>
 internal sealed record AIOperationStart(
     AIOperationDescriptor Descriptor,
-    AIUsageContext? Identity);
+    AIUsageContext? Identity,
+    IReadOnlyDictionary<string, string>? LogValues);
