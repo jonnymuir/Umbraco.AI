@@ -64,6 +64,22 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
   - Doc comments and `docs/reference/` that still describe the old tracker.
   - The recorder contracts themselves: anything added "for later" that no recorder ended up using.
 
+- [ ] **T6. Turn package validation back on** (after T5, so it baselines the finished shape).
+  `EnablePackageValidation` is `false` in every product's `Directory.Build.props`, with a stale
+  `PackageValidationBaselineVersion` of `1.0.0`, and no `CompatibilitySuppressions.xml` exists. So
+  nothing currently catches a public API break.
+  - Re-enable it with the baseline set to the branch's major base release: `18.0.0` on `v18`,
+    `17.0.0` on `v17`. Ideally derive it from the major in `version.json` rather than hard-coding,
+    so the next major cutover doesn't leave it stale again.
+  - Products that shipped their first stable version later in the major (no `X.0.0` on NuGet)
+    need their own baseline: the first published version of that major.
+  - Generate a `CompatibilitySuppressions.xml` per affected package for breaks that were accepted
+    on purpose, each with a one-line reason. Known so far: `AIUsageRecord.Status` changed from
+    `string` to `AIUsageRecordStatus` (T3, see decision log).
+  - Check it runs in CI (the pack step), not just locally, and that a deliberate break fails it.
+  - Applies to the whole repo, not just this refactor; touches every product's props, so one PR
+    per line.
+
 ## Test gaps to fill in T1
 
 Existing coverage is strong: about 60 tests across `AIOperationTrackerTests`,

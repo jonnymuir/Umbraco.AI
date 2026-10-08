@@ -46,6 +46,8 @@
   `AIUsageRecord.Status`; accepted by the maintainer because `AIUsageRecord` is only produced and
   consumed through internal interfaces. Package validation is off for every product, so there is
   no compatibility suppression file to update.
+- 08-10-2026: Added T6, re-enabling package validation at the end, baselined on each branch's
+  major base release (18.0.0 / 17.0.0), with suppressions for the breaks accepted along the way.
 - 08-10-2026 (T3): A non-streamed call that returns a failure (response ending on `ErrorContent`)
   is signalled through an optional `AITrackedOperationResult.Failure`, so the caller still gets the
   response while recorders see a failed call. Same rule the streaming path already applied.
