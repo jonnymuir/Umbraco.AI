@@ -24,4 +24,14 @@ internal sealed record AIOperationStart(
     AIOperationDescriptor Descriptor,
     AIUsageContext? Identity,
     IReadOnlyDictionary<string, string>? LogValues,
-    bool IsNested = false);
+    bool IsNested = false)
+{
+    /// <summary>
+    /// The <c>umbraco.ai.*</c> tags for the call's own gen_ai span, added by recorders as the call starts.
+    /// </summary>
+    /// <remarks>
+    /// Recorders start before that span exists (tracking sits outside the OpenTelemetry middleware), so they
+    /// add tags here and the OpenTelemetry middleware puts them on the span when it starts it (#562).
+    /// </remarks>
+    public Dictionary<string, string> ActivityTags { get; } = [];
+}

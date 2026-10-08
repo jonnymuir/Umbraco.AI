@@ -40,10 +40,10 @@ internal sealed class AIAuditOperationRecorder : IAIOperationRecorder
         // entered later, around the work (see Recording.EnterScope), so it can't be picked up here.
         var auditLog = _auditLogFactory.Create(auditContext, start.LogValues, parentId: AIAuditScope.Current?.AuditLogId);
 
-        // Link the entry and the trace both ways.
-        var activity = Activity.Current;
-        auditLog.TraceId = activity?.TraceId.ToString();
-        activity?.SetTag(AITelemetry.Tags.AuditId, auditLog.Id.ToString());
+        // Link the entry and the trace both ways. The call's own span doesn't exist yet, but it joins the
+        // same trace, and gets the audit ID tag when it starts.
+        auditLog.TraceId = Activity.Current?.TraceId.ToString();
+        start.ActivityTags[AITelemetry.Tags.AuditId] = auditLog.Id.ToString();
 
         await _auditLogService.QueueStartAuditLogAsync(auditLog, ct: cancellationToken);
 
