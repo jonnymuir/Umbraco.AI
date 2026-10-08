@@ -54,8 +54,10 @@ AITestOutcome
   list. Additive only. The generated TypeScript client is regenerated.
 - **Backoffice UI:** the run detail view already prints `outcome.tokenUsage` as raw JSON, so the
   breakdown shows up with no UI code change.
-- **Usage analytics:** unchanged. The collector runs before, and independent of, the analytics
-  recorder, so it works when analytics is switched off.
+- **Usage analytics:** shares one usage context with the collector, captured once in
+  `BeginAsync` (as the audit log already did). This fixes analytics crediting tokens to a nested
+  call's model. The collector runs independent of the analytics switch, so it works when analytics
+  is off.
 - **Audit log, OpenTelemetry:** unchanged.
 - **Deploy:** not applicable. Test runs are not deployed.
 - **Version history, notifications, search, cache refreshers:** not applicable. No new entity.

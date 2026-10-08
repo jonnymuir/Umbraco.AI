@@ -44,6 +44,11 @@ Paths are relative to `Umbraco.AI/`. Unit tests go in `tests/Umbraco.AI.Tests.Un
   `tokenUsage` with a `models` entry (AC3.3). Record the result in BUILD-LOG.md.
   story: S3 · depends-on: T4, T5 · parallel-group: —
 
+- [x] **T8** — Analytics uses the call identity captured at `BeginAsync` (one read point for
+  analytics and test collection; removes `AIOperationIdentity`). Specs: a nested call that rewrites
+  the runtime context mid-call does not change the model analytics records, on success and failure.
+  story: S2 · depends-on: T3 · parallel-group: —
+
 - [ ] **T7** — Backport to `v17/dev` via the `backport` skill (separate worktree, draft PR).
   Confirm the v17 tracker/runner code matches before porting.
   story: all · depends-on: T6 and the v18 PR · parallel-group: —

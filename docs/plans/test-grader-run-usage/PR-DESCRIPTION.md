@@ -6,7 +6,7 @@ Test graders never saw how many tokens a run used or which model produced it, so
 
 ## Special things to note
 
-- **Needs a decision:** Usage analytics has the same wrong-model bug this PR fixes for tests. `RecordUsageAsync` reads provider/model from the shared runtime context when a call *finishes*. Nested calls rewrite that context partway through: the LLM guardrail judge (`AIGuardrailChatMiddleware` → `IAIChatService`) and the semantic search tool's embedding call. The outer chat call's tokens can then be logged against the judge or embedding model. This PR captures the identity at `BeginAsync` for test collection only (`AIOperationTracker.cs:98`) and leaves analytics alone. Should analytics get the same fix, as a separate issue?
+- **Behaviour change in usage analytics (bug fix):** analytics used to read provider, model, profile and feature from the shared runtime context when a call *finished*. Nested calls rewrite that context partway through: the LLM guardrail judge (`AIGuardrailChatMiddleware` → `IAIChatService`) and the semantic search tool's embedding call. So the outer chat call's tokens could be logged against the judge or embedding model. `BeginAsync` now captures the usage context once, as the audit log already did, and both analytics and test collection use that single capture. Dashboard numbers may shift between models compared with before. Not live-checked on the demo site; covered by `AIOperationTrackerAnalyticsIdentityTests`.
 - **Needs a decision:** Prompt tests now report usage in two places. `PromptTestFeature` still writes its single call's usage into `transcript.FinalOutput.Usage`, while `outcome.TokenUsage` sums every tracked call in the run (guardrail judges and nested tool calls included). The two numbers can differ. Keep both, drop or relabel the transcript copy, or just document which one to trust?
 - Grader-made calls (for example an LLM-judge grader) are deliberately **not** counted. The collection scope closes before grading (`AITestRunner.cs:270`). The live check confirmed this: the judge's 439/102 tokens were left out of the agent run's totals.
 - A call that reports no usage, or a `UsageDetails` with all three counts null, adds to `CallCount` and `UnreportedCallCount` and not to the totals, so "unknown" is never shown as zero (`AIUsageCollector.cs:41`).
@@ -56,11 +56,12 @@ Every tracked AI call feeds the open scope. It needs no changes to Prompt, Agent
 ```
 ScopedProfileChatClient            (writes profile/provider/model to runtime context)
 └── AITrackingChatClient
-    └── AIOperationTracker.BeginAsync   + captures AIOperationIdentity here
+    └── AIOperationTracker.BeginAsync   + captures AIUsageContext once here
         └── AIOperationScope.CompleteAsync / FailAsync
-            ├── + tracker.CollectUsage(descriptor, identity, usage)
+            ├── + tracker.CollectUsage(descriptor, usageContext, usage)
             │       → AIUsageCollectionScope.Current?.RecordCall(...)   (independent of analytics)
-            └──   RecordUsageAsync (analytics, unchanged)
+            └──   RecordUsageAsync(descriptor, usageContext, ...)
+-                     (was: read the live runtime context at completion)
 ```
 
 New internal types in `Umbraco.AI.Core/Observability/`:
@@ -70,7 +71,6 @@ New internal types in `Umbraco.AI.Core/Observability/`:
 +AIUsageCollector.cs             // thread-safe, groups by capability/provider/model/profile
 +AIUsageCollectorSnapshot.cs
 +AIUsageCollectorModelEntry.cs
-+AIOperationIdentity.cs          // provider/model/profile captured at BeginAsync
 ```
 
 Management API adds the same fields to `TestTokenUsageResponseModel` (`callCount`, `unreportedCallCount`, `models[]`) and the TS client is regenerated. The run detail view already prints `outcome.tokenUsage` as JSON, so it needs no UI code change.
