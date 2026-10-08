@@ -150,7 +150,7 @@ internal sealed class AIImageGenerationService : IAIImageGenerationService
 
             // The raw escape-hatch call bypasses the scoped generator's GenerateAsync (which is what
             // normally writes profile metadata), so populate it here for the usage/audit records.
-            PopulateProfileMetadata(context, profile);
+            context.SetProfileMetadata(profile);
 
             var generator = await _generatorFactory.CreateGeneratorAsync(profile, cancellationToken);
 
@@ -307,15 +307,6 @@ internal sealed class AIImageGenerationService : IAIImageGenerationService
             builder.SetResolvedAdditionalGuardrailIds(
                 await _guardrailService.GetGuardrailIdsByAliasesAsync(additionalAliases, cancellationToken));
         }
-    }
-
-    private static void PopulateProfileMetadata(AIRuntimeContext context, AIProfile profile)
-    {
-        context.SetValue(Constants.ContextKeys.ProfileId, profile.Id);
-        context.SetValue(Constants.ContextKeys.ProfileAlias, profile.Alias);
-        context.SetValue(Constants.ContextKeys.ProfileVersion, profile.Version);
-        context.SetValue(Constants.ContextKeys.ProviderId, profile.Model.ProviderId);
-        context.SetValue(Constants.ContextKeys.ModelId, profile.Model.ModelId);
     }
 
     private static ImageGenerationOptions MergeOptions(AIProfile profile, ImageGenerationOptions? callerOptions)
