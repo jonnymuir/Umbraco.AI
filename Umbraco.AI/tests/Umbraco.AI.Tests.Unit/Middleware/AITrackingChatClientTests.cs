@@ -256,6 +256,27 @@ public class AITrackingChatClientTests
             CancellationToken.None), Times.Once);
     }
 
+    // #529: nested calls made while a stream runs, including after the first chunk has been yielded,
+    // see this call's audit entry as their parent; the consumer never does.
+    [Fact]
+    public async Task GetStreamingResponseAsync_KeepsAuditScopeForEveryChunk_ButNotForTheConsumer()
+    {
+        // Arrange
+        var inner = new ScopeObservingStreamingChatClient(chunks: 3);
+        var client = CreateClient(inner);
+        var consumerScopes = new List<Guid?>();
+
+        // Act
+        await foreach (var _ in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Hi")]))
+        {
+            consumerScopes.Add(AIAuditScope.Current?.AuditLogId);
+        }
+
+        // Assert
+        inner.ObservedScopes.ShouldBe([_auditLog.Id, _auditLog.Id, _auditLog.Id]);
+        consumerScopes.ShouldAllBe(id => id == null);
+    }
+
     [Fact]
     public async Task GetStreamingResponseAsync_OnSuccess_RecordsUsageEvenWithoutUsageDetails()
     {
@@ -449,6 +470,35 @@ public class AITrackingChatClientTests
             {
                 await Task.Yield();
                 yield return update;
+            }
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose() { }
+    }
+
+    /// <summary>
+    /// Streams the given number of chunks and records <see cref="AIAuditScope.Current"/> as each one is
+    /// produced, standing in for nested AI calls made while the stream runs (e.g. tool calls).
+    /// </summary>
+    private sealed class ScopeObservingStreamingChatClient(int chunks) : IChatClient
+    {
+        public List<Guid?> ObservedScopes { get; } = [];
+
+        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> chatMessages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> chatMessages,
+            ChatOptions? options = null,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            for (var i = 0; i < chunks; i++)
+            {
+                await Task.Yield();
+                ObservedScopes.Add(AIAuditScope.Current?.AuditLogId);
+                yield return new ChatResponseUpdate(ChatRole.Assistant, $"chunk {i}");
             }
         }
 

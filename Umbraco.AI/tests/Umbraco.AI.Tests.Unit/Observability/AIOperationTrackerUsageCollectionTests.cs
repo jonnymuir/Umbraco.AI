@@ -171,13 +171,11 @@ public class AIOperationTrackerUsageCollectionTests
         public GivenATrackedCallThatFails()
         {
             var tracker = CreateTracker();
-            using (var operation = tracker.BeginAsync(CreateDescriptor(), CancellationToken.None).GetAwaiter().GetResult())
-            {
-                operation.FailAsync(
-                    new InvalidOperationException("boom"),
-                    new UsageDetails { InputTokenCount = 10, OutputTokenCount = 2, TotalTokenCount = 12 })
-                    .GetAwaiter().GetResult();
-            }
+            var operation = tracker.BeginAsync(CreateDescriptor(), CancellationToken.None).GetAwaiter().GetResult();
+            operation.FailAsync(
+                new InvalidOperationException("boom"),
+                new UsageDetails { InputTokenCount = 10, OutputTokenCount = 2, TotalTokenCount = 12 })
+                .GetAwaiter().GetResult();
 
             _snapshot = _scope.Collector.GetSnapshot();
         }
