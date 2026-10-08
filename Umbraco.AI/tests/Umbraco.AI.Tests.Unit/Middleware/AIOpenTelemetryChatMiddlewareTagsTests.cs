@@ -3,9 +3,6 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Umbraco.AI.Core.Chat.Middleware;
-using Umbraco.AI.Core.Models;
-using Umbraco.AI.Core.Observability;
-using Umbraco.AI.Core.RuntimeContext;
 using Umbraco.AI.Core.Telemetry;
 
 namespace Umbraco.AI.Tests.Unit.Middleware;
@@ -22,23 +19,19 @@ public class AIOpenTelemetryChatMiddlewareTagsTests
         Activity? span = null;
         var client = new AIOpenTelemetryChatMiddleware(NullLoggerFactory.Instance)
             .Apply(new StreamingClient(() => span = Activity.Current));
-        var tracker = new AIOperationTracker(
-            Mock.Of<IAIRuntimeContextAccessor>(),
-            [new TaggingRecorder()],
-            NullLogger<AIOperationTracker>.Instance);
+        var tags = new Dictionary<string, string> { [AITelemetry.Tags.ProfileAlias] = "streamed-profile" };
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == AITelemetry.SourceName,
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
-        var scope = await tracker.BeginAsync(new AIOperationDescriptor { Capability = AICapability.Chat }, CancellationToken.None);
 
-        // Act: as the tracking client does, enter the scope around each step of the stream.
+        // Act: as the tracking client does, enter the call's scope around each step of the stream.
         await using var updates = client.GetStreamingResponseAsync("hi").GetAsyncEnumerator();
         while (true)
         {
-            using (scope.EnterScope())
+            using (AITraceTags.Enter(tags))
             {
                 if (!await updates.MoveNextAsync())
                 {
@@ -51,6 +44,31 @@ public class AIOpenTelemetryChatMiddlewareTagsTests
         span.ShouldNotBeNull();
         span.Source.Name.ShouldBe(AITelemetry.SourceName);
         span.GetTagItem(AITelemetry.Tags.ProfileAlias).ShouldBe("streamed-profile");
+    }
+
+    [Fact]
+    public void NestedCallWithNoTags_DoesNotShowItsParentsTags()
+    {
+        // Arrange
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == AITelemetry.SourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+        using var source = new ActivitySource(AITelemetry.SourceName);
+
+        // Act
+        using (AITraceTags.Enter(new Dictionary<string, string> { [AITelemetry.Tags.ProfileAlias] = "parent" }))
+        using (AITraceTags.Enter(new Dictionary<string, string>()))
+        {
+            using var span = source.StartActivity("gen_ai.chat");
+            AITraceTags.Apply(span);
+
+            // Assert
+            span.ShouldNotBeNull();
+            span.GetTagItem(AITelemetry.Tags.ProfileAlias).ShouldBeNull();
+        }
     }
 
     [Fact]
@@ -68,15 +86,6 @@ public class AIOpenTelemetryChatMiddlewareTagsTests
 
         // Assert
         inner.Disposed.ShouldBeTrue();
-    }
-
-    private sealed class TaggingRecorder : IAIOperationRecorder
-    {
-        public ValueTask<IAIOperationRecording?> BeginAsync(AIOperationStart start, CancellationToken cancellationToken)
-        {
-            start.ActivityTags[AITelemetry.Tags.ProfileAlias] = "streamed-profile";
-            return ValueTask.FromResult<IAIOperationRecording?>(null);
-        }
     }
 
     private sealed class StreamingClient(Action onCall) : IChatClient

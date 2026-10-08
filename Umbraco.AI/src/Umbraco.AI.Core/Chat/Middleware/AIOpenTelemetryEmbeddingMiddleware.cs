@@ -37,7 +37,7 @@ public sealed class AIOpenTelemetryEmbeddingMiddleware : IAIEmbeddingMiddleware
             .Use((values, options, innerGenerator, cancellationToken) =>
             {
                 // Inside the gen_ai span the OpenTelemetry generator just started.
-                AIOperationActivityTags.Apply(System.Diagnostics.Activity.Current);
+                AITraceTags.Apply(System.Diagnostics.Activity.Current);
                 return innerGenerator.GenerateAsync(values, options, cancellationToken);
             })
             .Build();

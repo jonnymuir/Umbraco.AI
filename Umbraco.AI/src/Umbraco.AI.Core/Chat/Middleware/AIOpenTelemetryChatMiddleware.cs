@@ -59,7 +59,7 @@ public sealed class AIOpenTelemetryChatMiddleware : IAIChatMiddleware
             ChatOptions? options = null,
             CancellationToken cancellationToken = default)
         {
-            AIOperationActivityTags.Apply(System.Diagnostics.Activity.Current);
+            AITraceTags.Apply(System.Diagnostics.Activity.Current);
             return base.GetResponseAsync(messages, options, cancellationToken);
         }
 
@@ -69,7 +69,7 @@ public sealed class AIOpenTelemetryChatMiddleware : IAIChatMiddleware
             CancellationToken cancellationToken = default)
         {
             // Called from inside the OpenTelemetry client's stream, once its span has started.
-            AIOperationActivityTags.Apply(System.Diagnostics.Activity.Current);
+            AITraceTags.Apply(System.Diagnostics.Activity.Current);
             return base.GetStreamingResponseAsync(messages, options, cancellationToken);
         }
     }

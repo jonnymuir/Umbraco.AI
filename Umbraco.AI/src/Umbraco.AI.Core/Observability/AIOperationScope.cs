@@ -32,13 +32,11 @@ internal sealed class AIOperationScope
         AIOperationTracker tracker,
         IReadOnlyList<IAIOperationRecording> recordings,
         AIOperationScope? parent,
-        IReadOnlyDictionary<string, string> activityTags,
         TimeProvider timeProvider)
     {
         _tracker = tracker;
         _recordings = recordings;
         _parent = parent;
-        ActivityTags = activityTags;
         _timeProvider = timeProvider;
         _startTimestamp = timeProvider.GetTimestamp();
         parent?.NestedCallStarted();
@@ -63,11 +61,6 @@ internal sealed class AIOperationScope
             }
         }
     }
-
-    /// <summary>
-    /// The <c>umbraco.ai.*</c> tags for this call's own gen_ai span (see <see cref="AIOperationStart.ActivityTags"/>).
-    /// </summary>
-    internal IReadOnlyDictionary<string, string> ActivityTags { get; }
 
     public Task CompleteAsync(UsageDetails? usage, object? responseData)
         => _tracker.EndRecordingsAsync(
