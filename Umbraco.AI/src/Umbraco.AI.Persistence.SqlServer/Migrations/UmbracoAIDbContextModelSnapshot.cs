@@ -860,11 +860,11 @@ namespace Umbraco.AI.Persistence.SqlServer.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("OutcomeTokenUsageJson")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int>("OutcomeType")
                         .HasColumnType("int");
+
+                    b.Property<string>("OutcomeUsageJson")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("OutcomeValue")
                         .HasColumnType("nvarchar(max)");
