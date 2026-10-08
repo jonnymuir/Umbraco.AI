@@ -5,12 +5,12 @@ using Umbraco.Cms.Core.Security;
 namespace Umbraco.AI.Core.Telemetry;
 
 /// <summary>
-/// Adds Umbraco AI context (profile, user, entity, feature) to the tags for a tracked call's own gen_ai span,
-/// so traces can be filtered by them. The audit entry's ID is added by
-/// <see cref="AuditLog.AIAuditOperationRecorder"/>, which owns that entry.
+/// Tags a tracked call's own gen_ai span with Umbraco AI context (profile, user, entity, feature, audit entry),
+/// so traces can be filtered by them.
 /// </summary>
 /// <remarks>
-/// The span doesn't exist yet when the call starts; <see cref="AIOperationActivityTags"/> puts the tags on it.
+/// The span doesn't exist yet when the call starts. The tags are built then and made current around the call's
+/// work; <see cref="AITraceTags.Apply"/> puts them on the span when the OpenTelemetry middleware starts it.
 /// </remarks>
 internal sealed class AITraceOperationRecorder : IAIOperationRecorder
 {
@@ -21,17 +21,15 @@ internal sealed class AITraceOperationRecorder : IAIOperationRecorder
 
     public ValueTask<IAIOperationRecording?> BeginAsync(AIOperationStart start, CancellationToken cancellationToken)
     {
-        if (start.Identity is { } identity)
-        {
-            AddTags(start.ActivityTags, identity);
-        }
-
-        // Nothing to record at the end.
-        return ValueTask.FromResult<IAIOperationRecording?>(null);
+        // Always a recording, even with no tags: entering it keeps a nested call from showing its parent's tags.
+        var tags = start.Identity is { } identity ? BuildTags(identity) : [];
+        return ValueTask.FromResult<IAIOperationRecording?>(new Recording(tags));
     }
 
-    private void AddTags(Dictionary<string, string> tags, AIUsageContext identity)
+    private Dictionary<string, string> BuildTags(AIUsageContext identity)
     {
+        var tags = new Dictionary<string, string>();
+
         // Missing IDs are read from the runtime context as Guid.Empty, so treat that as absent.
         if (identity.ProfileId is { } profileId && profileId != Guid.Empty)
         {
@@ -48,6 +46,8 @@ internal sealed class AITraceOperationRecorder : IAIOperationRecorder
         {
             tags[AITelemetry.Tags.FeatureId] = featureId.ToString();
         }
+
+        return tags;
     }
 
     private static void AddIfPresent(Dictionary<string, string> tags, string tag, string? value)
@@ -56,5 +56,13 @@ internal sealed class AITraceOperationRecorder : IAIOperationRecorder
         {
             tags[tag] = value;
         }
+    }
+
+    private sealed class Recording(IReadOnlyDictionary<string, string> tags) : IAIOperationRecording
+    {
+        public IDisposable EnterScope() => AITraceTags.Enter(tags);
+
+        // Nothing to record at the end.
+        public ValueTask EndAsync(AIOperationOutcome outcome) => ValueTask.CompletedTask;
     }
 }

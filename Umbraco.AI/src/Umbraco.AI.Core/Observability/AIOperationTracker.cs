@@ -82,7 +82,7 @@ internal sealed class AIOperationTracker : IAIOperationTracker
         var start = new AIOperationStart(descriptor, identity, runtimeContext.GetLogValues(), IsNested: parent is not null);
         var recordings = await BeginRecordingsAsync(start, cancellationToken);
 
-        return new AIOperationScope(this, recordings, parent, start.ActivityTags, _timeProvider);
+        return new AIOperationScope(this, recordings, parent, _timeProvider);
     }
 
     private async Task<IReadOnlyList<IAIOperationRecording>> BeginRecordingsAsync(
