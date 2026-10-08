@@ -1,73 +1,61 @@
 using System.Diagnostics;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Umbraco.AI.Core.Analytics;
-using Umbraco.AI.Core.Analytics.Usage;
 using Umbraco.AI.Core.AuditLog;
-using Umbraco.AI.Core.Models;
-using Umbraco.AI.Core.RuntimeContext;
 
 namespace Umbraco.AI.Core.Observability;
 
 /// <summary>
 /// A tracking scope for a single AI operation. Created by <see cref="AIOperationTracker.BeginAsync"/>.
-/// Completing or failing the scope reports the call's usage once (see <see cref="AIOperationTracker.ReportUsage"/>)
-/// and queues the audit status (awaited, on <see cref="CancellationToken.None"/>).
+/// Completing or failing the scope measures the outcome once, queues the audit status (awaited, on
+/// <see cref="CancellationToken.None"/>), then hands the outcome to each recording in recorder order.
 /// </summary>
 internal sealed class AIOperationScope
 {
     private readonly AIOperationTracker _tracker;
-    private readonly AIOperationDescriptor _descriptor;
-    private readonly AIUsageContext? _usageContext;
     private readonly AIAuditLog? _auditLog;
     private readonly AIAuditPrompt? _auditPrompt;
+    private readonly IReadOnlyList<IAIOperationRecording> _recordings;
     private readonly Stopwatch _stopwatch;
-    private readonly CancellationToken _cancellationToken;
 
     internal AIOperationScope(
         AIOperationTracker tracker,
-        AIOperationDescriptor descriptor,
         AIAuditLog? auditLog,
         AIAuditPrompt? auditPrompt,
-        AIUsageContext? usageContext,
-        CancellationToken cancellationToken)
+        IReadOnlyList<IAIOperationRecording> recordings)
     {
         _tracker = tracker;
-        _descriptor = descriptor;
-        _usageContext = usageContext;
         _auditLog = auditLog;
         _auditPrompt = auditPrompt;
-        _cancellationToken = cancellationToken;
+        _recordings = recordings;
         _stopwatch = Stopwatch.StartNew();
     }
 
     public async Task CompleteAsync(UsageDetails? usage, AIAuditResponse? auditResponse)
     {
         _stopwatch.Stop();
-        _tracker.ReportUsage(
-            new AIUsageObservation(_descriptor, _usageContext, usage, _stopwatch.ElapsedMilliseconds, Succeeded: true, ErrorMessage: null),
-            _cancellationToken);
+        var outcome = new AIOperationOutcome(AIOperationStatus.Succeeded, usage, _stopwatch.ElapsedMilliseconds, Exception: null);
 
         if (_auditLog is not null)
         {
             await _tracker.AuditLogService.QueueCompleteAuditLogAsync(
                 _auditLog, _auditPrompt, auditResponse, CancellationToken.None);
         }
+
+        await _tracker.EndRecordingsAsync(_recordings, outcome);
     }
 
     public async Task FailAsync(Exception exception, UsageDetails? usage = null)
     {
         _stopwatch.Stop();
-        _tracker.ReportUsage(
-            new AIUsageObservation(_descriptor, _usageContext, usage, _stopwatch.ElapsedMilliseconds, Succeeded: false, exception.Message),
-            _cancellationToken);
+        var outcome = new AIOperationOutcome(AIOperationStatus.Failed, usage, _stopwatch.ElapsedMilliseconds, exception);
 
         if (_auditLog is not null)
         {
             await _tracker.AuditLogService.QueueRecordAuditLogFailureAsync(
                 _auditLog, _auditPrompt, exception, CancellationToken.None);
         }
+
+        await _tracker.EndRecordingsAsync(_recordings, outcome);
     }
 
     /// <summary>
