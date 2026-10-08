@@ -18,4 +18,10 @@ internal sealed class AITrackedOperationResult<TResult>
     /// image count). Recorders decide what to do with it; the audit log stores it as the response.
     /// </summary>
     public object? ResponseData { get; init; }
+
+    /// <summary>
+    /// Set when the call returned normally but its result is a failure, for example a response that ends
+    /// on a provider error. The caller still gets <see cref="Result"/>; recorders see a failed call.
+    /// </summary>
+    public Exception? Failure { get; init; }
 }
