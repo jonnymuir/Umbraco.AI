@@ -32,6 +32,7 @@ internal sealed class AIAuditLogService : IAIAuditLogService
     }
 
     /// <inheritdoc />
+    [Obsolete("Unused by Umbraco.AI; use QueueStartAuditLogAsync instead. Will be removed in v20.")]
     public async Task<AIAuditLog> StartAuditLogAsync(AIAuditLog auditLog,
         CancellationToken ct = default)
     {
@@ -57,6 +58,7 @@ internal sealed class AIAuditLogService : IAIAuditLogService
     }
 
     /// <inheritdoc />
+    [Obsolete("Unused by Umbraco.AI; use QueueCompleteAuditLogAsync instead. Will be removed in v20.")]
     public async Task CompleteAuditLogAsync(
         AIAuditLog audit,
         AIAuditPrompt? prompt,
@@ -88,6 +90,7 @@ internal sealed class AIAuditLogService : IAIAuditLogService
     }
 
     /// <inheritdoc />
+    [Obsolete("Unused by Umbraco.AI; use QueueRecordAuditLogFailureAsync instead. Will be removed in v20.")]
     public async Task RecordAuditLogFailureAsync(
         AIAuditLog audit,
         AIAuditPrompt? prompt,

@@ -37,7 +37,7 @@ public class AIAuditLogServiceTests
     [InlineData(AIProviderErrorCategory.NetworkError, AIAuditLogErrorCategory.NetworkError)]
     [InlineData(AIProviderErrorCategory.Cancelled, AIAuditLogErrorCategory.Unknown)]
     [InlineData(AIProviderErrorCategory.Unknown, AIAuditLogErrorCategory.Unknown)]
-    public async Task RecordAuditLogFailureAsync_WithClassifiedProviderException_ReadsCategoryDirectly(
+    public async Task QueueRecordAuditLogFailureAsync_WithClassifiedProviderException_ReadsCategoryDirectly(
         AIProviderErrorCategory providerCategory, AIAuditLogErrorCategory expected)
     {
         // A friendly message that intentionally contains none of the substrings the legacy
@@ -47,18 +47,18 @@ public class AIAuditLogServiceTests
             providerCategory, "Something specific happened.", ProviderCode: null, RawMessage: "raw"));
         var audit = new AIAuditLog { Id = Guid.NewGuid() };
 
-        await _service.RecordAuditLogFailureAsync(audit, prompt: null, exception);
+        await _service.QueueRecordAuditLogFailureAsync(audit, prompt: null, exception);
 
         audit.ErrorCategory.ShouldBe(expected);
     }
 
     [Fact]
-    public async Task RecordAuditLogFailureAsync_WithUnclassifiedException_FallsBackToMessageMatching()
+    public async Task QueueRecordAuditLogFailureAsync_WithUnclassifiedException_FallsBackToMessageMatching()
     {
         var exception = new InvalidOperationException("Request failed with rate limit exceeded");
         var audit = new AIAuditLog { Id = Guid.NewGuid() };
 
-        await _service.RecordAuditLogFailureAsync(audit, prompt: null, exception);
+        await _service.QueueRecordAuditLogFailureAsync(audit, prompt: null, exception);
 
         audit.ErrorCategory.ShouldBe(AIAuditLogErrorCategory.RateLimiting);
     }
