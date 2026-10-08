@@ -14,10 +14,10 @@ namespace Umbraco.AI.Tests.Unit.Analytics;
 public class AIUsageBlockedStatusTests
 {
     [Theory]
-    [InlineData(true, false, "Succeeded")]
-    [InlineData(false, false, "Failed")]
-    [InlineData(false, true, "Blocked")]
-    public void RecordFactory_StoresTheOutcomeAsStatus(bool succeeded, bool blocked, string expected)
+    [InlineData(true, false, AIUsageRecordStatus.Succeeded)]
+    [InlineData(false, false, AIUsageRecordStatus.Failed)]
+    [InlineData(false, true, AIUsageRecordStatus.Blocked)]
+    public void RecordFactory_StoresTheOutcomeAsStatus(bool succeeded, bool blocked, AIUsageRecordStatus expected)
     {
         var options = new Mock<IOptionsMonitor<AIAnalyticsOptions>>();
         options.Setup(x => x.CurrentValue).Returns(new AIAnalyticsOptions());
@@ -38,6 +38,30 @@ public class AIUsageBlockedStatusTests
         record.Status.ShouldBe(expected);
     }
 
+    [Theory]
+    [InlineData(AIUsageRecordStatus.Succeeded)]
+    [InlineData(AIUsageRecordStatus.Failed)]
+    [InlineData(AIUsageRecordStatus.Blocked)]
+    public void Persistence_StoresTheStatusByName_AndReadsItBack(AIUsageRecordStatus status)
+    {
+        var entity = Umbraco.AI.Persistence.Analytics.Usage.AIUsageRecordFactory.BuildUsageRecordEntity(
+            Record(DateTime.UtcNow, status));
+
+        entity.Status.ShouldBe(status.ToString());
+        Umbraco.AI.Persistence.Analytics.Usage.AIUsageRecordFactory.BuildUsageRecordDomain(entity).Status.ShouldBe(status);
+    }
+
+    [Fact]
+    public void Persistence_ReadsAnUnrecognisedStatusAsFailed()
+    {
+        var entity = Umbraco.AI.Persistence.Analytics.Usage.AIUsageRecordFactory.BuildUsageRecordEntity(
+            Record(DateTime.UtcNow, AIUsageRecordStatus.Succeeded));
+        entity.Status = "Something";
+
+        Umbraco.AI.Persistence.Analytics.Usage.AIUsageRecordFactory.BuildUsageRecordDomain(entity).Status
+            .ShouldBe(AIUsageRecordStatus.Failed);
+    }
+
     [Fact]
     public async Task HourlyAggregation_CountsBlockedAsAFailure()
     {
@@ -46,7 +70,7 @@ public class AIUsageBlockedStatusTests
         var records = new Mock<IAIUsageRecordRepository>();
         records
             .Setup(x => x.GetRecordsByPeriodAsync(hour, hour.AddHours(1), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([Record(hour, "Succeeded"), Record(hour, "Failed"), Record(hour, "Blocked")]);
+            .ReturnsAsync([Record(hour, AIUsageRecordStatus.Succeeded), Record(hour, AIUsageRecordStatus.Failed), Record(hour, AIUsageRecordStatus.Blocked)]);
         var statistics = new Mock<IAIUsageStatisticsRepository>();
         List<AIUsageStatistics> saved = [];
         statistics
@@ -74,7 +98,7 @@ public class AIUsageBlockedStatusTests
         var records = new Mock<IAIUsageRecordRepository>();
         records
             .Setup(x => x.GetRecordsByPeriodAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([Record(now.AddMinutes(-2), "Succeeded"), Record(now.AddMinutes(-1), "Blocked")]);
+            .ReturnsAsync([Record(now.AddMinutes(-2), AIUsageRecordStatus.Succeeded), Record(now.AddMinutes(-1), AIUsageRecordStatus.Blocked)]);
         var service = new AIUsageAnalyticsService(
             records.Object, Mock.Of<IAIUsageStatisticsRepository>(), NullLogger<AIUsageAnalyticsService>.Instance);
 
@@ -87,7 +111,7 @@ public class AIUsageBlockedStatusTests
         summary.FailureCount.ShouldBe(1);
     }
 
-    private static AIUsageRecord Record(DateTime timestamp, string status) => new()
+    private static AIUsageRecord Record(DateTime timestamp, AIUsageRecordStatus status) => new()
     {
         Id = Guid.NewGuid(),
         Timestamp = timestamp,

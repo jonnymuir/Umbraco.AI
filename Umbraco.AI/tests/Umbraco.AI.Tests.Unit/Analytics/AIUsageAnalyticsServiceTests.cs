@@ -145,7 +145,7 @@ public class AIUsageAnalyticsServiceTests
         OutputTokens = 1,
         TotalTokens = 2,
         DurationMs = 10,
-        Status = "Succeeded",
+        Status = AIUsageRecordStatus.Succeeded,
         CreatedAt = timestamp,
     });
 

@@ -35,7 +35,8 @@ internal static class AIUsageRecordFactory
             OutputTokens = entity.OutputTokens,
             TotalTokens = entity.TotalTokens,
             DurationMs = entity.DurationMs,
-            Status = entity.Status,
+            // Stored by name. Anything unrecognised is treated as a failure rather than failing the read.
+            Status = Enum.TryParse<AIUsageRecordStatus>(entity.Status, out var status) ? status : AIUsageRecordStatus.Failed,
             ErrorMessage = entity.ErrorMessage,
             CreatedAt = entity.CreatedAt
         };
@@ -68,7 +69,7 @@ internal static class AIUsageRecordFactory
             OutputTokens = record.OutputTokens,
             TotalTokens = record.TotalTokens,
             DurationMs = record.DurationMs,
-            Status = record.Status,
+            Status = record.Status.ToString(),
             ErrorMessage = record.ErrorMessage,
             CreatedAt = record.CreatedAt
         };
