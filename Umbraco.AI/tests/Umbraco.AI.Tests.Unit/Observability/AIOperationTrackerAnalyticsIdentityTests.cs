@@ -76,7 +76,7 @@ public class AIOperationTrackerAnalyticsIdentityTests
                         OutputTokens = 0,
                         TotalTokens = 0,
                         DurationMs = result.DurationMs,
-                        Status = result.Succeeded ? "Succeeded" : "Failed",
+                        Status = result.Succeeded ? AIUsageRecordStatus.Succeeded : AIUsageRecordStatus.Failed,
                         CreatedAt = DateTime.UtcNow,
                     };
                 });
