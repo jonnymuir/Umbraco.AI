@@ -286,6 +286,71 @@ public class AIOperationTrackerTests
             It.IsAny<AIAuditContext>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), parentAuditLogId), Times.Once);
     }
 
+    // #529: the start is queued before this call's own scope begins, so the service's ambient-parent
+    // fallback can't pick up the entry itself; the scope is still open while the operation runs.
+    [Fact]
+    public async Task TrackAsync_TopLevel_QueuesStartBeforeItsOwnScopeBegins()
+    {
+        // Arrange
+        var tracker = CreateTracker();
+        Guid? scopeAtQueueStart = Guid.NewGuid();
+        Guid? scopeDuringOperation = null;
+        _auditLogServiceMock
+            .Setup(x => x.QueueStartAuditLogAsync(It.IsAny<AIAuditLog>(), It.IsAny<CancellationToken>()))
+            .Callback(() => scopeAtQueueStart = AIAuditScope.Current?.AuditLogId)
+            .Returns(ValueTask.CompletedTask);
+
+        // Act
+        await tracker.TrackAsync(
+            CreateDescriptor(),
+            _ =>
+            {
+                scopeDuringOperation = AIAuditScope.Current?.AuditLogId;
+                return Task.FromResult(new AITrackedOperationResult<string> { Result = "success" });
+            },
+            CancellationToken.None);
+
+        // Assert
+        scopeAtQueueStart.ShouldBeNull();
+        scopeDuringOperation.ShouldBe(_auditLog.Id);
+    }
+
+    // #529: a call made inside another tracked call is parented to it; the outer call has no parent.
+    [Fact]
+    public async Task TrackAsync_CallInsideAnotherTrackedCall_IsParentedToIt()
+    {
+        // Arrange
+        var tracker = CreateTracker();
+        var created = new List<(AIAuditLog Log, Guid? ParentId)>();
+        _auditLogFactoryMock
+            .Setup(x => x.Create(It.IsAny<AIAuditContext>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<Guid?>()))
+            .Returns((AIAuditContext _, IReadOnlyDictionary<string, string>? _, Guid? parentId) =>
+            {
+                var log = new AIAuditLog { Id = Guid.NewGuid() };
+                created.Add((log, parentId));
+                return log;
+            });
+
+        // Act
+        await tracker.TrackAsync(
+            CreateDescriptor(),
+            async ct =>
+            {
+                await Task.Yield();
+                await tracker.TrackAsync(
+                    CreateDescriptor(),
+                    _ => Task.FromResult(new AITrackedOperationResult<string> { Result = "inner" }),
+                    ct);
+                return new AITrackedOperationResult<string> { Result = "outer" };
+            },
+            CancellationToken.None);
+
+        // Assert
+        created.Count.ShouldBe(2);
+        created[0].ParentId.ShouldBeNull();
+        created[1].ParentId.ShouldBe(created[0].Log.Id);
+    }
+
     // Test 9: BeginAsync + CompleteAsync mirrors TrackAsync success behavior.
     [Fact]
     public async Task BeginThenComplete_QueuesStartCompleteAudit_AndUsage()
@@ -300,7 +365,6 @@ public class AIOperationTrackerTests
         // Act
         var scope = await tracker.BeginAsync(descriptor, CancellationToken.None);
         await scope.CompleteAsync(usage, response);
-        scope.Dispose();
 
         await AwaitOrTimeout(usageSignal.Task);
 

@@ -66,47 +66,44 @@ internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBa
         // yield cannot sit inside try/catch, so drive the enumerator manually (matches prior behavior).
         await using var enumerator = base.GetStreamingTextAsync(audioSpeechStream, options, cancellationToken)
             .GetAsyncEnumerator(cancellationToken);
-        try
+        while (true)
         {
-            while (true)
+            SpeechToTextResponseUpdate current;
+            try
             {
-                SpeechToTextResponseUpdate current;
-                try
+                // Entered per step: the audit scope is AsyncLocal and doesn't survive this iterator's yields.
+                using (scope.EnterAuditScope())
                 {
                     if (!await enumerator.MoveNextAsync())
                     {
                         break;
                     }
-
-                    current = enumerator.Current;
-                }
-                catch (Exception ex)
-                {
-                    captured = ex;
-                    break;
                 }
 
-                if (current.Text is not null)
-                {
-                    textParts.Add(current.Text);
-                }
-
-                yield return current;
+                current = enumerator.Current;
             }
-
-            if (captured is not null)
+            catch (Exception ex)
             {
-                await scope.FailAsync(captured);
-                throw captured;
+                captured = ex;
+                break;
             }
 
-            var concatenatedText = string.Concat(textParts);
-            await scope.CompleteAsync(null, new AIAuditResponse { Data = concatenatedText });
+            if (current.Text is not null)
+            {
+                textParts.Add(current.Text);
+            }
+
+            yield return current;
         }
-        finally
+
+        if (captured is not null)
         {
-            scope.Dispose();
+            await scope.FailAsync(captured);
+            throw captured;
         }
+
+        var concatenatedText = string.Concat(textParts);
+        await scope.CompleteAsync(null, new AIAuditResponse { Data = concatenatedText });
     }
 
     private AIOperationDescriptor BuildDescriptor(SpeechToTextOptions? options) => new()

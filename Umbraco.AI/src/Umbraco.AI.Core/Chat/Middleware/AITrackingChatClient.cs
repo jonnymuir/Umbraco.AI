@@ -63,56 +63,53 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
         // yield cannot sit inside try/catch, so drive the enumerator manually (matches prior behavior).
         await using var enumerator = base.GetStreamingResponseAsync(messages, options, cancellationToken)
             .GetAsyncEnumerator(cancellationToken);
-        try
+        while (true)
         {
-            while (true)
+            ChatResponseUpdate current;
+            try
             {
-                ChatResponseUpdate current;
-                try
+                // Entered per step: the audit scope is AsyncLocal and doesn't survive this iterator's yields.
+                using (scope.EnterAuditScope())
                 {
                     if (!await enumerator.MoveNextAsync())
                     {
                         break;
                     }
-
-                    current = enumerator.Current;
-                }
-                catch (Exception ex)
-                {
-                    captured = ex;
-                    break;
                 }
 
-                updates.Add(current);
-                yield return current;
+                current = enumerator.Current;
+            }
+            catch (Exception ex)
+            {
+                captured = ex;
+                break;
             }
 
-            if (captured is not null)
-            {
-                await scope.FailAsync(captured);
-                throw captured;
-            }
-
-            var aggregated = updates.ToChatResponse();
-
-            // Some providers report a failure (e.g. a rate limit hit on the final model call of a
-            // tool loop) as streamed ErrorContent rather than by throwing, so the stream itself ends
-            // normally. Record the call as failed when the response ends on such an error, keeping
-            // the usage it consumed; an error the model carried on past stays a success.
-            if (FindTerminalProviderError(aggregated) is { } providerError)
-            {
-                await scope.FailAsync(new AIStreamedProviderErrorException(providerError), aggregated.Usage);
-            }
-            else
-            {
-                await scope.CompleteAsync(
-                    aggregated.Usage,
-                    new AIAuditResponse { Data = aggregated.Messages, Usage = aggregated.Usage });
-            }
+            updates.Add(current);
+            yield return current;
         }
-        finally
+
+        if (captured is not null)
         {
-            scope.Dispose();
+            await scope.FailAsync(captured);
+            throw captured;
+        }
+
+        var aggregated = updates.ToChatResponse();
+
+        // Some providers report a failure (e.g. a rate limit hit on the final model call of a
+        // tool loop) as streamed ErrorContent rather than by throwing, so the stream itself ends
+        // normally. Record the call as failed when the response ends on such an error, keeping
+        // the usage it consumed; an error the model carried on past stays a success.
+        if (FindTerminalProviderError(aggregated) is { } providerError)
+        {
+            await scope.FailAsync(new AIStreamedProviderErrorException(providerError), aggregated.Usage);
+        }
+        else
+        {
+            await scope.CompleteAsync(
+                aggregated.Usage,
+                new AIAuditResponse { Data = aggregated.Messages, Usage = aggregated.Usage });
         }
     }
 

@@ -51,7 +51,12 @@ internal sealed class AIOperationTracker : IAIOperationTracker
         var scope = await BeginAsync(descriptor, cancellationToken);
         try
         {
-            var result = await operation(cancellationToken);
+            AITrackedOperationResult<TResult> result;
+            using (scope.EnterAuditScope())
+            {
+                result = await operation(cancellationToken);
+            }
+
             await scope.CompleteAsync(result.Usage, result.AuditResponse);
             return result;
         }
@@ -60,15 +65,10 @@ internal sealed class AIOperationTracker : IAIOperationTracker
             await scope.FailAsync(ex);
             throw;
         }
-        finally
-        {
-            scope.Dispose();
-        }
     }
 
     public async Task<AIOperationScope> BeginAsync(AIOperationDescriptor descriptor, CancellationToken cancellationToken)
     {
-        AIAuditScope? auditScope = null;
         AIAuditLog? auditLog = null;
         AIAuditPrompt? auditPrompt = null;
 
@@ -78,9 +78,11 @@ internal sealed class AIOperationTracker : IAIOperationTracker
                 descriptor.Capability, _contextAccessor.Context, descriptor.PromptData);
 
             auditLog = _auditLogFactory.Create(auditContext, descriptor.Metadata, parentId: AIAuditScope.Current?.AuditLogId);
-            auditScope = AIAuditScope.Begin(auditLog.Id);
             auditLog.TraceId = Activity.Current?.TraceId.ToString();
 
+            // This call's own AIAuditScope is not begun here. AsyncLocal changes made inside an async method
+            // are discarded when it returns, so the caller enters it via AIOperationScope.EnterAuditScope
+            // around the actual AI call, where nested calls can see it.
             await AuditLogService.QueueStartAuditLogAsync(auditLog, ct: cancellationToken);
 
             auditPrompt = new AIAuditPrompt { Data = descriptor.PromptData, Capability = descriptor.Capability };
@@ -97,7 +99,7 @@ internal sealed class AIOperationTracker : IAIOperationTracker
             : null;
 
         return new AIOperationScope(
-            this, descriptor, auditScope, auditLog, auditPrompt, usageContext, cancellationToken);
+            this, descriptor, auditLog, auditPrompt, usageContext, cancellationToken);
     }
 
     /// <summary>
