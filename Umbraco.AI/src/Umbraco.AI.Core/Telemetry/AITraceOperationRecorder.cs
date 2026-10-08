@@ -1,6 +1,6 @@
 using System.Diagnostics;
+using Umbraco.AI.Core.Analytics.Usage;
 using Umbraco.AI.Core.Observability;
-using Umbraco.AI.Core.RuntimeContext;
 using Umbraco.Cms.Core.Security;
 
 namespace Umbraco.AI.Core.Telemetry;
@@ -19,31 +19,30 @@ internal sealed class AITraceOperationRecorder : IAIOperationRecorder
 
     public ValueTask<IAIOperationRecording?> BeginAsync(AIOperationStart start, CancellationToken cancellationToken)
     {
-        if (Activity.Current is { } activity && start.RuntimeContext is { } runtimeContext)
+        if (Activity.Current is { } activity && start.Identity is { } identity)
         {
-            Tag(activity, runtimeContext);
+            Tag(activity, identity);
         }
 
         // Nothing to record at the end.
         return ValueTask.FromResult<IAIOperationRecording?>(null);
     }
 
-    private void Tag(Activity activity, AIRuntimeContext runtimeContext)
+    private void Tag(Activity activity, AIUsageContext identity)
     {
-        var profileId = runtimeContext.GetValue<Guid>(Constants.ContextKeys.ProfileId);
-        if (profileId != default)
+        // Missing IDs are read from the runtime context as Guid.Empty, so treat that as absent.
+        if (identity.ProfileId is { } profileId && profileId != Guid.Empty)
         {
             activity.SetTag(AITelemetry.Tags.ProfileId, profileId.ToString());
         }
 
-        SetIfPresent(activity, AITelemetry.Tags.ProfileAlias, runtimeContext.GetValue<string>(Constants.ContextKeys.ProfileAlias));
+        SetIfPresent(activity, AITelemetry.Tags.ProfileAlias, identity.ProfileAlias);
         SetIfPresent(activity, AITelemetry.Tags.UserId, _securityAccessor.BackOfficeSecurity?.CurrentUser?.Key.ToString());
-        SetIfPresent(activity, AITelemetry.Tags.EntityId, runtimeContext.GetValue<string>(Constants.ContextKeys.EntityId));
-        SetIfPresent(activity, AITelemetry.Tags.EntityType, runtimeContext.GetValue<string>(Constants.ContextKeys.EntityType));
-        SetIfPresent(activity, AITelemetry.Tags.FeatureType, runtimeContext.GetValue<string>(Constants.ContextKeys.FeatureType));
+        SetIfPresent(activity, AITelemetry.Tags.EntityId, identity.EntityId);
+        SetIfPresent(activity, AITelemetry.Tags.EntityType, identity.EntityType);
+        SetIfPresent(activity, AITelemetry.Tags.FeatureType, identity.FeatureType);
 
-        var featureId = runtimeContext.GetValue<Guid>(Constants.ContextKeys.FeatureId);
-        if (featureId != default)
+        if (identity.FeatureId is { } featureId && featureId != Guid.Empty)
         {
             activity.SetTag(AITelemetry.Tags.FeatureId, featureId.ToString());
         }
