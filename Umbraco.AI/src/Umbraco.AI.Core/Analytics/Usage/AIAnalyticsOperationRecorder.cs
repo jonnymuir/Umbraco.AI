@@ -60,6 +60,7 @@ internal sealed class AIAnalyticsOperationRecorder : IAIOperationRecorder
                 Usage = outcome.Usage,
                 DurationMs = outcome.DurationMs,
                 Succeeded = outcome.Succeeded,
+                Blocked = outcome.Status == AIOperationStatus.Blocked,
                 ErrorMessage = outcome.Exception?.Message,
             };
 

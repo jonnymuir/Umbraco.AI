@@ -175,7 +175,7 @@ public class AITrackingChatClientTests
 
         // RecordUsageWhenEmpty=true means even a failed operation with no usage records duration/status.
         var record = await AwaitOrTimeout(usageSignal.Task);
-        record.Status.ShouldBe("Failed");
+        record.Status.ShouldBe(AIUsageRecordStatus.Failed);
         record.ErrorMessage.ShouldBe("AI error");
         record.InputTokens.ShouldBe(0);
         record.OutputTokens.ShouldBe(0);
@@ -198,7 +198,7 @@ public class AITrackingChatClientTests
         var record = await AwaitOrTimeout(usageSignal.Task);
 
         // Assert
-        record.Status.ShouldBe("Succeeded");
+        record.Status.ShouldBe(AIUsageRecordStatus.Succeeded);
         record.InputTokens.ShouldBe(0);
         record.OutputTokens.ShouldBe(0);
         record.TotalTokens.ShouldBe(0);
@@ -296,7 +296,7 @@ public class AITrackingChatClientTests
         var record = await AwaitOrTimeout(usageSignal.Task);
 
         // Assert
-        record.Status.ShouldBe("Succeeded");
+        record.Status.ShouldBe(AIUsageRecordStatus.Succeeded);
         record.TotalTokens.ShouldBe(0);
     }
 
@@ -352,7 +352,35 @@ public class AITrackingChatClientTests
             CancellationToken.None), Times.Once);
         _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(
             It.IsAny<AIAuditLog>(), It.IsAny<AIAuditPrompt?>(), It.IsAny<AIAuditResponse?>(), It.IsAny<CancellationToken>()), Times.Never);
-        record.Status.ShouldBe("Failed");
+        record.Status.ShouldBe(AIUsageRecordStatus.Failed);
+    }
+
+    // Non-streaming calls get the same check: a response that ends on a provider error is a failed call,
+    // but the caller still gets the response.
+    [Fact]
+    public async Task GetResponseAsync_WhenResponseEndsOnProviderError_QueuesFailureNotComplete_AndReturnsTheResponse()
+    {
+        // Arrange
+        var inner = new UpdatesStreamingChatClient(
+            new ChatResponseUpdate(ChatRole.Assistant,
+                [new ErrorContent("Rate limit reached for gpt-4o") { ErrorCode = "rate_limit_exceeded" }]));
+        var client = CreateClient(inner);
+        var usageSignal = ArrangeUsageRecordingSignal();
+
+        // Act
+        var response = await client.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")]);
+        var record = await AwaitOrTimeout(usageSignal.Task);
+
+        // Assert
+        response.Messages.Single().Contents.Single().ShouldBeOfType<ErrorContent>();
+        _auditLogServiceMock.Verify(x => x.QueueRecordAuditLogFailureAsync(
+            _auditLog,
+            It.IsAny<AIAuditPrompt?>(),
+            It.Is<Exception>(e => e.Message.Contains("rate_limit_exceeded") && e.Message.Contains("Rate limit reached")),
+            CancellationToken.None), Times.Once);
+        _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(
+            It.IsAny<AIAuditLog>(), It.IsAny<AIAuditPrompt?>(), It.IsAny<AIAuditResponse?>(), It.IsAny<CancellationToken>()), Times.Never);
+        record.Status.ShouldBe(AIUsageRecordStatus.Failed);
     }
 
     [Fact]
@@ -421,7 +449,7 @@ public class AITrackingChatClientTests
         OutputTokens = result.Usage?.OutputTokenCount ?? 0,
         TotalTokens = result.Usage?.TotalTokenCount ?? 0,
         DurationMs = result.DurationMs,
-        Status = result.Succeeded ? "Succeeded" : "Failed",
+        Status = result.Succeeded ? AIUsageRecordStatus.Succeeded : AIUsageRecordStatus.Failed,
         ErrorMessage = result.ErrorMessage,
         CreatedAt = DateTime.UtcNow,
     };
