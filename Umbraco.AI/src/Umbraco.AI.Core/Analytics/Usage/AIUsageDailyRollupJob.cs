@@ -15,6 +15,7 @@ namespace Umbraco.AI.Core.Analytics.Usage;
 internal sealed class AIUsageDailyRollupJob : UmbracoAIRecurringHostedServiceBase
 {
     private readonly IAIUsageAggregationService _aggregationService;
+    private readonly IAIUsageRecordRepository _recordRepository;
     private readonly IAIUsageStatisticsRepository _statisticsRepository;
     private readonly IOptionsMonitor<AIAnalyticsOptions> _options;
     private readonly IRuntimeState _runtimeState;
@@ -28,6 +29,7 @@ internal sealed class AIUsageDailyRollupJob : UmbracoAIRecurringHostedServiceBas
 
     public AIUsageDailyRollupJob(
         IAIUsageAggregationService aggregationService,
+        IAIUsageRecordRepository recordRepository,
         IAIUsageStatisticsRepository statisticsRepository,
         IOptionsMonitor<AIAnalyticsOptions> options,
         IRuntimeState runtimeState,
@@ -37,6 +39,7 @@ internal sealed class AIUsageDailyRollupJob : UmbracoAIRecurringHostedServiceBas
         : base(logger, CheckInterval, StartupDelay)
     {
         _aggregationService = aggregationService;
+        _recordRepository = recordRepository;
         _statisticsRepository = statisticsRepository;
         _options = options;
         _runtimeState = runtimeState;
@@ -93,6 +96,14 @@ internal sealed class AIUsageDailyRollupJob : UmbracoAIRecurringHostedServiceBas
         var now = DateTime.UtcNow;
         var yesterday = GetDayStart(now.AddDays(-1)); // Only process completed days (yesterday and earlier)
 
+        // A day is rolled up from its hourly statistics, so it must wait until the hourly job has
+        // aggregated all its hours. That job deletes each hour's raw records, so any day that still has
+        // raw records isn't ready: rolling it up now would leave those hours out of its daily total.
+        var firstRecordTimestamp = await _recordRepository.GetFirstRecordTimestampAsync(ct);
+        var lastReadyDay = firstRecordTimestamp is null
+            ? yesterday
+            : Min(yesterday, GetDayStart(firstRecordTimestamp.Value).AddDays(-1));
+
         // Get last aggregated daily period
         var lastAggregatedPeriod = await _statisticsRepository.GetLastAggregatedDailyPeriodAsync(ct);
 
@@ -123,7 +134,7 @@ internal sealed class AIUsageDailyRollupJob : UmbracoAIRecurringHostedServiceBas
             var firstDailyPeriod = await _statisticsRepository.GetFirstAggregatedDailyPeriodAsync(ct);
             if (firstHourlyPeriod != null && firstDailyPeriod != null)
             {
-                await RollUpDaysAsync(GetDayStart(firstHourlyPeriod.Value), firstDailyPeriod.Value.AddDays(-1), ct);
+                await RollUpDaysAsync(GetDayStart(firstHourlyPeriod.Value), Min(firstDailyPeriod.Value.AddDays(-1), lastReadyDay), ct);
             }
 
             // Start from next day after last aggregated
@@ -135,14 +146,14 @@ internal sealed class AIUsageDailyRollupJob : UmbracoAIRecurringHostedServiceBas
         }
 
         // Only process if start day is not in the future
-        if (startFromDay > yesterday)
+        if (startFromDay > lastReadyDay)
         {
             _logger.LogDebug("No completed days to process");
             return;
         }
 
         // Process all missing days sequentially
-        await RollUpDaysAsync(startFromDay, yesterday, ct);
+        await RollUpDaysAsync(startFromDay, lastReadyDay, ct);
     }
 
     /// <summary>
@@ -185,6 +196,8 @@ internal sealed class AIUsageDailyRollupJob : UmbracoAIRecurringHostedServiceBas
                 firstDay.AddDays(processedCount - 1));
         }
     }
+
+    private static DateTime Min(DateTime a, DateTime b) => a < b ? a : b;
 
     /// <summary>
     /// Gets the start of the day (midnight UTC) for a given timestamp.
