@@ -522,9 +522,56 @@ public class AIOperationTrackerTests
         activity.GetTagItem(Umbraco.AI.Core.Telemetry.AITelemetry.Tags.AuditId).ShouldBeNull();
     }
 
-    private AIOperationTracker CreateTracker() => new(
+    // Decision 1 in docs/plans/tracking-recorders: a recorder that fails must not fail the AI call. Before
+    // the audit log moved into a recorder, this exception escaped into the call.
+    [Fact]
+    public async Task TrackAsync_WhenTheAuditEntryCantBeCreated_StillRunsAndRecordsTheCall()
+    {
+        // Arrange
+        _auditLogFactoryMock
+            .Setup(x => x.Create(It.IsAny<AIAuditContext>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<Guid?>()))
+            .Throws(new ArgumentException("ProfileId must be set in the AIAuditContext."));
+        var usageSignal = ArrangeUsageRecordingSignal();
+        var tracker = CreateTracker();
+
+        // Act
+        var result = await tracker.TrackAsync(
+            CreateDescriptor(recordUsageWhenEmpty: true),
+            _ => Task.FromResult(new AITrackedOperationResult<string> { Result = "success" }),
+            CancellationToken.None);
+
+        // Assert
+        result.Result.ShouldBe("success");
+        (await AwaitOrTimeout(usageSignal.Task)).Status.ShouldBe("Succeeded");
+        _auditLogServiceMock.Verify(x => x.QueueStartAuditLogAsync(It.IsAny<AIAuditLog>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // The user tag used to come from the audit entry, so it was missing when auditing was off.
+    [Fact]
+    public async Task TrackAsync_WithAuditDisabled_StillTagsTheCurrentActivityWithTheUser()
+    {
+        // Arrange
+        _auditLogOptionsMock.Setup(x => x.CurrentValue).Returns(new AIAuditLogOptions { Enabled = false });
+        var userKey = Guid.NewGuid();
+        var user = Mock.Of<Umbraco.Cms.Core.Models.Membership.IUser>(u => u.Key == userKey);
+        var security = Mock.Of<Umbraco.Cms.Core.Security.IBackOfficeSecurity>(s => s.CurrentUser == user);
+        var securityAccessor = Mock.Of<Umbraco.Cms.Core.Security.IBackOfficeSecurityAccessor>(a => a.BackOfficeSecurity == security);
+        var tracker = CreateTracker(securityAccessor);
+        using var activity = new System.Diagnostics.Activity("ai-call").Start();
+
+        // Act
+        await tracker.TrackAsync(
+            CreateDescriptor(),
+            _ => Task.FromResult(new AITrackedOperationResult<string> { Result = "success" }),
+            CancellationToken.None);
+
+        // Assert
+        activity.GetTagItem(Umbraco.AI.Core.Telemetry.AITelemetry.Tags.UserId).ShouldBe(userKey.ToString());
+    }
+
+    private AIOperationTracker CreateTracker(Umbraco.Cms.Core.Security.IBackOfficeSecurityAccessor? securityAccessor = null) => new(
         _contextAccessorMock.Object,
-        TestOperationRecorders.Default(_auditLogServiceMock.Object, _auditLogFactoryMock.Object, _auditLogOptionsMock.Object, _usageRecordingServiceMock.Object, _usageRecordFactoryMock.Object, _analyticsOptionsMock.Object),
+        TestOperationRecorders.Default(_auditLogServiceMock.Object, _auditLogFactoryMock.Object, _auditLogOptionsMock.Object, _usageRecordingServiceMock.Object, _usageRecordFactoryMock.Object, _analyticsOptionsMock.Object, securityAccessor),
         NullLogger<AIOperationTracker>.Instance);
 
     private static AIOperationDescriptor CreateDescriptor(bool recordUsageWhenEmpty = false) => new()
