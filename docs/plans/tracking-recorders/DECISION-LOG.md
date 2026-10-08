@@ -41,6 +41,11 @@
   The audit log still decides `Blocked` from the exception in the public
   `QueueRecordAuditLogFailureAsync`; it agrees with the tracker because both check
   `AIGuardrailBlockedException`.
+- 08-10-2026 (T3): The usage record status became an enum (`AIUsageRecordStatus`), stored by name in
+  the existing string column, so no migration. This changes the type of the public
+  `AIUsageRecord.Status`; accepted by the maintainer because `AIUsageRecord` is only produced and
+  consumed through internal interfaces. Package validation is off for every product, so there is
+  no compatibility suppression file to update.
 - 08-10-2026 (T3): A non-streamed call that returns a failure (response ending on `ErrorContent`)
   is signalled through an optional `AITrackedOperationResult.Failure`, so the caller still gets the
   response while recorders see a failed call. Same rule the streaming path already applied.
