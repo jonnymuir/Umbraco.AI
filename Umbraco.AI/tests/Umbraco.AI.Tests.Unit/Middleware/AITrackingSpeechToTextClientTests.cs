@@ -318,7 +318,7 @@ public class AITrackingSpeechToTextClientTests
     #endregion
 
     private AITrackingSpeechToTextClient CreateClient(ISpeechToTextClient innerClient) =>
-        new(innerClient, CreateTracker(), _contextAccessorMock.Object);
+        new(innerClient, CreateTracker());
 
     private AIOperationTracker CreateTracker() => new(
         _contextAccessorMock.Object,
