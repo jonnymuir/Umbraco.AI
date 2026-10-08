@@ -402,6 +402,89 @@ public class AIOperationTrackerTests
         _usageRecordingServiceMock.Verify(x => x.QueueRecordUsageAsync(It.IsAny<AIUsageRecord>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task TrackAsync_WithNoRuntimeContext_RunsTheCallWithoutAuditOrUsageRecord()
+    {
+        // Arrange
+        _contextAccessorMock.Setup(x => x.Context).Returns((AIRuntimeContext?)null);
+        var tracker = CreateTracker();
+
+        // Act
+        var result = await tracker.TrackAsync(
+            CreateDescriptor(recordUsageWhenEmpty: true),
+            _ => Task.FromResult(new AITrackedOperationResult<string>
+            {
+                Result = "success",
+                Usage = new UsageDetails { InputTokenCount = 1, OutputTokenCount = 1, TotalTokenCount = 2 },
+            }),
+            CancellationToken.None);
+        await EnsureNoUsageRecorded();
+
+        // Assert
+        result.Result.ShouldBe("success");
+        _auditLogServiceMock.Verify(x => x.QueueStartAuditLogAsync(It.IsAny<AIAuditLog>(), It.IsAny<CancellationToken>()), Times.Never);
+        _usageRecordingServiceMock.Verify(x => x.QueueRecordUsageAsync(It.IsAny<AIUsageRecord>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task TrackAsync_QueuesTheAuditStartBeforeTheOperationRuns()
+    {
+        // Arrange
+        var tracker = CreateTracker();
+        var startQueuedWhenOperationRan = false;
+
+        // Act
+        await tracker.TrackAsync(
+            CreateDescriptor(),
+            _ =>
+            {
+                startQueuedWhenOperationRan = _auditLogServiceMock.Invocations
+                    .Any(i => i.Method.Name == nameof(IAIAuditLogService.QueueStartAuditLogAsync));
+                return Task.FromResult(new AITrackedOperationResult<string> { Result = "success" });
+            },
+            CancellationToken.None);
+
+        // Assert
+        startQueuedWhenOperationRan.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task TrackAsync_WithAudit_TagsTheCurrentActivityFromTheAuditEntry_AndSetsItsTraceId()
+    {
+        // Arrange
+        var tracker = CreateTracker();
+        using var activity = new System.Diagnostics.Activity("ai-call").Start();
+
+        // Act
+        await tracker.TrackAsync(
+            CreateDescriptor(),
+            _ => Task.FromResult(new AITrackedOperationResult<string> { Result = "success" }),
+            CancellationToken.None);
+
+        // Assert
+        activity.GetTagItem(Umbraco.AI.Core.Telemetry.AITelemetry.Tags.AuditId).ShouldBe(_auditLog.Id.ToString());
+        _auditLog.TraceId.ShouldBe(activity.TraceId.ToString());
+    }
+
+    [Fact]
+    public async Task TrackAsync_WithAuditDisabled_TagsTheCurrentActivityFromTheRuntimeContext()
+    {
+        // Arrange
+        _auditLogOptionsMock.Setup(x => x.CurrentValue).Returns(new AIAuditLogOptions { Enabled = false });
+        var tracker = CreateTracker();
+        using var activity = new System.Diagnostics.Activity("ai-call").Start();
+
+        // Act
+        await tracker.TrackAsync(
+            CreateDescriptor(),
+            _ => Task.FromResult(new AITrackedOperationResult<string> { Result = "success" }),
+            CancellationToken.None);
+
+        // Assert
+        activity.GetTagItem(Umbraco.AI.Core.Telemetry.AITelemetry.Tags.ProfileAlias).ShouldBe("test-profile");
+        activity.GetTagItem(Umbraco.AI.Core.Telemetry.AITelemetry.Tags.AuditId).ShouldBeNull();
+    }
+
     private AIOperationTracker CreateTracker() => new(
         _contextAccessorMock.Object,
         _auditLogServiceMock.Object,
