@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using Umbraco.AI.Core.Models;
 using Umbraco.AI.Core.Profiles;
 using Umbraco.AI.Core.RuntimeContext;
+using Umbraco.AI.Extensions;
 
 namespace Umbraco.AI.Core.Chat;
 
@@ -132,11 +133,7 @@ internal sealed class ScopedProfileChatClient : DelegatingChatClient
             return;
         }
 
-        context.SetValue(Constants.ContextKeys.ProfileId, _profile.Id);
-        context.SetValue(Constants.ContextKeys.ProfileAlias, _profile.Alias);
-        context.SetValue(Constants.ContextKeys.ProfileVersion, _profile.Version);
-        context.SetValue(Constants.ContextKeys.ProviderId, _profile.Model.ProviderId);
-        context.SetValue(Constants.ContextKeys.ModelId, _profile.Model.ModelId);
+        context.SetProfileMetadata(_profile);
 
         // Always set (even to null) so a previous profile's prompt in the same scope is not reused.
         context.SetValue(

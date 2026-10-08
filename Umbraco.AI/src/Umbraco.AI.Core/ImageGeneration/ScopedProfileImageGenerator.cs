@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using Umbraco.AI.Core.Profiles;
 using Umbraco.AI.Core.RuntimeContext;
+using Umbraco.AI.Extensions;
 
 #pragma warning disable MEAI001 // IImageGenerator is experimental in M.E.AI
 #pragma warning disable UMBRACOAI_IMAGEGEN // Internal plumbing for the experimental image-generation API
@@ -77,10 +78,6 @@ internal sealed class ScopedProfileImageGenerator : AIBoundImageGeneratorBase
             return;
         }
 
-        context.SetValue(Constants.ContextKeys.ProfileId, _profile.Id);
-        context.SetValue(Constants.ContextKeys.ProfileAlias, _profile.Alias);
-        context.SetValue(Constants.ContextKeys.ProfileVersion, _profile.Version);
-        context.SetValue(Constants.ContextKeys.ProviderId, _profile.Model.ProviderId);
-        context.SetValue(Constants.ContextKeys.ModelId, _profile.Model.ModelId);
+        context.SetProfileMetadata(_profile);
     }
 }

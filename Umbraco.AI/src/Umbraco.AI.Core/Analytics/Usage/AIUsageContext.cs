@@ -61,6 +61,16 @@ public sealed class AIUsageContext
     public string? FeatureAlias { get; init; }
 
     /// <summary>
+    /// Gets the profile version at time of execution.
+    /// </summary>
+    public int? ProfileVersion { get; init; }
+
+    /// <summary>
+    /// Gets the feature version at time of execution.
+    /// </summary>
+    public int? FeatureVersion { get; init; }
+
+    /// <summary>
     /// Extracts usage context from runtime context.
     /// </summary>
     /// <param name="capability">The AI capability being used.</param>
@@ -83,7 +93,9 @@ public sealed class AIUsageContext
             EntityType = runtimeContext.GetValue<string>(Constants.ContextKeys.EntityType),
             FeatureType = runtimeContext.GetValue<string>(Constants.ContextKeys.FeatureType),
             FeatureId = runtimeContext.GetValue<Guid>(Constants.ContextKeys.FeatureId),
-            FeatureAlias = runtimeContext.GetValue<string>(Constants.ContextKeys.FeatureAlias)
+            FeatureAlias = runtimeContext.GetValue<string>(Constants.ContextKeys.FeatureAlias),
+            ProfileVersion = runtimeContext.GetValue<int>(Constants.ContextKeys.ProfileVersion),
+            FeatureVersion = runtimeContext.GetValue<int>(Constants.ContextKeys.FeatureVersion)
         };
     }
 }

@@ -36,7 +36,7 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
   - Recorder failures are isolated (decision 1). The guard already exists from T1, so moving audit
     behind it is what changes the behaviour; a separate commit adds the test for it.
 
-- [ ] **T3. One outcome for every recorder.**
+- [x] **T3. One outcome for every recorder.** #541 (v18), #542 (v17).
   - `AIOperationStatus.Blocked` when the call fails with `AIGuardrailBlockedException` (the same
     check `AIAuditLogService` makes today), shared by audit and analytics (decision 5).
   - Same provider-error check for streaming and non-streaming chat (non-streaming never checks
@@ -44,11 +44,13 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
   - Not covered here: `AIChatExecutedNotification.IsSuccess` is still true for a response that ends
     on a provider error. Notifications are raised by the services, outside the tracker; moved to T4.
 
-- [ ] **T4. Smaller duplicates from #528** (can run in any order after T2): five copies of
+- [x] **T4. Smaller duplicates from #528** (can run in any order after T2): five copies of
   `PopulateProfileMetadata`; the error category worked out twice; two context extractors with
   different field sets; out-of-date docs on `RecordUsageWhenEmpty`. (`AITrackedOperationResult`'s
   doc was fixed in T2, when its audit response became neutral `ResponseData`.) Also the chat
   Executed notification reporting success for a response that ends on a provider error (from T3).
+  Done in one PR, one commit per item, except the error category: on a closer look it isn't
+  duplicated (see decision log). `RecordUsageWhenEmpty` was removed rather than re-documented.
 
 - [ ] **T5. Final review of what the refactor left behind** (last, after T1 to T4 have merged).
   Moving responsibilities out leaves some types thinner than their names and interfaces suggest.
@@ -79,6 +81,22 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
   - Check it runs in CI (the pack step), not just locally, and that a deliberate break fails it.
   - Applies to the whole repo, not just this refactor; touches every product's props, so one PR
     per line.
+
+- [ ] **T7. Review the whole refactor as the build loop would have** (last, after T6).
+  T0 to T4 were built by hand, not through the playbook's `umb-build-loop`, so no task went
+  through its builder/reviewer gate and there is no `BUILD-LOG.md`. Close that gap after the fact:
+  - For each merged task (T0 #532, #530's #534, T1 #537, T2 #539, T3 #541, T4 #543, and T5/T6 when
+    done), run the `umbraco-claude-playbook:reviewer` agent on the task's v18 diff, as
+    `umb-build-loop` would have after the builder: code, conventions and security gate, PASS or
+    FAIL with findings.
+  - Compare each task with how the build loop would have shaped it: one task per plan item, tests
+    written before the change, a self-test before review, and a commit only on PASS. Note where the
+    hand-built version differs (e.g. tasks that grew mid-review, like T2's `ResponseData` and T3's
+    enum).
+  - Write a `BUILD-LOG.md` for this plan from the result: one entry per task with its PRs, the
+    reviewer verdict and any findings.
+  - Fix FAIL findings as follow-up PRs on both lines; record anything accepted as-is in the
+    decision log with the reason.
 
 ## Test gaps to fill in T1
 

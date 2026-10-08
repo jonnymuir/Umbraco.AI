@@ -143,7 +143,7 @@ public class AITrackingEmbeddingGeneratorTests
         _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(
             It.IsAny<AIAuditLog>(), It.IsAny<AIAuditPrompt?>(), It.IsAny<AIAuditResponse?>(), It.IsAny<CancellationToken>()), Times.Never);
 
-        // RecordUsageWhenEmpty=true means even a failed operation with no usage records duration/status.
+        // Usage is always recorded, so even a failed operation with no usage records duration/status.
         var record = await AwaitOrTimeout(usageSignal.Task);
         record.Status.ShouldBe(AIUsageRecordStatus.Failed);
         record.ErrorMessage.ShouldBe("AI error");
@@ -155,7 +155,7 @@ public class AITrackingEmbeddingGeneratorTests
     [Fact]
     public async Task GenerateAsync_NullUsage_StillRecordsUsageRow()
     {
-        // Arrange — Embedding now uses RecordUsageWhenEmpty=true, so a null Usage still queues a
+        // Arrange — Embedding always records usage, so a null Usage still queues a
         // record (with null token usage) capturing duration/status rather than being dropped.
         var fakeGenerator = new FakeEmbeddingGenerator();
         var generator = CreateGenerator(fakeGenerator);
