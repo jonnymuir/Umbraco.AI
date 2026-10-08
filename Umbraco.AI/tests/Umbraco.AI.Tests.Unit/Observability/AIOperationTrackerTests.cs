@@ -564,6 +564,45 @@ public class AIOperationTrackerTests
         recorded.Blocked.ShouldBeTrue();
     }
 
+    // The audit entry is built from the identity the tracker captured, not a second read of the context.
+    [Fact]
+    public async Task TrackAsync_BuildsTheAuditContextFromTheCapturedIdentity()
+    {
+        // Arrange
+        var featureId = Guid.NewGuid();
+        _runtimeContext.SetValue(Constants.ContextKeys.ProfileVersion, 3);
+        _runtimeContext.SetValue(Constants.ContextKeys.FeatureType, "prompt");
+        _runtimeContext.SetValue(Constants.ContextKeys.FeatureId, featureId);
+        _runtimeContext.SetValue(Constants.ContextKeys.FeatureVersion, 7);
+        _runtimeContext.SetValue(Constants.ContextKeys.EntityId, "entity-1");
+        _runtimeContext.SetValue(Constants.ContextKeys.EntityType, "document");
+        AIAuditContext? captured = null;
+        _auditLogFactoryMock
+            .Setup(x => x.Create(It.IsAny<AIAuditContext>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<Guid?>()))
+            .Callback<AIAuditContext, IReadOnlyDictionary<string, string>?, Guid?>((context, _, _) => captured = context)
+            .Returns(_auditLog);
+        var tracker = CreateTracker();
+
+        // Act
+        await tracker.TrackAsync(
+            CreateDescriptor(),
+            _ => Task.FromResult(new AITrackedOperationResult<string> { Result = "success" }),
+            CancellationToken.None);
+
+        // Assert
+        captured.ShouldNotBeNull();
+        captured.ProfileAlias.ShouldBe("test-profile");
+        captured.ProviderId.ShouldBe("openai");
+        captured.ModelId.ShouldBe("gpt-test");
+        captured.ProfileVersion.ShouldBe(3);
+        captured.FeatureType.ShouldBe("prompt");
+        captured.FeatureId.ShouldBe(featureId);
+        captured.FeatureVersion.ShouldBe(7);
+        captured.EntityId.ShouldBe("entity-1");
+        captured.EntityType.ShouldBe("document");
+        captured.Prompt.ShouldBe("prompt data");
+    }
+
     // The user tag used to come from the audit entry, so it was missing when auditing was off.
     [Fact]
     public async Task TrackAsync_WithAuditDisabled_StillTagsTheCurrentActivityWithTheUser()

@@ -28,14 +28,13 @@ internal sealed class AIAuditOperationRecorder : IAIOperationRecorder
 
     public async ValueTask<IAIOperationRecording?> BeginAsync(AIOperationStart start, CancellationToken cancellationToken)
     {
-        if (!_auditLogOptions.CurrentValue.Enabled || start.RuntimeContext is null)
+        if (!_auditLogOptions.CurrentValue.Enabled || start.Identity is null)
         {
             return null;
         }
 
         var descriptor = start.Descriptor;
-        var auditContext = AIAuditContext.ExtractFromRuntimeContext(
-            descriptor.Capability, start.RuntimeContext, descriptor.PromptData);
+        var auditContext = AIAuditContext.FromUsageContext(start.Identity, descriptor.PromptData);
 
         // The parent is whichever call's scope is open around this one. This call's own scope is only
         // entered later, around the work (see Recording.EnterScope), so it can't be picked up here.
