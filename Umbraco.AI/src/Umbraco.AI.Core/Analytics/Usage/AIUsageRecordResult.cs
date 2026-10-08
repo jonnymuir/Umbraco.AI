@@ -19,6 +19,12 @@ public sealed class AIUsageRecordResult
     public required bool Succeeded { get; init; }
 
     /// <summary>
+    /// Gets whether a guardrail stopped the operation. Only meaningful when <see cref="Succeeded"/> is false;
+    /// the record is then stored as "Blocked" rather than "Failed", and still counts as a failure in totals.
+    /// </summary>
+    public bool Blocked { get; init; }
+
+    /// <summary>
     /// Gets the error message if the operation failed.
     /// </summary>
     public string? ErrorMessage { get; init; }

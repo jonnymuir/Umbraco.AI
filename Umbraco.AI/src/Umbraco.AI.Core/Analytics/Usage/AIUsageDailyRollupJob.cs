@@ -53,24 +53,32 @@ internal sealed class AIUsageDailyRollupJob : RecurringBackgroundJobBase
 
         DateTime startFromDay;
 
+        var firstHourlyPeriod = await _statisticsRepository.GetFirstAggregatedHourlyPeriodAsync(ct);
+
         if (lastAggregatedPeriod == null)
         {
-            var lastHourlyPeriod = await _statisticsRepository.GetLastAggregatedHourlyPeriodAsync(ct);
-
-            if (lastHourlyPeriod == null)
+            if (firstHourlyPeriod == null)
             {
                 _logger.LogDebug("No hourly statistics found, nothing to roll up into daily");
                 return;
             }
 
-            startFromDay = GetDayStart(lastHourlyPeriod.Value);
+            startFromDay = GetDayStart(firstHourlyPeriod.Value);
             _logger.LogInformation(
                 "First daily rollup: starting from {StartDay} (first hourly stat: {FirstHourly})",
                 startFromDay,
-                lastHourlyPeriod);
+                firstHourlyPeriod);
         }
         else
         {
+            // Earlier versions started the first rollup from the latest hourly statistic, skipping the days
+            // before it. Those days have no daily statistics, so rolling them up can't overwrite anything.
+            var firstDailyPeriod = await _statisticsRepository.GetFirstAggregatedDailyPeriodAsync(ct);
+            if (firstHourlyPeriod != null && firstDailyPeriod != null)
+            {
+                await RollUpDaysAsync(GetDayStart(firstHourlyPeriod.Value), firstDailyPeriod.Value.AddDays(-1), ct);
+            }
+
             startFromDay = lastAggregatedPeriod.Value.AddDays(1);
             _logger.LogDebug(
                 "Last aggregated day: {LastDay}, processing from {StartDay}",
@@ -84,10 +92,19 @@ internal sealed class AIUsageDailyRollupJob : RecurringBackgroundJobBase
             return;
         }
 
-        var currentDay = startFromDay;
+        await RollUpDaysAsync(startFromDay, yesterday, ct);
+    }
+
+    /// <summary>
+    /// Rolls up each day from <paramref name="firstDay"/> to <paramref name="lastDay"/> inclusive, stopping
+    /// at the first failure so the next run retries from there.
+    /// </summary>
+    private async Task RollUpDaysAsync(DateTime firstDay, DateTime lastDay, CancellationToken ct)
+    {
+        var currentDay = firstDay;
         var processedCount = 0;
 
-        while (currentDay <= yesterday && !ct.IsCancellationRequested)
+        while (currentDay <= lastDay && !ct.IsCancellationRequested)
         {
             try
             {
@@ -113,8 +130,8 @@ internal sealed class AIUsageDailyRollupJob : RecurringBackgroundJobBase
             _logger.LogInformation(
                 "Processed {Count} days from {Start} to {End}",
                 processedCount,
-                startFromDay,
-                startFromDay.AddDays(processedCount - 1));
+                firstDay,
+                firstDay.AddDays(processedCount - 1));
         }
     }
 

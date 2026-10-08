@@ -147,7 +147,10 @@ internal sealed class AIChatService : IAIChatService
         try
         {
             var response = await ExecuteInlineChatAsync(builder, messages, cancellationToken);
-            isSuccess = true;
+
+            // A response that ends on a provider error returns normally but is a failed call, as the
+            // usage and audit records already treat it.
+            isSuccess = response.GetTerminalProviderError() is null;
             return response;
         }
         finally
@@ -193,15 +196,19 @@ internal sealed class AIChatService : IAIChatService
 
         var stopwatch = Stopwatch.StartNew();
         bool isSuccess = false;
+        var updates = new List<ChatResponseUpdate>();
 
         try
         {
             await foreach (var update in StreamInlineChatCoreAsync(builder, messages, cancellationToken))
             {
+                updates.Add(update);
                 yield return update;
             }
 
-            isSuccess = true;
+            // A stream that ends on a provider error completes normally but is a failed call, as the
+            // usage and audit records already treat it.
+            isSuccess = updates.ToChatResponse().GetTerminalProviderError() is null;
         }
         finally
         {

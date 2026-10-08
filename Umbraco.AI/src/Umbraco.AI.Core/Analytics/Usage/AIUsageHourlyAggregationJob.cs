@@ -58,7 +58,7 @@ internal sealed class AIUsageHourlyAggregationJob : RecurringBackgroundJobBase
 
         if (lastAggregatedPeriod == null)
         {
-            var firstRecordTimestamp = await _recordRepository.GetLastRecordTimestampAsync(ct);
+            var firstRecordTimestamp = await _recordRepository.GetFirstRecordTimestampAsync(ct);
 
             if (firstRecordTimestamp == null)
             {
@@ -74,6 +74,8 @@ internal sealed class AIUsageHourlyAggregationJob : RecurringBackgroundJobBase
         }
         else
         {
+            await AggregateSkippedHoursAsync(ct);
+
             startFromHour = lastAggregatedPeriod.Value.AddHours(1);
             _logger.LogDebug(
                 "Last aggregated hour: {LastHour}, processing from {StartHour}",
@@ -116,6 +118,51 @@ internal sealed class AIUsageHourlyAggregationJob : RecurringBackgroundJobBase
         else if (startFromHour <= currentCompletedHour)
         {
             _logger.LogDebug("No new completed hours to process");
+        }
+    }
+
+    /// <summary>
+    /// Aggregates raw records older than the first hourly statistic. Earlier versions started the first run
+    /// from the latest record instead of the earliest, which left those records behind for good. Those
+    /// hours have no hourly statistics, so aggregating them can't overwrite anything. Each pass deletes the
+    /// hour's records, so it walks only hours that hold records and stops once none are left.
+    /// </summary>
+    private async Task AggregateSkippedHoursAsync(CancellationToken ct)
+    {
+        var firstAggregatedPeriod = await _statisticsRepository.GetFirstAggregatedHourlyPeriodAsync(ct);
+        if (firstAggregatedPeriod == null)
+        {
+            return;
+        }
+
+        DateTime? previousHour = null;
+
+        while (!ct.IsCancellationRequested)
+        {
+            var firstRecordTimestamp = await _recordRepository.GetFirstRecordTimestampAsync(ct);
+            if (firstRecordTimestamp == null)
+            {
+                return;
+            }
+
+            var hour = GetHourStart(firstRecordTimestamp.Value);
+            if (hour >= firstAggregatedPeriod.Value || hour == previousHour)
+            {
+                return;
+            }
+
+            try
+            {
+                _logger.LogInformation("Aggregating skipped hour: {Hour}", hour);
+                await _aggregationService.AggregateHourlyAsync(hour, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to aggregate skipped hour {Hour}, will retry on next run", hour);
+                return;
+            }
+
+            previousHour = hour;
         }
     }
 

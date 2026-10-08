@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
 using Microsoft.Extensions.AI;
-using Umbraco.AI.Core.AuditLog;
 using Umbraco.AI.Core.Connections;
 using Umbraco.AI.Core.Guardrails;
 using Umbraco.AI.Core.Models;
@@ -151,7 +150,7 @@ internal sealed class AIImageGenerationService : IAIImageGenerationService
 
             // The raw escape-hatch call bypasses the scoped generator's GenerateAsync (which is what
             // normally writes profile metadata), so populate it here for the usage/audit records.
-            PopulateProfileMetadata(context, profile);
+            context.SetProfileMetadata(profile);
 
             var generator = await _generatorFactory.CreateGeneratorAsync(profile, cancellationToken);
 
@@ -162,8 +161,6 @@ internal sealed class AIImageGenerationService : IAIImageGenerationService
             {
                 Capability = AICapability.ImageGeneration,
                 PromptData = promptData,
-                Metadata = null,
-                RecordUsageWhenEmpty = true,
             };
 
             UsageDetails? usage = null;
@@ -180,7 +177,7 @@ internal sealed class AIImageGenerationService : IAIImageGenerationService
                     {
                         Result = r.Result,
                         Usage = r.Usage,
-                        AuditResponse = new AIAuditResponse { Data = $"{r.ImageCount ?? 0} image(s)", Usage = r.Usage },
+                        ResponseData = $"{r.ImageCount ?? 0} image(s)",
                     };
                 },
                 cancellationToken);
@@ -308,15 +305,6 @@ internal sealed class AIImageGenerationService : IAIImageGenerationService
             builder.SetResolvedAdditionalGuardrailIds(
                 await _guardrailService.GetGuardrailIdsByAliasesAsync(additionalAliases, cancellationToken));
         }
-    }
-
-    private static void PopulateProfileMetadata(AIRuntimeContext context, AIProfile profile)
-    {
-        context.SetValue(Constants.ContextKeys.ProfileId, profile.Id);
-        context.SetValue(Constants.ContextKeys.ProfileAlias, profile.Alias);
-        context.SetValue(Constants.ContextKeys.ProfileVersion, profile.Version);
-        context.SetValue(Constants.ContextKeys.ProviderId, profile.Model.ProviderId);
-        context.SetValue(Constants.ContextKeys.ModelId, profile.Model.ModelId);
     }
 
     private static ImageGenerationOptions MergeOptions(AIProfile profile, ImageGenerationOptions? callerOptions)

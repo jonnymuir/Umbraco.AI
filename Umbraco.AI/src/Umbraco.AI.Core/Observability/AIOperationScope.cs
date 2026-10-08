@@ -1,74 +1,80 @@
 using System.Diagnostics;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Umbraco.AI.Core.Analytics;
-using Umbraco.AI.Core.Analytics.Usage;
-using Umbraco.AI.Core.AuditLog;
-using Umbraco.AI.Core.Models;
-using Umbraco.AI.Core.RuntimeContext;
+using Umbraco.AI.Core.Guardrails;
 
 namespace Umbraco.AI.Core.Observability;
 
 /// <summary>
 /// A tracking scope for a single AI operation. Created by <see cref="AIOperationTracker.BeginAsync"/>.
-/// Completing or failing the scope queues the audit status (awaited, on <see cref="CancellationToken.None"/>)
-/// and fire-and-forgets the usage record. Dispose ends the ambient <see cref="AIAuditScope"/>.
+/// Completing or failing the scope measures the outcome once and hands it to each recording in
+/// recorder order.
 /// </summary>
-internal sealed class AIOperationScope : IDisposable
+internal sealed class AIOperationScope
 {
     private readonly AIOperationTracker _tracker;
-    private readonly AIOperationDescriptor _descriptor;
-    private readonly AIAuditScope? _auditScope;
-    private readonly AIAuditLog? _auditLog;
-    private readonly AIAuditPrompt? _auditPrompt;
+    private readonly IReadOnlyList<IAIOperationRecording> _recordings;
     private readonly Stopwatch _stopwatch;
-    private readonly CancellationToken _cancellationToken;
 
-    internal AIOperationScope(
-        AIOperationTracker tracker,
-        AIOperationDescriptor descriptor,
-        AIAuditScope? auditScope,
-        AIAuditLog? auditLog,
-        AIAuditPrompt? auditPrompt,
-        CancellationToken cancellationToken)
+    internal AIOperationScope(AIOperationTracker tracker, IReadOnlyList<IAIOperationRecording> recordings)
     {
         _tracker = tracker;
-        _descriptor = descriptor;
-        _auditScope = auditScope;
-        _auditLog = auditLog;
-        _auditPrompt = auditPrompt;
-        _cancellationToken = cancellationToken;
+        _recordings = recordings;
         _stopwatch = Stopwatch.StartNew();
     }
 
-    public async Task CompleteAsync(UsageDetails? usage, AIAuditResponse? auditResponse)
+    public Task CompleteAsync(UsageDetails? usage, object? responseData)
     {
         _stopwatch.Stop();
-
-        if (_auditLog is not null)
-        {
-            await _tracker.AuditLogService.QueueCompleteAuditLogAsync(
-                _auditLog, _auditPrompt, auditResponse, CancellationToken.None);
-        }
-
-        _ = _tracker.RecordUsageAsync(
-            _descriptor, usage, _stopwatch.ElapsedMilliseconds, succeeded: true, errorMessage: null, _cancellationToken);
+        return _tracker.EndRecordingsAsync(
+            _recordings,
+            new AIOperationOutcome(AIOperationStatus.Succeeded, usage, _stopwatch.ElapsedMilliseconds, Exception: null, responseData));
     }
 
-    public async Task FailAsync(Exception exception, UsageDetails? usage = null)
+    public Task FailAsync(Exception exception, UsageDetails? usage = null)
     {
         _stopwatch.Stop();
-
-        if (_auditLog is not null)
-        {
-            await _tracker.AuditLogService.QueueRecordAuditLogFailureAsync(
-                _auditLog, _auditPrompt, exception, CancellationToken.None);
-        }
-
-        _ = _tracker.RecordUsageAsync(
-            _descriptor, usage, _stopwatch.ElapsedMilliseconds, succeeded: false, errorMessage: exception.Message, _cancellationToken);
+        var status = exception is AIGuardrailBlockedException ? AIOperationStatus.Blocked : AIOperationStatus.Failed;
+        return _tracker.EndRecordingsAsync(
+            _recordings,
+            new AIOperationOutcome(status, usage, _stopwatch.ElapsedMilliseconds, exception));
     }
 
-    public void Dispose() => _auditScope?.Dispose();
+    /// <summary>
+    /// Opens each recording's ambient scope (today, the audit parent for nested calls) and closes them all,
+    /// in reverse order, on dispose. Returns null when no recording needs one.
+    /// </summary>
+    /// <remarks>
+    /// Enter it in the caller's own frame, directly around the work (for a stream, around each step of the
+    /// inner enumerator): AsyncLocal changes made inside an async method or iterator do not survive its
+    /// return or a yield.
+    /// </remarks>
+    public IDisposable? EnterScope()
+    {
+        List<IDisposable>? scopes = null;
+        foreach (var recording in _recordings)
+        {
+            if (recording.EnterScope() is { } scope)
+            {
+                (scopes ??= []).Add(scope);
+            }
+        }
+
+        return scopes switch
+        {
+            null => null,
+            [var only] => only,
+            _ => new CompositeScope(scopes),
+        };
+    }
+
+    private sealed class CompositeScope(List<IDisposable> scopes) : IDisposable
+    {
+        public void Dispose()
+        {
+            for (var i = scopes.Count - 1; i >= 0; i--)
+            {
+                scopes[i].Dispose();
+            }
+        }
+    }
 }

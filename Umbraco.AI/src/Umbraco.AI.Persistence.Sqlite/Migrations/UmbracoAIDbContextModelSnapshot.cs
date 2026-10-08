@@ -853,11 +853,11 @@ namespace Umbraco.AI.Persistence.Sqlite.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("OutcomeTokenUsageJson")
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("OutcomeType")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("OutcomeUsageJson")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("OutcomeValue")
                         .HasColumnType("TEXT");

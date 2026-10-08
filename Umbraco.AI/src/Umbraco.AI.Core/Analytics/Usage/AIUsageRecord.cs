@@ -105,9 +105,9 @@ public sealed class AIUsageRecord
     public required long DurationMs { get; init; }
 
     /// <summary>
-    /// Gets the status of the operation (Succeeded or Failed).
+    /// Gets how the operation ended.
     /// </summary>
-    public required string Status { get; init; }
+    public required AIUsageRecordStatus Status { get; init; }
 
     /// <summary>
     /// Gets the error message if the operation failed, if available.

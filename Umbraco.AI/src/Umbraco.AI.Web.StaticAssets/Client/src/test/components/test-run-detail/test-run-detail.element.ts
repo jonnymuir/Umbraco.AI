@@ -122,10 +122,10 @@ export class UaiTestRunDetailElement extends UmbElementMixin(LitElement) {
                 ${outcome.finishReason
                     ? html`<uai-labeled-field label="Finish Reason">${outcome.finishReason}</uai-labeled-field>`
                     : null}
-                ${outcome.tokenUsage
+                ${outcome.usage
                     ? html`
                         <uai-labeled-field label="Token Usage">
-                            <pre class="code-block">${JSON.stringify(outcome.tokenUsage, null, 2)}</pre>
+                            <pre class="code-block">${JSON.stringify(outcome.usage, null, 2)}</pre>
                         </uai-labeled-field>
                     `
                     : null}
