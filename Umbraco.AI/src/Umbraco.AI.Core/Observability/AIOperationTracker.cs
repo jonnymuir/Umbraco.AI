@@ -90,35 +90,24 @@ internal sealed class AIOperationTracker : IAIOperationTracker
         AIActivityEnricher.EnrichCurrentActivity(auditLog, _contextAccessor);
 
         // Captured now, while the context still belongs to this call: nested AI calls (guardrail judge,
-        // semantic search embeddings) overwrite these keys before this call completes.
+        // semantic search embeddings) overwrite these keys before this call completes. Serves both
+        // usage analytics and test usage collection, so completion never re-reads the live context.
+        var usageContext = _contextAccessor.Context is { } context
+            ? AIUsageContext.ExtractFromRuntimeContext(descriptor.Capability, context)
+            : null;
+
         return new AIOperationScope(
-            this, descriptor, auditScope, auditLog, auditPrompt, CaptureIdentity(), cancellationToken);
-    }
-
-    private AIOperationIdentity CaptureIdentity()
-    {
-        var context = _contextAccessor.Context;
-        if (context is null)
-        {
-            return new AIOperationIdentity(null, null, null, null);
-        }
-
-        var profileId = context.GetValue<Guid>(Constants.ContextKeys.ProfileId);
-        return new AIOperationIdentity(
-            context.GetValue<string>(Constants.ContextKeys.ProviderId),
-            context.GetValue<string>(Constants.ContextKeys.ModelId),
-            profileId == Guid.Empty ? null : profileId,
-            context.GetValue<string>(Constants.ContextKeys.ProfileAlias));
+            this, descriptor, auditScope, auditLog, auditPrompt, usageContext, cancellationToken);
     }
 
     /// <summary>
     /// Reports a finished call to the ambient <see cref="AIUsageCollectionScope"/>, if one is open.
     /// Runs synchronously on the caller's flow (so the ambient collector and runtime context are the
     /// call's own), independent of the analytics toggle and <see cref="AIOperationDescriptor.RecordUsageWhenEmpty"/>.
-    /// Uses the identity captured at <see cref="BeginAsync"/>, not the live runtime context.
+    /// Uses the usage context captured at <see cref="BeginAsync"/>, not the live runtime context.
     /// Never throws into the AI call.
     /// </summary>
-    internal void CollectUsage(AIOperationDescriptor descriptor, AIOperationIdentity identity, UsageDetails? usage)
+    internal void CollectUsage(AIOperationDescriptor descriptor, AIUsageContext? usageContext, UsageDetails? usage)
     {
         try
         {
@@ -130,10 +119,10 @@ internal sealed class AIOperationTracker : IAIOperationTracker
 
             collector.RecordCall(
                 descriptor.Capability,
-                identity.ProviderId,
-                identity.ModelId,
-                identity.ProfileId,
-                identity.ProfileAlias,
+                usageContext?.ProviderId,
+                usageContext?.ModelId,
+                usageContext?.ProfileId == Guid.Empty ? null : usageContext?.ProfileId,
+                usageContext?.ProfileAlias,
                 usage);
         }
         catch (Exception ex)
@@ -143,12 +132,12 @@ internal sealed class AIOperationTracker : IAIOperationTracker
     }
 
     internal async Task RecordUsageAsync(
-        AIOperationDescriptor descriptor, UsageDetails? usage, long durationMs,
+        AIOperationDescriptor descriptor, AIUsageContext? usageContext, UsageDetails? usage, long durationMs,
         bool succeeded, string? errorMessage, CancellationToken cancellationToken)
     {
         try
         {
-            if (!_analyticsOptions.CurrentValue.Enabled || _contextAccessor.Context is null)
+            if (!_analyticsOptions.CurrentValue.Enabled || usageContext is null)
             {
                 return;
             }
@@ -158,7 +147,6 @@ internal sealed class AIOperationTracker : IAIOperationTracker
                 return; // chat/embedding: no token counts => nothing to record
             }
 
-            var usageContext = AIUsageContext.ExtractFromRuntimeContext(descriptor.Capability, _contextAccessor.Context);
             var recordContext = AIUsageRecordContext.FromUsageContext(usageContext);
             var result = new AIUsageRecordResult
             {

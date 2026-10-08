@@ -19,7 +19,7 @@ internal sealed class AIOperationScope : IDisposable
 {
     private readonly AIOperationTracker _tracker;
     private readonly AIOperationDescriptor _descriptor;
-    private readonly AIOperationIdentity _identity;
+    private readonly AIUsageContext? _usageContext;
     private readonly AIAuditScope? _auditScope;
     private readonly AIAuditLog? _auditLog;
     private readonly AIAuditPrompt? _auditPrompt;
@@ -32,12 +32,12 @@ internal sealed class AIOperationScope : IDisposable
         AIAuditScope? auditScope,
         AIAuditLog? auditLog,
         AIAuditPrompt? auditPrompt,
-        AIOperationIdentity identity,
+        AIUsageContext? usageContext,
         CancellationToken cancellationToken)
     {
         _tracker = tracker;
         _descriptor = descriptor;
-        _identity = identity;
+        _usageContext = usageContext;
         _auditScope = auditScope;
         _auditLog = auditLog;
         _auditPrompt = auditPrompt;
@@ -48,7 +48,7 @@ internal sealed class AIOperationScope : IDisposable
     public async Task CompleteAsync(UsageDetails? usage, AIAuditResponse? auditResponse)
     {
         _stopwatch.Stop();
-        _tracker.CollectUsage(_descriptor, _identity, usage);
+        _tracker.CollectUsage(_descriptor, _usageContext, usage);
 
         if (_auditLog is not null)
         {
@@ -57,13 +57,13 @@ internal sealed class AIOperationScope : IDisposable
         }
 
         _ = _tracker.RecordUsageAsync(
-            _descriptor, usage, _stopwatch.ElapsedMilliseconds, succeeded: true, errorMessage: null, _cancellationToken);
+            _descriptor, _usageContext, usage, _stopwatch.ElapsedMilliseconds, succeeded: true, errorMessage: null, _cancellationToken);
     }
 
     public async Task FailAsync(Exception exception, UsageDetails? usage = null)
     {
         _stopwatch.Stop();
-        _tracker.CollectUsage(_descriptor, _identity, usage);
+        _tracker.CollectUsage(_descriptor, _usageContext, usage);
 
         if (_auditLog is not null)
         {
@@ -72,7 +72,7 @@ internal sealed class AIOperationScope : IDisposable
         }
 
         _ = _tracker.RecordUsageAsync(
-            _descriptor, usage, _stopwatch.ElapsedMilliseconds, succeeded: false, errorMessage: exception.Message, _cancellationToken);
+            _descriptor, _usageContext, usage, _stopwatch.ElapsedMilliseconds, succeeded: false, errorMessage: exception.Message, _cancellationToken);
     }
 
     public void Dispose() => _auditScope?.Dispose();
