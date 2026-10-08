@@ -24,8 +24,6 @@ public class AIUsageAggregationJobTests
         // Arrange: no hourly statistics yet; records span CurrentHour-5 to now.
         _records.Setup(x => x.GetFirstRecordTimestampAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(CurrentHour.AddHours(-5).AddMinutes(20));
-        _records.Setup(x => x.GetLastRecordTimestampAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CurrentHour.AddMinutes(1));
 
         // Act
         await CreateHourlyJob().RunJobAsync(CancellationToken.None);

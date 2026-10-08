@@ -52,7 +52,7 @@ Tracked on [#528](https://github.com/umbraco/Umbraco.AI/issues/528).
   Done in one PR, one commit per item, except the error category: on a closer look it isn't
   duplicated (see decision log). `RecordUsageWhenEmpty` was removed rather than re-documented.
 
-- [ ] **T5. Final review of what the refactor left behind** (last, after T1 to T4 have merged).
+- [x] **T5. Final review of what the refactor left behind** (last, after T1 to T4 have merged).
   Moving responsibilities out leaves some types thinner than their names and interfaces suggest.
   Look at each one and decide, in one PR, whether to keep it, merge it into its caller, or
   replace it with something shared:

@@ -38,7 +38,7 @@ internal sealed class AIAuditOperationRecorder : IAIOperationRecorder
 
         // The parent is whichever call's scope is open around this one. This call's own scope is only
         // entered later, around the work (see Recording.EnterScope), so it can't be picked up here.
-        var auditLog = _auditLogFactory.Create(auditContext, descriptor.Metadata, parentId: AIAuditScope.Current?.AuditLogId);
+        var auditLog = _auditLogFactory.Create(auditContext, start.LogValues, parentId: AIAuditScope.Current?.AuditLogId);
 
         // Link the entry and the trace both ways.
         var activity = Activity.Current;
