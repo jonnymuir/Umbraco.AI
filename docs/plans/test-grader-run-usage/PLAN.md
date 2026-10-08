@@ -68,6 +68,6 @@ Paths are relative to `Umbraco.AI/`. Unit tests go in `tests/Umbraco.AI.Tests.Un
   (`usage` new, `tokenUsage` obsolete). Stored in the existing `OutcomeTokenUsageJson` column.
   story: all · depends-on: T11 · parallel-group: —
 
-- [ ] **T7** — Backport to `v17/dev` via the `backport` skill (separate worktree, draft PR).
+- [x] **T7** — Backport to `v17/dev` via the `backport` skill (separate worktree, draft PR #526).
   Confirm the v17 tracker/runner code matches before porting.
   story: all · depends-on: T6 and the v18 PR · parallel-group: —
