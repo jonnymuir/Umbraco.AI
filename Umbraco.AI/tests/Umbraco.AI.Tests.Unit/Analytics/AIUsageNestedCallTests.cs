@@ -79,6 +79,27 @@ public class AIUsageNestedCallTests
         statistics.Select(s => (s.RequestCount, s.NestedRequestCount)).ShouldBe([(10, 3)]);
     }
 
+    [Fact]
+    public void Summary_TopLevelRequests_LeaveOutNestedOnes()
+    {
+        // Arrange
+        var summary = new AIUsageSummary
+        {
+            TotalRequests = 10,
+            NestedRequestCount = 4,
+            InputTokens = 0,
+            OutputTokens = 0,
+            TotalTokens = 0,
+            SuccessCount = 10,
+            FailureCount = 0,
+            SuccessRate = 1,
+            AverageDurationMs = 0,
+        };
+
+        // Act + Assert
+        summary.TopLevelRequestCount.ShouldBe(6);
+    }
+
     private static AIUsageRecord Record(bool isNested) => new()
     {
         Id = Guid.NewGuid(),
