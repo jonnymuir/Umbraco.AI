@@ -51,9 +51,7 @@ public class AIOperationTrackerUsageCollectionTests
             new Mock<IAIAuditLogService>().Object,
             new Mock<IAIAuditLogFactory>().Object,
             auditOptions.Object,
-            new Mock<IAIUsageRecordingService>().Object,
-            usageRecordFactory ?? new Mock<IAIUsageRecordFactory>().Object,
-            analyticsOptions.Object,
+            TestOperationRecorders.Default(new Mock<IAIUsageRecordingService>().Object, usageRecordFactory ?? new Mock<IAIUsageRecordFactory>().Object, analyticsOptions.Object),
             NullLogger<AIOperationTracker>.Instance);
     }
 

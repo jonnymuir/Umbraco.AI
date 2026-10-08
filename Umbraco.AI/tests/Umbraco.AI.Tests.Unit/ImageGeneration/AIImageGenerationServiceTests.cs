@@ -1,3 +1,4 @@
+using Umbraco.AI.Tests.Unit.Observability;
 #pragma warning disable MEAI001 // Image generation types are experimental in M.E.AI
 #pragma warning disable UMBRACOAI_IMAGEGEN // Tests the experimental image-generation service
 
@@ -73,9 +74,7 @@ public class AIImageGenerationServiceTests
             _auditLogServiceMock.Object,
             _auditLogFactoryMock.Object,
             auditOptions.Object,
-            _usageRecordingServiceMock.Object,
-            _usageRecordFactoryMock.Object,
-            analyticsOptions.Object,
+            TestOperationRecorders.Default(_usageRecordingServiceMock.Object, _usageRecordFactoryMock.Object, analyticsOptions.Object),
             NullLogger<AIOperationTracker>.Instance);
 
         _service = new AIImageGenerationService(

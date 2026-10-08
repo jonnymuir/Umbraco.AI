@@ -490,9 +490,7 @@ public class AIOperationTrackerTests
         _auditLogServiceMock.Object,
         _auditLogFactoryMock.Object,
         _auditLogOptionsMock.Object,
-        _usageRecordingServiceMock.Object,
-        _usageRecordFactoryMock.Object,
-        _analyticsOptionsMock.Object,
+        TestOperationRecorders.Default(_usageRecordingServiceMock.Object, _usageRecordFactoryMock.Object, _analyticsOptionsMock.Object),
         NullLogger<AIOperationTracker>.Instance);
 
     private static AIOperationDescriptor CreateDescriptor(bool recordUsageWhenEmpty = false) => new()
