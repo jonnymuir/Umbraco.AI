@@ -175,6 +175,17 @@ export type GetAllData = {
     url: '/umbraco/ai/management/api/v1/conversations';
 };
 
+export type GetAllErrors = {
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
+};
+
 export type GetAllResponses = {
     /**
      * OK
@@ -196,6 +207,14 @@ export type CreateErrors = {
      * Bad Request
      */
     400: ProblemDetails;
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
 };
 
 export type CreateError = CreateErrors[keyof CreateErrors];
@@ -219,6 +238,14 @@ export type DeleteData = {
 };
 
 export type DeleteErrors = {
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
     /**
      * Not Found
      */
@@ -246,6 +273,14 @@ export type GetByIdData = {
 };
 
 export type GetByIdErrors = {
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
     /**
      * Not Found
      */
@@ -278,6 +313,14 @@ export type UpdateErrors = {
      */
     400: ProblemDetails;
     /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -307,6 +350,14 @@ export type GetMessagesData = {
 };
 
 export type GetMessagesErrors = {
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
     /**
      * Not Found
      */
@@ -339,6 +390,14 @@ export type TruncateAfterLastUserMessageErrors = {
      */
     400: ProblemDetails;
     /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -366,6 +425,17 @@ export type GetAll2Data = {
     url: '/umbraco/ai/management/api/v1/projects';
 };
 
+export type GetAll2Errors = {
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
+};
+
 export type GetAll2Responses = {
     /**
      * OK
@@ -380,6 +450,17 @@ export type Create2Data = {
     path?: never;
     query?: never;
     url: '/umbraco/ai/management/api/v1/projects';
+};
+
+export type Create2Errors = {
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
 };
 
 export type Create2Responses = {
@@ -405,6 +486,14 @@ export type Delete2Errors = {
      * Bad Request
      */
     400: ProblemDetails;
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
     /**
      * Not Found
      */
@@ -433,6 +522,14 @@ export type GetById2Data = {
 
 export type GetById2Errors = {
     /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -459,6 +556,14 @@ export type Update2Data = {
 };
 
 export type Update2Errors = {
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
     /**
      * Not Found
      */

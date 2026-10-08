@@ -5,6 +5,12 @@ All notable changes to Umbraco.AI.Deploy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.2.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Deploy@17.1.0...Umbraco.AI.Deploy@17.2.0) (2026-10-05)
+
+### feat
+
+* **settings,agent-ui,prompt,deploy:** Add a setting to control the AI disclosure notice ([88b47bf](https://github.com/umbraco/Umbraco.AI/commit/88b47bfe514728619f741ca1b28711b7b32b2742))
+
 ## [17.1.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Deploy@17.0.2...Umbraco.AI.Deploy@17.1.0) (2026-08-11)
 
 ### fix

@@ -55,11 +55,12 @@ public class BlockListPropertyValueHandlerTests
     }
 
     [Fact]
-    public async Task AddItemAsync_AddsOneExposeEntryPerActiveVariant()
+    public async Task AddItemAsync_AddsOneExposeEntryPerActiveVariant_ForCultureVariantElementType()
     {
         // Arrange
         var elementTypeKey = Guid.NewGuid();
-        var contentTypeService = BuildContentTypeService(elementTypeKey, "title", "Umbraco.TextBox");
+        var contentTypeService = BuildContentTypeService(
+            elementTypeKey, ContentVariation.Culture, ("title", ContentVariation.Culture));
         var handler = new BlockListPropertyValueHandler(contentTypeService);
 
         var context = BuildContext(variants:
@@ -77,6 +78,67 @@ public class BlockListPropertyValueHandlerTests
         var expose = (JsonArray)((JsonObject)result.Value!)[BlockEnvelopeOps.ExposePropertyName]!;
         expose.Count.ShouldBe(2);
         expose.Select(e => e!["culture"]!.GetValue<string?>()).ShouldBe(["en-US", "da-DK"]);
+    }
+
+    [Fact]
+    public async Task AddItemAsync_InvariantElementType_OnVariantDocument_WritesInvariantValuesAndExpose()
+    {
+        // Arrange — regression test for umbraco/Umbraco.AI#450: a culture-variant block list holding an
+        // invariant element type must not tag the new block's values/expose with the active culture,
+        // or the backoffice renders it empty/unexposed and save drops it on non-default cultures.
+        var elementTypeKey = Guid.NewGuid();
+        var contentTypeService = BuildContentTypeService(
+            elementTypeKey, ContentVariation.Nothing, ("text", ContentVariation.Nothing));
+        var handler = new BlockListPropertyValueHandler(contentTypeService);
+
+        var context = BuildContext(variants: [new AIVariantId("en-US", null)]);
+        var args = new AIAddItemArgs(elementTypeKey.ToString(), new JsonObject { ["text"] = "Hello" });
+
+        // Act
+        var result = await handler.AddItemAsync(value: null, args, context);
+
+        // Assert
+        var envelope = (JsonObject)result.Value!;
+        var values = (JsonArray)((JsonArray)envelope[BlockEnvelopeOps.ContentDataPropertyName]!)[0]!["values"]!;
+        (values[0]!["culture"]?.GetValue<string?>()).ShouldBeNull();
+
+        var expose = (JsonArray)envelope[BlockEnvelopeOps.ExposePropertyName]!;
+        expose.Count.ShouldBe(1);
+        (expose[0]!["culture"]?.GetValue<string?>()).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task AddItemAsync_CultureVariantElementType_TagsOnlyCultureVariantProperties()
+    {
+        // Arrange
+        var elementTypeKey = Guid.NewGuid();
+        var contentTypeService = BuildContentTypeService(
+            elementTypeKey,
+            ContentVariation.Culture,
+            ("title", ContentVariation.Culture),
+            ("code", ContentVariation.Nothing));
+        var handler = new BlockListPropertyValueHandler(contentTypeService);
+
+        var context = BuildContext(variants: [new AIVariantId("nl-NL", null)]);
+        var args = new AIAddItemArgs(
+            elementTypeKey.ToString(),
+            new JsonObject { ["title"] = "Hallo", ["code"] = "X1" });
+
+        // Act
+        var result = await handler.AddItemAsync(value: null, args, context);
+
+        // Assert
+        var envelope = (JsonObject)result.Value!;
+        var values = (JsonArray)((JsonArray)envelope[BlockEnvelopeOps.ContentDataPropertyName]!)[0]!["values"]!;
+        var cultures = values.ToDictionary(
+            v => v!["alias"]!.GetValue<string>(),
+            v => v!["culture"]?.GetValue<string?>());
+        cultures["title"].ShouldBe("nl-NL");
+        cultures["code"].ShouldBeNull();
+
+        var expose = (JsonArray)envelope[BlockEnvelopeOps.ExposePropertyName]!;
+        expose.Count.ShouldBe(1);
+        expose[0]!["culture"]!.GetValue<string>().ShouldBe("nl-NL");
     }
 
     [Fact]
@@ -143,16 +205,37 @@ public class BlockListPropertyValueHandlerTests
     }
 
     private static IContentTypeService BuildContentTypeService(Guid contentTypeKey, string propertyAlias, string editorAlias)
+        => BuildContentTypeService(contentTypeKey, ContentVariation.Nothing, [(propertyAlias, editorAlias, ContentVariation.Nothing)]);
+
+    private static IContentTypeService BuildContentTypeService(
+        Guid contentTypeKey,
+        ContentVariation elementVariations,
+        params (string Alias, ContentVariation Variations)[] properties)
+        => BuildContentTypeService(
+            contentTypeKey,
+            elementVariations,
+            properties.Select(p => (p.Alias, "Umbraco.TextBox", p.Variations)).ToArray());
+
+    private static IContentTypeService BuildContentTypeService(
+        Guid contentTypeKey,
+        ContentVariation elementVariations,
+        (string Alias, string EditorAlias, ContentVariation Variations)[] properties)
     {
-        var propertyType = new Mock<IPropertyType>();
-        propertyType.Setup(p => p.Alias).Returns(propertyAlias);
-        propertyType.Setup(p => p.PropertyEditorAlias).Returns(editorAlias);
+        var propertyTypes = properties.Select(p =>
+        {
+            var propertyType = new Mock<IPropertyType>();
+            propertyType.Setup(x => x.Alias).Returns(p.Alias);
+            propertyType.Setup(x => x.PropertyEditorAlias).Returns(p.EditorAlias);
+            propertyType.Setup(x => x.Variations).Returns(p.Variations);
+            return propertyType.Object;
+        }).ToArray();
 
         var contentType = new Mock<IContentType>();
         contentType.Setup(c => c.Key).Returns(contentTypeKey);
+        contentType.Setup(c => c.Variations).Returns(elementVariations);
         contentType.As<IContentTypeComposition>()
             .Setup(c => c.CompositionPropertyTypes)
-            .Returns(new[] { propertyType.Object });
+            .Returns(propertyTypes);
 
         var service = new Mock<IContentTypeService>();
         service.Setup(s => s.Get(contentTypeKey)).Returns(contentType.Object);

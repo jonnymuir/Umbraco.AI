@@ -134,6 +134,15 @@ parameters:
       type: boolean
       default: false
 
+    # Queue-time override: generate SBOMs and run the license policy check on any branch.
+    # SBOMs normally only run on vN/release/* and vN/hotfix/*, where they are also uploaded to
+    # Dependency-Track. Elsewhere this covers every product and never uploads, so in-progress
+    # versions don't land in Dependency-Track.
+    - name: generateSbom
+      displayName: Generate SBOMs and check licenses (no upload off release/hotfix)
+      type: boolean
+      default: false
+
 trigger:
     branches:
         include:
@@ -244,8 +253,10 @@ stages:
                       publishLocation: pipeline
 
     # ============================================================
-    # Generate & Upload SBOMs - Only runs on push to vN/main, vN/dev, vN/hotfix/*, vN/release/*
-    # Generates per-product SBOMs and uploads to Dependency-Track
+    # Generate & Upload SBOMs - Only runs on push to vN/release/* and vN/hotfix/*, or on any
+    # branch when generateSbom is ticked at queue time (generate + license check, no upload)
+    # Covers only the products being released (same change detection as Pack), uploads them to
+    # Dependency-Track, and gates Pack: a license policy violation stops the release
     # ============================================================
     - stage: GenerateSBOM
       displayName: Generate & Upload SBOMs
@@ -253,182 +264,39 @@ stages:
       condition: |
           and(
             succeeded(),
-            ne(variables['Build.Reason'], 'PullRequest')
+            ne(variables['Build.Reason'], 'PullRequest'),
+            or(
+              eq('${{ parameters.generateSbom }}', 'true'),
+              contains(variables['Build.SourceBranch'], '/release/'),
+              contains(variables['Build.SourceBranch'], '/hotfix/')
+            )
           )
       jobs:
-          # Core product
-          - job: GenerateSBOM_Core
-            displayName: Generate SBOM - Umbraco.AI
-            continueOnError: true
+          - job: GenerateSBOMs
+            displayName: Generate SBOMs
             pool:
                 vmImage: "ubuntu-latest"
             steps:
                 - checkout: self
-                  fetchDepth: 1
+                  fetchDepth: 0
 
-                - task: UseNode@1
-                  displayName: Setup Node.js
+                - task: PowerShell@2
+                  displayName: Detect products to generate SBOMs for
+                  name: detect
                   inputs:
-                      version: $(NODE_VERSION)
+                      filePath: .azure-pipelines/scripts/detect-changes.ps1
+                      pwsh: true
+                      # A queue-time SBOM check on any other branch covers every product, since
+                      # change detection only narrows the list to a release on release/hotfix.
+                      ${{ if or(parameters.forcePackAll, and(parameters.generateSbom, not(contains(variables['Build.SourceBranch'], '/release/')), not(contains(variables['Build.SourceBranch'], '/hotfix/')))) }}:
+                          arguments: -ForceAll
+                  env:
+                      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
-                - template: .azure-pipelines/templates/generate-sbom.yml
+                - template: .azure-pipelines/templates/sbom.yml
                   parameters:
-                      product: Umbraco.AI
-
-          # Level 1 products (matrix)
-          - job: GenerateSBOM_Level1
-            displayName: Generate SBOM - Level 1
-            continueOnError: true
-            pool:
-                vmImage: "ubuntu-latest"
-            strategy:
-                matrix:
-                    ${{ each product in parameters.level1Products }}:
-                        ${{ replace(replace(product.name, 'Umbraco.AI.', ''), '.', '_') }}:
-                            product: ${{ product.name }}
-                maxParallel: 10
-            steps:
-                - checkout: self
-                  fetchDepth: 1
-
-                - task: UseNode@1
-                  displayName: Setup Node.js
-                  inputs:
-                      version: $(NODE_VERSION)
-
-                - template: .azure-pipelines/templates/generate-sbom.yml
-                  parameters:
-                      product: $(product)
-
-          # Level 2 products (matrix)
-          - job: GenerateSBOM_Level2
-            displayName: Generate SBOM - Level 2
-            continueOnError: true
-            pool:
-                vmImage: "ubuntu-latest"
-            strategy:
-                matrix:
-                    ${{ each product in parameters.level2Products }}:
-                        ${{ replace(replace(product.name, 'Umbraco.AI.', ''), '.', '_') }}:
-                            product: ${{ product.name }}
-                maxParallel: 10
-            steps:
-                - checkout: self
-                  fetchDepth: 1
-
-                - task: UseNode@1
-                  displayName: Setup Node.js
-                  inputs:
-                      version: $(NODE_VERSION)
-
-                - template: .azure-pipelines/templates/generate-sbom.yml
-                  parameters:
-                      product: $(product)
-
-          # Level 3 products (matrix)
-          - job: GenerateSBOM_Level3
-            displayName: Generate SBOM - Level 3
-            continueOnError: true
-            pool:
-                vmImage: "ubuntu-latest"
-            strategy:
-                matrix:
-                    ${{ each product in parameters.level3Products }}:
-                        ${{ replace(replace(product.name, 'Umbraco.AI.', ''), '.', '_') }}:
-                            product: ${{ product.name }}
-                maxParallel: 10
-            steps:
-                - checkout: self
-                  fetchDepth: 1
-
-                - task: UseNode@1
-                  displayName: Setup Node.js
-                  inputs:
-                      version: $(NODE_VERSION)
-
-                - template: .azure-pipelines/templates/generate-sbom.yml
-                  parameters:
-                      product: $(product)
-
-          # ============================================================
-          # Collect all SBOMs into single artifact
-          # Downloads artifacts from all SBOM jobs and combines them
-          # ============================================================
-          - job: CollectSBOMs
-            displayName: Collect All SBOMs
-            dependsOn:
-                - GenerateSBOM_Core
-                - GenerateSBOM_Level1
-                - GenerateSBOM_Level2
-                - GenerateSBOM_Level3
-            condition: |
-                and(
-                  not(failed()),
-                  not(canceled())
-                )
-            pool:
-                vmImage: "ubuntu-latest"
-            steps:
-                - checkout: none
-
-                # Download Core SBOM
-                - task: DownloadPipelineArtifact@2
-                  displayName: Download Umbraco.AI SBOM
-                  inputs:
-                      artifact: "Umbraco.AI-sbom"
-                      targetPath: "$(Pipeline.Workspace)/sboms"
-
-                # Download Level 1 SBOMs
-                - ${{ each product in parameters.level1Products }}:
-                      - task: DownloadPipelineArtifact@2
-                        displayName: Download ${{ product.name }} SBOM
-                        inputs:
-                            artifact: "${{ product.name }}-sbom"
-                            targetPath: "$(Pipeline.Workspace)/sboms"
-
-                # Download Level 2 SBOMs
-                - ${{ each product in parameters.level2Products }}:
-                      - task: DownloadPipelineArtifact@2
-                        displayName: Download ${{ product.name }} SBOM
-                        inputs:
-                            artifact: "${{ product.name }}-sbom"
-                            targetPath: "$(Pipeline.Workspace)/sboms"
-
-                # Download Level 3 SBOMs
-                - ${{ each product in parameters.level3Products }}:
-                      - task: DownloadPipelineArtifact@2
-                        displayName: Download ${{ product.name }} SBOM
-                        inputs:
-                            artifact: "${{ product.name }}-sbom"
-                            targetPath: "$(Pipeline.Workspace)/sboms"
-
-                # Flatten SBOM files into single directory
-                - task: Bash@3
-                  displayName: Collect SBOM files
-                  inputs:
-                      targetType: inline
-                      script: |
-                          mkdir -p all-sboms
-
-                          # Find all SBOM JSON files and move to single directory
-                          if [ -d "$(Pipeline.Workspace)/sboms" ]; then
-                            find "$(Pipeline.Workspace)/sboms" -name "*-bom.json" -exec mv {} all-sboms/ \;
-                          fi
-
-                          # List collected SBOMs
-                          if [ -d "all-sboms" ] && [ "$(ls -A all-sboms 2>/dev/null)" ]; then
-                            echo "Collected SBOMs:"
-                            ls -la all-sboms/
-                          else
-                            echo "No SBOMs collected"
-                          fi
-
-                - task: PublishPipelineArtifact@1
-                  displayName: Upload combined SBOM artifact
-                  inputs:
-                      targetPath: $(Build.SourcesDirectory)/all-sboms
-                      artifact: all-sboms
-                      publishLocation: pipeline
+                      products: $(detect.AllChangedProducts)
+                      upload: ${{ or(contains(variables['Build.SourceBranch'], '/release/'), contains(variables['Build.SourceBranch'], '/hotfix/')) }}
 
     # ============================================================
     # Validate Changelogs - Only runs on release and hotfix branches
@@ -467,21 +335,24 @@ stages:
     # ============================================================
     # Pack Stage - Only runs on push to main/dev/hotfix/release branches
     # Uses dynamic change detection to only pack products that changed
-    # Runs in parallel with GenerateSBOM after Build (through ValidateChangelogs dependency)
+    # Waits for GenerateSBOM so a license policy violation stops a release before it is packed
     # ============================================================
     - stage: Pack
       displayName: Pack NuGet & NPM Packages
       dependsOn:
           - Build
           - ValidateChangelogs
+          - GenerateSBOM
       # Only pack on push (not PR) to vN/main, vN/dev, vN/hotfix/*, vN/release/* branches,
       # or on any branch when forcePackAll is ticked at queue time - which is what lets a
       # vN/feature/* branch produce a full set of packages to hand-publish.
-      # ValidateChangelogs may be skipped (on main/dev and feature branches), which is OK
+      # ValidateChangelogs and GenerateSBOM may be skipped (on main/dev and feature branches), which is OK.
+      # GenerateSBOM succeeds with issues when only the Dependency-Track upload failed.
       condition: |
           and(
             in(dependencies.Build.result, 'Succeeded'),
             in(dependencies.ValidateChangelogs.result, 'Succeeded', 'Skipped'),
+            in(dependencies.GenerateSBOM.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
             ne(variables['Build.Reason'], 'PullRequest'),
             or(
               eq('${{ parameters.forcePackAll }}', 'true'),
@@ -1059,8 +930,7 @@ stages:
                       publishLocation: pipeline
 
     # ============================================================
-    # Finalize - set build number after both parallel paths complete
-    # Waits for both GenerateSBOM and Pack stages
+    # Finalize - set build number after GenerateSBOM and Pack complete
     # ============================================================
     - stage: Finalize
       displayName: Finalize Build

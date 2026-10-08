@@ -5,6 +5,18 @@ All notable changes to Umbraco.AI.Prompt will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.3.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Prompt@17.2.3...Umbraco.AI.Prompt@17.3.0) (2026-10-05)
+
+### feat
+
+* **agent-ui,prompt:** Show an AI-generated notice on chat and prompt responses ([f215b65](https://github.com/umbraco/Umbraco.AI/commit/f215b65daffd1432d7dc5dab66331a4015b91970))
+* **settings,agent-ui,prompt,deploy:** Add a setting to control the AI disclosure notice ([88b47bf](https://github.com/umbraco/Umbraco.AI/commit/88b47bfe514728619f741ca1b28711b7b32b2742))
+* **settings,agent-ui,prompt:** Make the AI disclosure notice dismissible per location ([09371e9](https://github.com/umbraco/Umbraco.AI/commit/09371e976be664a05b3a15b0e0b0eb6177aab706))
+
+### fix
+
+* **prompt:** Keep the user's prompt when retrying a multi-option response ([d5cd148](https://github.com/umbraco/Umbraco.AI/commit/d5cd148d0ca4df8204282b8d09e3f6e91d81c800))
+
 ## [17.2.3](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Prompt@17.2.2...Umbraco.AI.Prompt@17.2.3) (2026-08-17)
 
 ### fix

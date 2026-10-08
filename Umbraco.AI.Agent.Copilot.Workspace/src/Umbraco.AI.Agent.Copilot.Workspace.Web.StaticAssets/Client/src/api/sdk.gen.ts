@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { Create2Data, Create2Responses, CreateData, CreateErrors, CreateResponses, Delete2Data, Delete2Errors, Delete2Responses, DeleteData, DeleteErrors, DeleteResponses, GetAll2Data, GetAll2Responses, GetAllData, GetAllResponses, GetById2Data, GetById2Errors, GetById2Responses, GetByIdData, GetByIdErrors, GetByIdResponses, GetMessagesData, GetMessagesErrors, GetMessagesResponses, StreamAgentAGUIData, StreamAgentAGUIErrors, StreamAgentAGUIResponse, StreamAgentAGUIResponses, TruncateAfterLastUserMessageData, TruncateAfterLastUserMessageErrors, TruncateAfterLastUserMessageResponses, Update2Data, Update2Errors, Update2Responses, UpdateData, UpdateErrors, UpdateResponses } from './types.gen';
+import type { Create2Data, Create2Errors, Create2Responses, CreateData, CreateErrors, CreateResponses, Delete2Data, Delete2Errors, Delete2Responses, DeleteData, DeleteErrors, DeleteResponses, GetAll2Data, GetAll2Errors, GetAll2Responses, GetAllData, GetAllErrors, GetAllResponses, GetById2Data, GetById2Errors, GetById2Responses, GetByIdData, GetByIdErrors, GetByIdResponses, GetMessagesData, GetMessagesErrors, GetMessagesResponses, StreamAgentAGUIData, StreamAgentAGUIErrors, StreamAgentAGUIResponse, StreamAgentAGUIResponses, TruncateAfterLastUserMessageData, TruncateAfterLastUserMessageErrors, TruncateAfterLastUserMessageResponses, Update2Data, Update2Errors, Update2Responses, UpdateData, UpdateErrors, UpdateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -20,11 +20,16 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 
 export class ConversationsService {
     public static getAll<ThrowOnError extends boolean = false>(options?: Options<GetAllData, ThrowOnError>) {
-        return (options?.client ?? client).get<GetAllResponses, unknown, ThrowOnError>({ url: '/umbraco/ai/management/api/v1/conversations', ...options });
+        return (options?.client ?? client).get<GetAllResponses, GetAllErrors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/umbraco/ai/management/api/v1/conversations',
+            ...options
+        });
     }
     
     public static create<ThrowOnError extends boolean = false>(options?: Options<CreateData, ThrowOnError>) {
         return (options?.client ?? client).post<CreateResponses, CreateErrors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
             url: '/umbraco/ai/management/api/v1/conversations',
             ...options,
             headers: {
@@ -35,15 +40,24 @@ export class ConversationsService {
     }
     
     public static delete<ThrowOnError extends boolean = false>(options: Options<DeleteData, ThrowOnError>) {
-        return (options.client ?? client).delete<DeleteResponses, DeleteErrors, ThrowOnError>({ url: '/umbraco/ai/management/api/v1/conversations/{id}', ...options });
+        return (options.client ?? client).delete<DeleteResponses, DeleteErrors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/umbraco/ai/management/api/v1/conversations/{id}',
+            ...options
+        });
     }
     
     public static getById<ThrowOnError extends boolean = false>(options: Options<GetByIdData, ThrowOnError>) {
-        return (options.client ?? client).get<GetByIdResponses, GetByIdErrors, ThrowOnError>({ url: '/umbraco/ai/management/api/v1/conversations/{id}', ...options });
+        return (options.client ?? client).get<GetByIdResponses, GetByIdErrors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/umbraco/ai/management/api/v1/conversations/{id}',
+            ...options
+        });
     }
     
     public static update<ThrowOnError extends boolean = false>(options: Options<UpdateData, ThrowOnError>) {
         return (options.client ?? client).put<UpdateResponses, UpdateErrors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
             url: '/umbraco/ai/management/api/v1/conversations/{id}',
             ...options,
             headers: {
@@ -54,21 +68,34 @@ export class ConversationsService {
     }
     
     public static getMessages<ThrowOnError extends boolean = false>(options: Options<GetMessagesData, ThrowOnError>) {
-        return (options.client ?? client).get<GetMessagesResponses, GetMessagesErrors, ThrowOnError>({ url: '/umbraco/ai/management/api/v1/conversations/{id}/messages', ...options });
+        return (options.client ?? client).get<GetMessagesResponses, GetMessagesErrors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/umbraco/ai/management/api/v1/conversations/{id}/messages',
+            ...options
+        });
     }
     
     public static truncateAfterLastUserMessage<ThrowOnError extends boolean = false>(options: Options<TruncateAfterLastUserMessageData, ThrowOnError>) {
-        return (options.client ?? client).delete<TruncateAfterLastUserMessageResponses, TruncateAfterLastUserMessageErrors, ThrowOnError>({ url: '/umbraco/ai/management/api/v1/conversations/{id}/messages/after-last-user', ...options });
+        return (options.client ?? client).delete<TruncateAfterLastUserMessageResponses, TruncateAfterLastUserMessageErrors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/umbraco/ai/management/api/v1/conversations/{id}/messages/after-last-user',
+            ...options
+        });
     }
 }
 
 export class ProjectsService {
     public static getAll<ThrowOnError extends boolean = false>(options?: Options<GetAll2Data, ThrowOnError>) {
-        return (options?.client ?? client).get<GetAll2Responses, unknown, ThrowOnError>({ url: '/umbraco/ai/management/api/v1/projects', ...options });
+        return (options?.client ?? client).get<GetAll2Responses, GetAll2Errors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/umbraco/ai/management/api/v1/projects',
+            ...options
+        });
     }
     
     public static create<ThrowOnError extends boolean = false>(options?: Options<Create2Data, ThrowOnError>) {
-        return (options?.client ?? client).post<Create2Responses, unknown, ThrowOnError>({
+        return (options?.client ?? client).post<Create2Responses, Create2Errors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
             url: '/umbraco/ai/management/api/v1/projects',
             ...options,
             headers: {
@@ -79,15 +106,24 @@ export class ProjectsService {
     }
     
     public static delete<ThrowOnError extends boolean = false>(options: Options<Delete2Data, ThrowOnError>) {
-        return (options.client ?? client).delete<Delete2Responses, Delete2Errors, ThrowOnError>({ url: '/umbraco/ai/management/api/v1/projects/{id}', ...options });
+        return (options.client ?? client).delete<Delete2Responses, Delete2Errors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/umbraco/ai/management/api/v1/projects/{id}',
+            ...options
+        });
     }
     
     public static getById<ThrowOnError extends boolean = false>(options: Options<GetById2Data, ThrowOnError>) {
-        return (options.client ?? client).get<GetById2Responses, GetById2Errors, ThrowOnError>({ url: '/umbraco/ai/management/api/v1/projects/{id}', ...options });
+        return (options.client ?? client).get<GetById2Responses, GetById2Errors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/umbraco/ai/management/api/v1/projects/{id}',
+            ...options
+        });
     }
     
     public static update<ThrowOnError extends boolean = false>(options: Options<Update2Data, ThrowOnError>) {
         return (options.client ?? client).put<Update2Responses, Update2Errors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
             url: '/umbraco/ai/management/api/v1/projects/{id}',
             ...options,
             headers: {

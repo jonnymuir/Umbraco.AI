@@ -131,6 +131,78 @@ public class AIPropertyValueDispatcherTests
     }
 
     [Fact]
+    public void TryReadValue_NestedPath_ReturnsValueInsideBlock()
+    {
+        // Arrange
+        var innerContentTypeKey = Guid.NewGuid();
+        var blockKey = Guid.NewGuid();
+        var contentTypeService = BuildContentTypeServiceWithTypes(
+            (RootContentTypeKey, new Dictionary<string, string> { ["rows"] = OuterEditor }),
+            (innerContentTypeKey, new Dictionary<string, string> { ["heading"] = InnerEditor }));
+        IAIPropertyValueReader reader = BuildDispatcher(
+            handlers: [new FakePropertyValueHandler(OuterEditor)],
+            contentTypeService: contentTypeService);
+
+        var request = new AIPropertyValueDispatchRequest(
+            Path:
+            [
+                AIPropertyPathSegment.ForProperty("rows"),
+                AIPropertyPathSegment.ForBlock(blockKey),
+                AIPropertyPathSegment.ForProperty("heading"),
+            ],
+            Operation: AIPropertyOperation.SetValue,
+            Args: null,
+            RootValue: new JsonObject
+            {
+                ["items"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["blockKey"] = blockKey,
+                        ["contentTypeKey"] = innerContentTypeKey,
+                        ["values"] = new JsonObject { ["heading"] = "Autumn" },
+                    },
+                },
+            },
+            DocumentMetadata: Metadata);
+
+        // Act
+        var found = reader.TryReadValue(request, out var value);
+
+        // Assert
+        found.ShouldBeTrue();
+        value!.GetValue<string>().ShouldBe("Autumn");
+    }
+
+    [Fact]
+    public void TryReadValue_BlockMissing_ReturnsFalse()
+    {
+        // Arrange
+        IAIPropertyValueReader reader = BuildDispatcher(
+            handlers: [new FakePropertyValueHandler(TestEditor)],
+            rootProperties: new Dictionary<string, string> { ["contentBlocks"] = TestEditor });
+
+        var request = new AIPropertyValueDispatchRequest(
+            Path:
+            [
+                AIPropertyPathSegment.ForProperty("contentBlocks"),
+                AIPropertyPathSegment.ForBlock(Guid.NewGuid()),
+                AIPropertyPathSegment.ForProperty("heading"),
+            ],
+            Operation: AIPropertyOperation.SetValue,
+            Args: null,
+            RootValue: new JsonObject { ["items"] = new JsonArray() },
+            DocumentMetadata: Metadata);
+
+        // Act
+        var found = reader.TryReadValue(request, out var value);
+
+        // Assert
+        found.ShouldBeFalse();
+        value.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task DispatchAsync_RemoveItem_AtRoot_RemovesByBlockKey()
     {
         // Arrange
@@ -452,6 +524,188 @@ public class AIPropertyValueDispatcherTests
         result.Error.ShouldBe(validationError);
     }
 
+    [Fact]
+    public async Task DispatchAsync_SetValue_InBlock_CultureVariantProperty_UpdatesEditedCultureEntry()
+    {
+        // Arrange — regression test for umbraco/Umbraco.AI#450: descending into a block used to pass no
+        // variant, so the write appended a new culture:null entry and left the edited culture unchanged.
+        var (dispatcher, elementTypeKey) = BuildBlockListDispatcher(textVariations: ContentVariation.Culture);
+        var blockKey = Guid.NewGuid();
+        var rootValue = BuildBlockListValue(
+            blockKey,
+            elementTypeKey,
+            ("en-US", "Hello"),
+            ("nl-NL", "Hallo"));
+
+        var request = new AIPropertyValueDispatchRequest(
+            Path: [AIPropertyPathSegment.ForProperty("blocks"), AIPropertyPathSegment.ForBlock(blockKey), AIPropertyPathSegment.ForProperty("text")],
+            Operation: AIPropertyOperation.SetValue,
+            Args: new JsonObject { ["value"] = "Goedendag" },
+            RootValue: rootValue,
+            DocumentMetadata: VariantMetadata("nl-NL"));
+
+        // Act
+        var result = await dispatcher.DispatchAsync(request);
+
+        // Assert
+        result.Success.ShouldBeTrue();
+        var values = ReadBlockTextValues(result.NewRootValue);
+        values.Count.ShouldBe(2);
+        values["en-US"].ShouldBe("Hello");
+        values["nl-NL"].ShouldBe("Goedendag");
+    }
+
+    [Fact]
+    public async Task DispatchAsync_SetValue_InBlock_ExplicitVariant_TakesPrecedenceOverFirstDocumentVariant()
+    {
+        // Arrange — split view lists two active variants; the request names the one being edited.
+        var (dispatcher, elementTypeKey) = BuildBlockListDispatcher(textVariations: ContentVariation.Culture);
+        var blockKey = Guid.NewGuid();
+        var rootValue = BuildBlockListValue(blockKey, elementTypeKey, ("en-US", "Hello"), ("nl-NL", "Hallo"));
+
+        var request = new AIPropertyValueDispatchRequest(
+            Path: [AIPropertyPathSegment.ForProperty("blocks"), AIPropertyPathSegment.ForBlock(blockKey), AIPropertyPathSegment.ForProperty("text")],
+            Operation: AIPropertyOperation.SetValue,
+            Args: new JsonObject { ["value"] = "Goedendag" },
+            RootValue: rootValue,
+            DocumentMetadata: VariantMetadata("en-US", "nl-NL"))
+        {
+            Variant = new AIVariantId("nl-NL", null),
+        };
+
+        // Act
+        var result = await dispatcher.DispatchAsync(request);
+
+        // Assert
+        result.Success.ShouldBeTrue();
+        var values = ReadBlockTextValues(result.NewRootValue);
+        values["en-US"].ShouldBe("Hello");
+        values["nl-NL"].ShouldBe("Goedendag");
+    }
+
+    [Fact]
+    public async Task DispatchAsync_SetValue_InBlock_InvariantProperty_OnVariantDocument_UpdatesInvariantEntry()
+    {
+        // Arrange
+        var (dispatcher, elementTypeKey) = BuildBlockListDispatcher(textVariations: ContentVariation.Nothing);
+        var blockKey = Guid.NewGuid();
+        var rootValue = BuildBlockListValue(blockKey, elementTypeKey, (null, "Shared"));
+
+        var request = new AIPropertyValueDispatchRequest(
+            Path: [AIPropertyPathSegment.ForProperty("blocks"), AIPropertyPathSegment.ForBlock(blockKey), AIPropertyPathSegment.ForProperty("text")],
+            Operation: AIPropertyOperation.SetValue,
+            Args: new JsonObject { ["value"] = "Updated" },
+            RootValue: rootValue,
+            DocumentMetadata: VariantMetadata("nl-NL"));
+
+        // Act
+        var result = await dispatcher.DispatchAsync(request);
+
+        // Assert
+        result.Success.ShouldBeTrue();
+        var values = ReadBlockTextValues(result.NewRootValue);
+        values.Count.ShouldBe(1);
+        values[string.Empty].ShouldBe("Updated");
+    }
+
+    [Fact]
+    public async Task DispatchAsync_AddItem_InNestedCultureVariantBlockList_ReadsAndWritesEditedCulture()
+    {
+        // Arrange — the nested block list varies by culture, so descending must read the nl-NL entry
+        // (not whichever entry is stored first) and write the result back to that same entry.
+        var outerElementKey = Guid.NewGuid();
+        var innerElementKey = Guid.NewGuid();
+        var contentTypeService = BuildContentTypeServiceWithPropertyTypes(
+            (RootContentTypeKey, [("blocks", "Umbraco.BlockList", ContentVariation.Nothing)]),
+            (outerElementKey, [("items", "Umbraco.BlockList", ContentVariation.Culture)]),
+            (innerElementKey, [("text", "Umbraco.TextBox", ContentVariation.Nothing)]));
+        var dispatcher = BuildDispatcher(
+            handlers: [new BlockListPropertyValueHandler(contentTypeService)],
+            contentTypeService: contentTypeService);
+
+        var outerBlockKey = Guid.NewGuid();
+        var existingInnerKey = Guid.NewGuid();
+        var enItems = BuildBlockListValue(existingInnerKey, innerElementKey, (null, "English block"));
+        var nlItems = BlockEnvelopeOps.Empty("Umbraco.BlockList");
+
+        var rootValue = BuildBlockListValue(outerBlockKey, outerElementKey);
+        var outerValues = (JsonArray)rootValue["contentData"]![0]!["values"]!;
+        outerValues.Add(new JsonObject { ["alias"] = "items", ["culture"] = "en-US", ["segment"] = null, ["value"] = enItems });
+        outerValues.Add(new JsonObject { ["alias"] = "items", ["culture"] = "nl-NL", ["segment"] = null, ["value"] = nlItems });
+
+        var request = new AIPropertyValueDispatchRequest(
+            Path: [AIPropertyPathSegment.ForProperty("blocks"), AIPropertyPathSegment.ForBlock(outerBlockKey), AIPropertyPathSegment.ForProperty("items")],
+            Operation: AIPropertyOperation.AddItem,
+            Args: new JsonObject { ["elementType"] = innerElementKey.ToString(), ["values"] = new JsonObject { ["text"] = "Nederlands blok" } },
+            RootValue: rootValue,
+            DocumentMetadata: VariantMetadata("nl-NL"));
+
+        // Act
+        var result = await dispatcher.DispatchAsync(request);
+
+        // Assert
+        result.Success.ShouldBeTrue();
+        var items = ((JsonArray)result.NewRootValue!["contentData"]![0]!["values"]!)
+            .ToDictionary(v => v!["culture"]?.GetValue<string?>() ?? string.Empty, v => v!["value"]!);
+        items.Count.ShouldBe(2);
+
+        var enContent = (JsonArray)items["en-US"]["contentData"]!;
+        enContent.Count.ShouldBe(1);
+        enContent[0]!["key"]!.GetValue<Guid>().ShouldBe(existingInnerKey);
+
+        var nlContent = (JsonArray)items["nl-NL"]["contentData"]!;
+        nlContent.Count.ShouldBe(1);
+        nlContent[0]!["key"]!.GetValue<Guid>().ShouldBe(result.BlockKey!.Value);
+    }
+
+    private static AIDocumentMetadata VariantMetadata(params string[] cultures) => new(
+        ContentTypeKey: RootContentTypeKey,
+        Variants: cultures.Select(c => new AIVariantId(c, null)).ToArray(),
+        IsVariant: true,
+        IsSegmented: false);
+
+    private static (AIPropertyValueDispatcher Dispatcher, Guid ElementTypeKey) BuildBlockListDispatcher(ContentVariation textVariations)
+    {
+        var elementTypeKey = Guid.NewGuid();
+        var contentTypeService = BuildContentTypeServiceWithPropertyTypes(
+            (RootContentTypeKey, [("blocks", "Umbraco.BlockList", ContentVariation.Nothing)]),
+            (elementTypeKey, [("text", "Umbraco.TextBox", textVariations)]));
+
+        var dispatcher = BuildDispatcher(
+            handlers: [new BlockListPropertyValueHandler(contentTypeService)],
+            contentTypeService: contentTypeService);
+
+        return (dispatcher, elementTypeKey);
+    }
+
+    private static JsonObject BuildBlockListValue(Guid blockKey, Guid elementTypeKey, params (string? Culture, string Value)[] textValues)
+    {
+        var values = new JsonArray();
+        foreach (var (culture, value) in textValues)
+        {
+            values.Add(new JsonObject { ["alias"] = "text", ["culture"] = culture, ["segment"] = null, ["value"] = value });
+        }
+
+        return new JsonObject
+        {
+            ["layout"] = new JsonObject { ["Umbraco.BlockList"] = new JsonArray { new JsonObject { ["contentKey"] = blockKey } } },
+            ["contentData"] = new JsonArray
+            {
+                new JsonObject { ["key"] = blockKey, ["contentTypeKey"] = elementTypeKey, ["values"] = values },
+            },
+            ["settingsData"] = new JsonArray(),
+            ["expose"] = new JsonArray(),
+        };
+    }
+
+    /// <summary>Returns the block's <c>text</c> values keyed by culture (empty string for invariant).</summary>
+    private static Dictionary<string, string> ReadBlockTextValues(JsonNode? rootValue)
+        => ((JsonArray)rootValue!["contentData"]![0]!["values"]!)
+            .Where(v => v!["alias"]!.GetValue<string>() == "text")
+            .ToDictionary(
+                v => v!["culture"]?.GetValue<string?>() ?? string.Empty,
+                v => v!["value"]!.GetValue<string>());
+
     private static AIPropertyValueDispatcher BuildDispatcher(
         IEnumerable<IAIPropertyValueHandler> handlers,
         IReadOnlyDictionary<string, string>? rootProperties = null,
@@ -494,6 +748,12 @@ public class AIPropertyValueDispatcherTests
     /// </summary>
     private static IContentTypeService BuildContentTypeServiceWithTypes(
         params (Guid ContentTypeKey, IReadOnlyDictionary<string, string> Properties)[] types)
+        => BuildContentTypeServiceWithPropertyTypes(types
+            .Select(t => (t.ContentTypeKey, t.Properties.Select(p => (p.Key, p.Value, ContentVariation.Nothing)).ToArray()))
+            .ToArray());
+
+    private static IContentTypeService BuildContentTypeServiceWithPropertyTypes(
+        params (Guid ContentTypeKey, (string Alias, string EditorAlias, ContentVariation Variations)[] Properties)[] types)
     {
         var service = new Mock<IContentTypeService>();
 
@@ -502,8 +762,9 @@ public class AIPropertyValueDispatcherTests
             var propertyTypes = properties.Select(p =>
             {
                 var pt = new Mock<IPropertyType>();
-                pt.Setup(x => x.Alias).Returns(p.Key);
-                pt.Setup(x => x.PropertyEditorAlias).Returns(p.Value);
+                pt.Setup(x => x.Alias).Returns(p.Alias);
+                pt.Setup(x => x.PropertyEditorAlias).Returns(p.EditorAlias);
+                pt.Setup(x => x.Variations).Returns(p.Variations);
                 return pt.Object;
             }).ToArray();
 

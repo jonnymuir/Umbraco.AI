@@ -1,9 +1,14 @@
 using System.ComponentModel;
 using System.Text.Json;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using Umbraco.AI.Core.Tools.Scopes;
 using Umbraco.Cms.Core.Actions;
+using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Models.ContentEditing;
+using Umbraco.Cms.Core.PropertyEditors;
+using Umbraco.Cms.Core.Serialization;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Extensions;
 
@@ -33,9 +38,28 @@ public record UpdateUmbracoContentArgs(
 [AITool("update_umbraco_content", "Update Umbraco Content", ScopeId = ContentWriteScope.ScopeId, IsDestructive = true, RequiresApproval = false)]
 public class UpdateUmbracoContentTool(
     IContentEditingService contentEditingService,
-    IUmbracoWriteAuthorizer authorizer)
+    IUmbracoWriteAuthorizer authorizer,
+    PropertyEditorCollection propertyEditors,
+    IJsonSerializer jsonSerializer)
     : AIToolBase<UpdateUmbracoContentArgs>
 {
+    private readonly ContentEditorValueReader _valueReader = new(propertyEditors, jsonSerializer);
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="UpdateUmbracoContentTool"/> class.
+    /// </summary>
+    [Obsolete("Use the constructor that accepts a PropertyEditorCollection and an IJsonSerializer. Will be removed in v19")]
+    public UpdateUmbracoContentTool(
+        IContentEditingService contentEditingService,
+        IUmbracoWriteAuthorizer authorizer)
+        : this(
+            contentEditingService,
+            authorizer,
+            StaticServiceProvider.Instance.GetRequiredService<PropertyEditorCollection>(),
+            StaticServiceProvider.Instance.GetRequiredService<IJsonSerializer>())
+    {
+    }
+
     /// <inheritdoc />
     public override string Description =>
         "Patches an existing Umbraco content item's name and/or simple property values, saving as a draft. " +
@@ -65,6 +89,11 @@ public class UpdateUmbracoContentTool(
             return new UpdateUmbracoContentResult(false, null, $"Content with key '{args.Key}' was not found.");
         }
 
+        if (!ContentPropertyValueOperationHelper.TryResolveCulture(existing, args.Culture, out var culture, out var cultureError))
+        {
+            return new UpdateUmbracoContentResult(false, null, cultureError);
+        }
+
         var explicitAliases = (args.PropertyValues ?? []).Keys.ToHashSet();
 
         var properties = (args.PropertyValues ?? [])
@@ -72,16 +101,18 @@ public class UpdateUmbracoContentTool(
             {
                 Alias = kvp.Key,
                 Value = ContentPropertyValueOperationHelper.NormalizeIncomingValue(kvp.Value),
-                Culture = args.Culture,
+                Culture = culture,
             })
             .ToList();
 
         // ContentEditingServiceBase.RemoveMissingProperties clears every property alias NOT present in
         // Properties on every save, so — unlike a create — this tool must resubmit every other property's
         // current value or an update that only names one field would silently wipe the rest of the content
-        // item. Segment-varying properties are skipped here: this tool has no Segment argument to read/write
-        // them correctly, so they're left with the pre-existing (removed-if-omitted) behavior rather than
-        // risk a NotSupportedException from guessing a segment.
+        // item. The values must be resubmitted in editor format, not the stored format, or editors such as
+        // pickers and dropdowns can't read them back (see ContentEditorValueReader). Segment-varying
+        // properties are skipped here: this tool has no Segment argument to read/write them correctly, so
+        // they're left with the pre-existing (removed-if-omitted) behavior rather than risk a
+        // NotSupportedException from guessing a segment.
         foreach (var property in existing.Properties)
         {
             if (explicitAliases.Contains(property.Alias) || property.PropertyType.VariesBySegment())
@@ -89,12 +120,11 @@ public class UpdateUmbracoContentTool(
                 continue;
             }
 
-            var propertyCulture = property.PropertyType.VariesByCulture() ? args.Culture : null;
-            var currentValue = ContentPropertyValueOperationHelper.ToJsonNode(property.GetValue(propertyCulture))?.Deserialize<JsonElement>();
+            var propertyCulture = property.PropertyType.VariesByCulture() ? culture : null;
             properties.Add(new PropertyValueModel
             {
                 Alias = property.Alias,
-                Value = currentValue is { } cv ? ContentPropertyValueOperationHelper.NormalizeIncomingValue(cv) : null,
+                Value = _valueReader.GetEditorValue(property, propertyCulture, null),
                 Culture = propertyCulture,
             });
         }
@@ -108,7 +138,7 @@ public class UpdateUmbracoContentTool(
         var updateModel = new ContentUpdateModel
         {
             Properties = properties,
-            Variants = [new VariantModel { Name = variantName, Culture = args.Culture }],
+            Variants = [new VariantModel { Name = variantName, Culture = culture }],
         };
 
         var attempt = await contentEditingService.UpdateAsync(args.Key, updateModel, authResult.UserKey!.Value);
@@ -119,7 +149,7 @@ public class UpdateUmbracoContentTool(
 
         return new UpdateUmbracoContentResult(
             true,
-            ContentToolHelpers.BuildContentItem(attempt.Result.Content, args.Culture),
+            ContentToolHelpers.BuildContentItem(attempt.Result.Content, culture),
             null);
     }
 

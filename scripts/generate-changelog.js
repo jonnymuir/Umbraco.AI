@@ -185,24 +185,6 @@ async function generateChangelog(product, version, options = {}) {
     // library down its simple, correct fallback path: a single [previousTag, 'HEAD'] range.
     const scopedTagPrefix = /(?!)/;
 
-    // Disable conventional-changelog's own internal tag discovery (triggered by .tags() below).
-    // That library rediscovers "semver tag" boundaries itself from the given prefix, ordered by
-    // commit date (via `git log --decorate --date-order`), and walks pairwise between them to
-    // build the output - independently of the previousTag we just resolved above. In this repo's
-    // branching model that ordering doesn't match release order: e.g. a patch tag cut from
-    // vN/main (v17.3.5) can land, by commit date, *after* an RC tag on the release branch
-    // (v17.4.0-rc.4) even though it isn't an ancestor of the release branch. The library then
-    // treats it as an intermediate release boundary and ends up diffing from it to HEAD, which
-    // resurfaces this line's own already-released history as "new". The same thing happens
-    // across major lines too, since tag names aren't major-scoped ("Umbraco.AI@17.4.0" and
-    // "Umbraco.AI@18.0.0" both match the plain "Umbraco.AI@" prefix).
-    //
-    // We always pass an explicit {from, to} to .commits() below (previousTag/getPreviousVersion
-    // already does the correct major-aware "highest lower tag" resolution), so none of that
-    // internal discovery is needed - a prefix that can never match any real tag forces the
-    // library down its simple, correct fallback path: a single [previousTag, 'HEAD'] range.
-    const scopedTagPrefix = /(?!)/;
-
     // For unreleased mode without a previous tag, limit to recent commits to improve performance
     if (options.unreleased && !previousTag && !options.from) {
         console.log(`  No previous tags found for ${product}`);

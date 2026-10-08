@@ -5,6 +5,13 @@ All notable changes to Umbraco.AI.Agent.Copilot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.1.1](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot@17.1.0...Umbraco.AI.Agent.Copilot@17.1.1) (2026-10-05)
+
+### fix
+
+* **copilot:** Default property value tools to the language being viewed ([2bda49b](https://github.com/umbraco/Umbraco.AI/commit/2bda49b418794350199d81bdd93851f84a21a6b8))
+* **core,copilot:** Respect culture variance for values inside blocks ([a107b6c](https://github.com/umbraco/Umbraco.AI/commit/a107b6c2f7bac6ee110fbb3cd8c5fe3b0f2de8ef)), closes [#450](https://github.com/umbraco/Umbraco.AI/issues/450)
+
 ## [17.1.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot@17.1.0-rc.4...Umbraco.AI.Agent.Copilot@17.1.0) (2026-10-01)
 
 ### fix

@@ -2,8 +2,13 @@ using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using Umbraco.AI.Core.PropertyValueOperations;
 using Umbraco.AI.Core.Tools.Scopes;
+using Umbraco.Cms.Core.DependencyInjection;
+using Umbraco.Cms.Core.PropertyEditors;
+using Umbraco.Cms.Core.Serialization;
 using Umbraco.Cms.Core.Services;
 
 namespace Umbraco.AI.Core.Tools.Umbraco;
@@ -37,9 +42,30 @@ public record SetUmbracoContentValueArgs(
 public class SetUmbracoContentValueTool(
     IContentEditingService contentEditingService,
     IAIPropertyValueDispatcher dispatcher,
-    IUmbracoWriteAuthorizer authorizer)
+    IUmbracoWriteAuthorizer authorizer,
+    PropertyEditorCollection propertyEditors,
+    IJsonSerializer jsonSerializer)
     : AIToolBase<SetUmbracoContentValueArgs>
 {
+    private readonly ContentEditorValueReader _valueReader = new(propertyEditors, jsonSerializer);
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SetUmbracoContentValueTool"/> class.
+    /// </summary>
+    [Obsolete("Use the constructor that accepts a PropertyEditorCollection and an IJsonSerializer. Will be removed in v19")]
+    public SetUmbracoContentValueTool(
+        IContentEditingService contentEditingService,
+        IAIPropertyValueDispatcher dispatcher,
+        IUmbracoWriteAuthorizer authorizer)
+        : this(
+            contentEditingService,
+            dispatcher,
+            authorizer,
+            StaticServiceProvider.Instance.GetRequiredService<PropertyEditorCollection>(),
+            StaticServiceProvider.Instance.GetRequiredService<IJsonSerializer>())
+    {
+    }
+
     /// <inheritdoc />
     public override string Description =>
         "Sets a content property's value directly, including properties nested inside blocks (identify " +
@@ -57,6 +83,7 @@ public class SetUmbracoContentValueTool(
             authorizer,
             contentEditingService,
             dispatcher,
+            _valueReader,
             args.Key,
             args.Path,
             AIPropertyOperation.SetValue,

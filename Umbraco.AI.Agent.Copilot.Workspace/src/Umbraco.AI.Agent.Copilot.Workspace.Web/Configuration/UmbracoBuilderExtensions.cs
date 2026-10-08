@@ -49,6 +49,10 @@ public static class UmbracoBuilderExtensions
                         "projects, and persisted streaming, available when authenticated as a backoffice user with " +
                         "Copilot Workspace access."
                 });
+
+            // The runtime-bound Conversations/Projects operations need their security requirement added
+            // here; the shared backoffice filter only sees compile-time [MapToApi] attributes.
+            options.OperationFilter<CopilotWorkspaceConversationsSecurityRequirementsOperationFilter>();
         });
 
         // Bind the reusable Conversations/Projects controllers into this product's document + section

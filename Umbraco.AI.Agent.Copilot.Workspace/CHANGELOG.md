@@ -5,6 +5,26 @@ All notable changes to Umbraco.AI.Agent.Copilot.Workspace will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.1.1](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot.Workspace@17.1.0...Umbraco.AI.Agent.Copilot.Workspace@17.1.1) (2026-10-06)
+
+### fix
+
+* **copilot-workspace:** Send the backoffice token on conversation and project calls ([828ddf6](https://github.com/umbraco/Umbraco.AI/commit/828ddf67b85a3d8c7f5ed5361eac684810d61be7))
+
+## [17.1.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot.Workspace@17.0.0...Umbraco.AI.Agent.Copilot.Workspace@17.1.0) (2026-10-05)
+
+### feat
+
+* **copilot-workspace:** Route Copilot Workspace auto selection through IAIAgentSelectionService ([d8acdb6](https://github.com/umbraco/Umbraco.AI/commit/d8acdb6e6864854bac369259fa6f007c80829b0c))
+* **copilot-workspace:** Show agent names on reopened Copilot Workspace replies ([801c0bb](https://github.com/umbraco/Umbraco.AI/commit/801c0bbc3e29c60f16301f141bd6451b03fed90d))
+* **copilot-workspace:** Store the producing agent on Copilot Workspace assistant messages ([6bed8b5](https://github.com/umbraco/Umbraco.AI/commit/6bed8b5fd8b47b926b40d7c254f04928a80addb2))
+
+### fix
+
+* **agent,copilot-workspace:** Require surface opt-in for explicitly named agents ([39bdc71](https://github.com/umbraco/Umbraco.AI/commit/39bdc715dded343fee2b575680ca262491e4a849))
+* **copilot-workspace:** Give GetLastAssistantAgentIdAsync a default body ([68aaf96](https://github.com/umbraco/Umbraco.AI/commit/68aaf9629f3687d8bee5413acd2564ff942baf6d))
+* **copilot-workspace:** Use the v18 migration IDs for MessageAgentId ([6f05776](https://github.com/umbraco/Umbraco.AI/commit/6f057767fb61d4d5e4d4815b670813d9af6889d5))
+
 ## [17.0.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot.Workspace@17.0.0-rc.4...Umbraco.AI.Agent.Copilot.Workspace@17.0.0) (2026-10-01)
 
 ### fix
