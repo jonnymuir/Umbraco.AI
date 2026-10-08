@@ -48,10 +48,7 @@ public class AITrackingImageGenerationClientTests
 
         _tracker = new AIOperationTracker(
             contextAccessor.Object,
-            _auditLogServiceMock.Object,
-            auditLogFactory.Object,
-            auditOptions.Object,
-            TestOperationRecorders.Default(new Mock<IAIUsageRecordingService>().Object, new Mock<IAIUsageRecordFactory>().Object, analyticsOptions.Object),
+            TestOperationRecorders.Default(_auditLogServiceMock.Object, auditLogFactory.Object, auditOptions.Object, new Mock<IAIUsageRecordingService>().Object, new Mock<IAIUsageRecordFactory>().Object, analyticsOptions.Object),
             NullLogger<AIOperationTracker>.Instance);
     }
 
