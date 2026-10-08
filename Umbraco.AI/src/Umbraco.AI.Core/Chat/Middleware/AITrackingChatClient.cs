@@ -4,6 +4,7 @@ using Umbraco.AI.Core.AuditLog;
 using Umbraco.AI.Core.Models;
 using Umbraco.AI.Core.Observability;
 using Umbraco.AI.Core.RuntimeContext;
+using Umbraco.AI.Extensions;
 
 namespace Umbraco.AI.Core.Chat.Middleware;
 
@@ -43,7 +44,7 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
                     ResponseData = response.Messages,
                     // Same check as the streaming path: a response that ends on a provider error is a
                     // failed call, though it is still returned to the caller.
-                    Failure = FindTerminalProviderError(response) is { } providerError
+                    Failure = response.GetTerminalProviderError() is { } providerError
                         ? new AIProviderErrorContentException(providerError)
                         : null,
                 };
@@ -106,7 +107,7 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
         // tool loop) as streamed ErrorContent rather than by throwing, so the stream itself ends
         // normally. Record the call as failed when the response ends on such an error, keeping
         // the usage it consumed; an error the model carried on past stays a success.
-        if (FindTerminalProviderError(aggregated) is { } providerError)
+        if (aggregated.GetTerminalProviderError() is { } providerError)
         {
             await scope.FailAsync(new AIProviderErrorContentException(providerError), aggregated.Usage);
         }
@@ -116,33 +117,6 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
                 aggregated.Usage,
                 aggregated.Messages);
         }
-    }
-
-    /// <summary>
-    /// Returns the provider error the response ended on: an <see cref="ErrorContent"/> in the last
-    /// assistant message with no text or function call after it. Null when the response ended normally.
-    /// </summary>
-    private static ErrorContent? FindTerminalProviderError(ChatResponse response)
-    {
-        var lastAssistant = response.Messages.LastOrDefault(m => m.Role == ChatRole.Assistant);
-        if (lastAssistant is null)
-        {
-            return null;
-        }
-
-        for (var i = lastAssistant.Contents.Count - 1; i >= 0; i--)
-        {
-            switch (lastAssistant.Contents[i])
-            {
-                case ErrorContent error:
-                    return error;
-                case TextContent text when !string.IsNullOrWhiteSpace(text.Text):
-                case FunctionCallContent:
-                    return null;
-            }
-        }
-
-        return null;
     }
 
     private AIOperationDescriptor BuildDescriptor(IReadOnlyList<ChatMessage> messages) => new()
