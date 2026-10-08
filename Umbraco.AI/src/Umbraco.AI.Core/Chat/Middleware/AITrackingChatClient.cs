@@ -40,7 +40,7 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
                 {
                     Result = response,
                     Usage = response.Usage,
-                    AuditResponse = new AIAuditResponse { Data = response.Messages, Usage = response.Usage },
+                    ResponseData = response.Messages,
                 };
             },
             cancellationToken);
@@ -68,8 +68,8 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
             ChatResponseUpdate current;
             try
             {
-                // Entered per step: the audit scope is AsyncLocal and doesn't survive this iterator's yields.
-                using (scope.EnterAuditScope())
+                // Entered per step: recording scopes are AsyncLocal and don't survive this iterator's yields.
+                using (scope.EnterScope())
                 {
                     if (!await enumerator.MoveNextAsync())
                     {
@@ -109,7 +109,7 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
         {
             await scope.CompleteAsync(
                 aggregated.Usage,
-                new AIAuditResponse { Data = aggregated.Messages, Usage = aggregated.Usage });
+                aggregated.Messages);
         }
     }
 

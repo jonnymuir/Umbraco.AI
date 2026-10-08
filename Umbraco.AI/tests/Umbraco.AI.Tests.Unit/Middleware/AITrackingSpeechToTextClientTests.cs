@@ -322,10 +322,7 @@ public class AITrackingSpeechToTextClientTests
 
     private AIOperationTracker CreateTracker() => new(
         _contextAccessorMock.Object,
-        _auditLogServiceMock.Object,
-        _auditLogFactoryMock.Object,
-        _auditLogOptionsMock.Object,
-        TestOperationRecorders.Default(_usageRecordingServiceMock.Object, _usageRecordFactoryMock.Object, _analyticsOptionsMock.Object),
+        TestOperationRecorders.Default(_auditLogServiceMock.Object, _auditLogFactoryMock.Object, _auditLogOptionsMock.Object, _usageRecordingServiceMock.Object, _usageRecordFactoryMock.Object, _analyticsOptionsMock.Object),
         NullLogger<AIOperationTracker>.Instance);
 
     private static AIUsageRecord BuildUsageRecord(AIUsageRecordContext ctx, AIUsageRecordResult result) => new()
