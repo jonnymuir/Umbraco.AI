@@ -1,3 +1,4 @@
+using Umbraco.AI.Agent.Core.Agents.Selection;
 using Umbraco.AI.Core.Chat;
 using Umbraco.AI.Core.RuntimeContext;
 
@@ -52,6 +53,15 @@ public class AIAgentExecutionOptions
     /// When set, the agent's response will be constrained to this schema.
     /// </summary>
     public AIOutputSchema? OutputSchema { get; init; }
+
+    /// <summary>
+    /// Optional selection outcome for an <c>auto</c> run - which agent an <see cref="IAIAgentSelector"/>
+    /// chain picked, and why. When set, the AG-UI streaming path records
+    /// <see cref="Constants.ContextKeys.SelectorId"/> (and <see cref="Constants.ContextKeys.SelectionReason"/>
+    /// when the reason is non-null) onto the run's audit log metadata. Left null for explicit-agent
+    /// runs, which have no selector to attribute.
+    /// </summary>
+    public AIAgentSelectionResult? Selection { get; init; }
 
     /// <summary>
     /// Optional additional properties to inject into the agent's runtime context for the duration

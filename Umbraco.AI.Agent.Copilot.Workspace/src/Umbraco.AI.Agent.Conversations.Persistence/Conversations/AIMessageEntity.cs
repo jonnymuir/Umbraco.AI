@@ -28,6 +28,12 @@ internal class AIMessageEntity
     public string Role { get; set; } = string.Empty;
 
     /// <summary>
+    /// The agent that produced this message, or null for every non-assistant role. See
+    /// <see cref="Umbraco.AI.Agent.Conversations.Core.Conversations.AIMessage.AgentId"/>.
+    /// </summary>
+    public Guid? AgentId { get; set; }
+
+    /// <summary>
     /// Serialized M.E.AI <c>ChatMessage</c> (via <c>AIJsonUtilities.DefaultOptions</c>) — the durable
     /// content record (text, attachments, reasoning, tool calls/results, approvals).
     /// </summary>

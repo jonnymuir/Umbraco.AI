@@ -69,6 +69,104 @@ public static class AIMigrationHistoryHelper
         }
     }
 
+    /// <summary>
+    /// Renames migration IDs in the AI history table, so a migration recorded under one ID is
+    /// treated as applied under another.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Needed when the same migration shipped with different IDs on two version lines (for
+    /// example a backport that regenerated the migration instead of copying it). A site upgrading
+    /// across the lines would otherwise run the migration a second time, and fail on schema that
+    /// already exists.
+    /// </para>
+    /// <para>
+    /// A rename only happens when the old ID is recorded and the new one is not. If both are
+    /// recorded, the old row is removed. Missing history table or old ID: nothing happens.
+    /// </para>
+    /// </remarks>
+    /// <param name="connection">The database connection (opened if needed, restored to original state).</param>
+    /// <param name="historyTable">The AI migrations history table name.</param>
+    /// <param name="renames">Old migration ID to new migration ID.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    internal static async Task RenameMigrationIdsAsync(
+        DbConnection connection,
+        string historyTable,
+        IReadOnlyDictionary<string, string> renames,
+        ILogger? logger = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (renames.Count == 0)
+        {
+            return;
+        }
+
+        var isSqlite = connection.GetType().Name.Contains("Sqlite", StringComparison.OrdinalIgnoreCase);
+        var openedByUs = connection.State != System.Data.ConnectionState.Open;
+
+        try
+        {
+            if (openedByUs)
+            {
+                await connection.OpenAsync(cancellationToken);
+            }
+
+            if (!await TableExistsAsync(connection, historyTable, isSqlite, cancellationToken))
+            {
+                return;
+            }
+
+            foreach (var (oldId, newId) in renames)
+            {
+                if (!await MigrationRecordedAsync(connection, historyTable, oldId, cancellationToken))
+                {
+                    continue;
+                }
+
+                using var cmd = connection.CreateCommand();
+                AddParameter(cmd, "@oldId", oldId);
+                AddParameter(cmd, "@newId", newId);
+
+                cmd.CommandText = await MigrationRecordedAsync(connection, historyTable, newId, cancellationToken)
+                    ? $"DELETE FROM [{historyTable}] WHERE [MigrationId] = @oldId"
+                    : $"UPDATE [{historyTable}] SET [MigrationId] = @newId WHERE [MigrationId] = @oldId";
+
+                await cmd.ExecuteNonQueryAsync(cancellationToken);
+
+                logger?.LogInformation(
+                    "Recorded migration {OldId} as {NewId} in {HistoryTable}",
+                    oldId, newId, historyTable);
+            }
+        }
+        finally
+        {
+            if (openedByUs)
+            {
+                await connection.CloseAsync();
+            }
+        }
+    }
+
+    private static async Task<bool> MigrationRecordedAsync(
+        DbConnection connection, string historyTable, string migrationId, CancellationToken ct)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = $"SELECT COUNT(*) FROM [{historyTable}] WHERE [MigrationId] = @id";
+        AddParameter(cmd, "@id", migrationId);
+
+        var result = await cmd.ExecuteScalarAsync(ct);
+        return Convert.ToInt32(result) > 0;
+    }
+
+    private static void AddParameter(DbCommand cmd, string name, string value)
+    {
+        var parameter = cmd.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value;
+        cmd.Parameters.Add(parameter);
+    }
+
     private static async Task<bool> TableExistsAsync(
         DbConnection connection, string tableName, bool isSqlite, CancellationToken ct)
     {

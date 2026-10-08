@@ -30,6 +30,30 @@ public sealed class AIToolAttribute : Attribute
     /// </summary>
     public bool IsDestructive { get; set; }
 
+    private bool? _requiresApproval;
+
+    /// <summary>
+    /// Gets or sets whether a call to the tool must be approved by a human before it runs on an
+    /// interactive surface. Defaults to <see cref="IsDestructive"/> when not set explicitly.
+    /// </summary>
+    /// <remarks>
+    /// Set this to <c>false</c> on a destructive tool whose effect an editor can undo themselves (e.g.
+    /// saving a draft, which version history can roll back). The tool stays destructive, so it is still
+    /// withheld from contextual surfaces and denied on non-interactive runs; it just no longer
+    /// interrupts an interactive run for approval. Anything the public sees change (publish, unpublish)
+    /// or that removes content should keep requiring approval.
+    /// <para>
+    /// Setting this to <c>true</c> on a tool that isn't <see cref="IsDestructive"/> has no effect: only
+    /// destructive tools are ever gated for approval, so a tool that should be approved must also be
+    /// marked destructive.
+    /// </para>
+    /// </remarks>
+    public bool RequiresApproval
+    {
+        get => _requiresApproval ?? IsDestructive;
+        set => _requiresApproval = value;
+    }
+
     /// <summary>
     /// Gets or sets tags for additional categorization.
     /// </summary>

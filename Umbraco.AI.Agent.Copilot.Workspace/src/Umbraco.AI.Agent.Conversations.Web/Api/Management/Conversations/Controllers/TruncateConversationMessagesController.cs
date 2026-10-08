@@ -27,16 +27,21 @@ public class TruncateConversationMessagesController : ConversationControllerBase
     /// </summary>
     /// <param name="id">The conversation id.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>204 No Content, or 404 if not found for the current user.</returns>
+    /// <returns>204 No Content, 400 if the save was cancelled, or 404 if not found for the current user.</returns>
     [HttpDelete("{id:guid}/messages/after-last-user")]
     [MapToApiVersion("1.0")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> TruncateAfterLastUserMessage(Guid id, CancellationToken cancellationToken = default)
     {
         try
         {
             await _conversationService.TruncateAfterLastUserMessageAsync(id, cancellationToken);
+        }
+        catch (AIConversationSaveCancelledException ex)
+        {
+            return ConversationSaveCancelled(ex);
         }
         catch (InvalidOperationException)
         {

@@ -50,12 +50,13 @@ public class DeleteUmbracoContentTool(
     }
 
     /// <inheritdoc />
-    protected override string? DescribeInvocation(DeleteUmbracoContentArgs args)
-        => "Move this content item to the recycle bin (reversible).";
-
-    /// <inheritdoc />
-    protected override async Task<string?> ResolveConfirmationPhraseAsync(DeleteUmbracoContentArgs args)
-        => (await contentEditingService.GetAsync(args.Key))?.Name;
+    protected override async Task<string?> DescribeInvocationAsync(DeleteUmbracoContentArgs args)
+    {
+        var target = (await contentEditingService.GetAsync(args.Key))?.Name is { } name
+            ? $"'{name}'"
+            : $"content item {args.Key}";
+        return $"Move {target} to the recycle bin (reversible).";
+    }
 }
 
 /// <summary>

@@ -130,6 +130,12 @@ public static class Constants
         public const string ProfileVersion = "Umbraco.AI.ProfileVersion";
 
         /// <summary>
+        /// Key for the system prompt of the chat profile handling the current call.
+        /// Null when the profile has none.
+        /// </summary>
+        public const string ProfileSystemPrompt = "Umbraco.AI.ProfileSystemPrompt";
+
+        /// <summary>
         /// Key for feature version in metadata collections.
         /// </summary>
         public const string FeatureVersion = "Umbraco.AI.FeatureVersion";

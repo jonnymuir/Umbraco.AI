@@ -6,8 +6,11 @@ using Shouldly;
 using Umbraco.AI.Agent.Core;
 using Umbraco.AI.Agent.Core.Agents;
 using Umbraco.AI.Automate.Actions;
+using Umbraco.AI.Core.Media;
 using Umbraco.Automate.Core.Actions;
+using Umbraco.Automate.Core.Security;
 using Umbraco.Automate.Core.Settings;
+using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Services;
 using Xunit;
 using AIAgent = Umbraco.AI.Agent.Core.Agents.AIAgent;
@@ -19,6 +22,9 @@ public class RunAgentActionTests
 {
     private readonly Mock<IAIAgentService> _agentServiceMock = new();
     private readonly Mock<IUserService> _userServiceMock = new();
+    private readonly Mock<IMediaService> _mediaServiceMock = new();
+    private readonly Mock<IAIUmbracoMediaResolver> _mediaResolverMock = new();
+    private readonly Mock<IAutomationActionAuthorizer> _authorizerMock = new();
     private readonly Mock<ILogger<RunAgentAction>> _loggerMock = new();
     private readonly ActionInfrastructure _infrastructure;
 
@@ -28,6 +34,9 @@ public class RunAgentActionTests
     public RunAgentActionTests()
     {
         _infrastructure = new ActionInfrastructure(new Mock<IEditableModelResolver>().Object);
+
+        _authorizerMock.Setup(a => a.AuthorizeMediaAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AutomationAuthorizationResult.Success);
     }
 
     [Fact]
@@ -169,6 +178,55 @@ public class RunAgentActionTests
             ignoreOrder: true);
     }
 
+    [Theory]
+    [InlineData(null, AIApprovalPolicy.DenyAll)]
+    [InlineData("ReadOnly", AIApprovalPolicy.DenyAll)]
+    [InlineData("NoApprovalRequired", AIApprovalPolicy.DenyApprovalRequired)]
+    [InlineData("noapprovalrequired", AIApprovalPolicy.DenyApprovalRequired)]
+    [InlineData("SomethingElse", AIApprovalPolicy.DenyAll)]
+    [InlineData("99", AIApprovalPolicy.DenyAll)]
+    public async Task ExecuteAsync_MapsToolPermissionsToApprovalPolicy(string? toolPermissions, AIApprovalPolicy expected)
+    {
+        // Arrange
+        var agent = new AIAgent
+        {
+            Alias = "test-agent",
+            Name = "Test Agent",
+        };
+
+        _agentServiceMock
+            .Setup(s => s.GetAgentAsync(TestAgentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(agent);
+
+        AIAgentExecutionOptions? capturedOptions = null;
+        _agentServiceMock
+            .Setup(s => s.RunAgentAsync(
+                agent.Id,
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<AIAgentExecutionOptions?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Guid, IEnumerable<ChatMessage>, AIAgentExecutionOptions?, CancellationToken>(
+                (_, _, opts, _) => capturedOptions = opts)
+            .ReturnsAsync(new AgentResponse(new ChatMessage(ChatRole.Assistant, "ok")));
+
+        var settings = new RunAgentSettings { AgentId = TestAgentId, Message = "Hi" };
+        if (toolPermissions is not null)
+        {
+            settings.ToolPermissions = toolPermissions;
+        }
+
+        var action = CreateAction();
+        var context = CreateContext(settings);
+
+        // Act
+        var result = await action.ExecuteAsync(context, CancellationToken.None);
+
+        // Assert
+        result.Status.ShouldBe(ActionResultStatus.Success);
+        capturedOptions.ShouldNotBeNull();
+        capturedOptions!.ApprovalPolicy.ShouldBe(expected);
+    }
+
     [Fact]
     public async Task ExecuteAsync_WithStructuredJsonResponse_ParsesOutput()
     {
@@ -296,8 +354,219 @@ public class RunAgentActionTests
         result.ErrorCategory.ShouldBe(StepRunErrorCategory.Cancelled);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WithoutAttachments_SendsTextOnlyMessage()
+    {
+        // Arrange
+        var messages = SetupAgentCapturingMessages();
+        var action = CreateAction();
+        var context = CreateContext(new RunAgentSettings { AgentId = TestAgentId, Message = "Hello" });
+
+        // Act
+        await action.ExecuteAsync(context, CancellationToken.None);
+
+        // Assert
+        messages.ShouldHaveSingleItem().Contents.ShouldHaveSingleItem().ShouldBeOfType<TextContent>();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithAttachments_AttachesEachFileAfterTheTextWithItsMediaName()
+    {
+        // Arrange
+        var firstKey = Guid.NewGuid();
+        var secondKey = Guid.NewGuid();
+        SetupMedia(firstKey, "image/png", name: "Pink lamp");
+        SetupMedia(secondKey, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", name: "Brief");
+
+        var messages = SetupAgentCapturingMessages();
+        var action = CreateAction();
+        var context = CreateContext(new RunAgentSettings
+        {
+            AgentId = TestAgentId,
+            Message = "Describe these",
+            Attachments = $"{firstKey}, umb://media/{secondKey:N}",
+        });
+
+        // Act
+        var result = await action.ExecuteAsync(context, CancellationToken.None);
+
+        // Assert
+        result.Status.ShouldBe(ActionResultStatus.Success);
+        var contents = messages.ShouldHaveSingleItem().Contents;
+        contents.Count.ShouldBe(3);
+        contents[0].ShouldBeOfType<TextContent>().Text.ShouldBe("Describe these");
+        var image = contents[1].ShouldBeOfType<DataContent>();
+        image.MediaType.ShouldBe("image/png");
+        image.Name.ShouldBe("Pink lamp");
+        var document = contents[2].ShouldBeOfType<DataContent>();
+        document.MediaType.ShouldBe("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        document.Name.ShouldBe("Brief");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenAttachmentAccessDenied_FailsWithoutRunningAgent()
+    {
+        // Arrange
+        var mediaKey = Guid.NewGuid();
+        SetupMedia(mediaKey, "image/png");
+        _authorizerMock.Setup(a => a.AuthorizeMediaAsync(mediaKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AutomationAuthorizationResult.Fail("No access"));
+
+        SetupAgentCapturingMessages();
+        var action = CreateAction();
+        var context = CreateContext(new RunAgentSettings { AgentId = TestAgentId, Message = "Hi", Attachments = mediaKey.ToString() });
+
+        // Act
+        var result = await action.ExecuteAsync(context, CancellationToken.None);
+
+        // Assert
+        result.Status.ShouldBe(ActionResultStatus.Failed);
+        result.ErrorCategory.ShouldBe(StepRunErrorCategory.Authentication);
+        VerifyAgentNeverRun();
+        _mediaResolverMock.Verify(
+            r => r.ResolveAsync(It.IsAny<object?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenAttachmentCannotBeResolved_FailsWithoutRunningAgent()
+    {
+        // Arrange
+        var mediaKey = Guid.NewGuid();
+        _mediaResolverMock
+            .Setup(r => r.ResolveAsync(mediaKey, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((AIMediaContent?)null);
+
+        SetupAgentCapturingMessages();
+        var action = CreateAction();
+        var context = CreateContext(new RunAgentSettings { AgentId = TestAgentId, Message = "Hi", Attachments = mediaKey.ToString() });
+
+        // Act
+        var result = await action.ExecuteAsync(context, CancellationToken.None);
+
+        // Assert
+        result.Status.ShouldBe(ActionResultStatus.Failed);
+        result.ErrorCategory.ShouldBe(StepRunErrorCategory.Validation);
+        VerifyAgentNeverRun();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenAttachmentsExceedCombinedSizeLimit_FailsWithoutRunningAgent()
+    {
+        // Arrange
+        var firstKey = Guid.NewGuid();
+        var secondKey = Guid.NewGuid();
+        var halfPlusOne = (int)(RunAgentAction.MaxTotalAttachmentBytes / 2) + 1;
+        SetupMedia(firstKey, "audio/mpeg", size: halfPlusOne);
+        SetupMedia(secondKey, "audio/mpeg", size: halfPlusOne);
+
+        SetupAgentCapturingMessages();
+        var action = CreateAction();
+        var context = CreateContext(new RunAgentSettings
+        {
+            AgentId = TestAgentId,
+            Message = "Hi",
+            Attachments = $"{firstKey}\n{secondKey}",
+        });
+
+        // Act
+        var result = await action.ExecuteAsync(context, CancellationToken.None);
+
+        // Assert
+        result.Status.ShouldBe(ActionResultStatus.Failed);
+        result.ErrorCategory.ShouldBe(StepRunErrorCategory.Validation);
+        VerifyAgentNeverRun();
+    }
+
+    [Theory]
+    [InlineData("not-a-media-reference")]
+    [InlineData("/media/1234/photo.png")]
+    public async Task ExecuteAsync_WithInvalidAttachmentReference_FailsWithoutRunningAgent(string attachments)
+    {
+        // Arrange
+        SetupAgentCapturingMessages();
+        var action = CreateAction();
+        var context = CreateContext(new RunAgentSettings { AgentId = TestAgentId, Message = "Hi", Attachments = attachments });
+
+        // Act
+        var result = await action.ExecuteAsync(context, CancellationToken.None);
+
+        // Assert
+        result.Status.ShouldBe(ActionResultStatus.Failed);
+        result.ErrorCategory.ShouldBe(StepRunErrorCategory.Validation);
+        VerifyAgentNeverRun();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithTooManyAttachments_FailsWithoutRunningAgent()
+    {
+        // Arrange
+        var attachments = string.Join(",", Enumerable.Range(0, RunAgentAction.MaxAttachments + 1).Select(_ => Guid.NewGuid()));
+
+        SetupAgentCapturingMessages();
+        var action = CreateAction();
+        var context = CreateContext(new RunAgentSettings { AgentId = TestAgentId, Message = "Hi", Attachments = attachments });
+
+        // Act
+        var result = await action.ExecuteAsync(context, CancellationToken.None);
+
+        // Assert
+        result.Status.ShouldBe(ActionResultStatus.Failed);
+        result.ErrorCategory.ShouldBe(StepRunErrorCategory.Validation);
+        VerifyAgentNeverRun();
+    }
+
+    private List<ChatMessage> SetupAgentCapturingMessages()
+    {
+        var agent = new AIAgent { Alias = "test-agent", Name = "Test Agent" };
+        var captured = new List<ChatMessage>();
+
+        _agentServiceMock
+            .Setup(s => s.GetAgentAsync(TestAgentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(agent);
+
+        _agentServiceMock
+            .Setup(s => s.RunAgentAsync(
+                agent.Id,
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<AIAgentExecutionOptions?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Guid, IEnumerable<ChatMessage>, AIAgentExecutionOptions?, CancellationToken>(
+                (_, msgs, _, _) => captured.AddRange(msgs))
+            .ReturnsAsync(new AgentResponse(new ChatMessage(ChatRole.Assistant, "ok")));
+
+        return captured;
+    }
+
+    private void SetupMedia(Guid mediaKey, string mediaType, string name = "Test media", int size = 3)
+    {
+        _mediaResolverMock
+            .Setup(r => r.ResolveAsync(mediaKey, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AIMediaContent { Data = new byte[size], MediaType = mediaType, MediaKey = mediaKey });
+
+        var media = new Mock<IMedia>();
+        media.SetupGet(m => m.Name).Returns(name);
+        _mediaServiceMock.Setup(m => m.GetById(mediaKey)).Returns(media.Object);
+    }
+
+    private void VerifyAgentNeverRun()
+        => _agentServiceMock.Verify(
+            s => s.RunAgentAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<AIAgentExecutionOptions?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+
     private RunAgentAction CreateAction()
-        => new(_infrastructure, _agentServiceMock.Object, _userServiceMock.Object, _loggerMock.Object);
+        => new(
+            _infrastructure,
+            _agentServiceMock.Object,
+            _userServiceMock.Object,
+            _mediaServiceMock.Object,
+            _mediaResolverMock.Object,
+            _authorizerMock.Object,
+            _loggerMock.Object);
 
     private static ActionContext CreateContext(RunAgentSettings settings, Guid? runId = null)
         => new()

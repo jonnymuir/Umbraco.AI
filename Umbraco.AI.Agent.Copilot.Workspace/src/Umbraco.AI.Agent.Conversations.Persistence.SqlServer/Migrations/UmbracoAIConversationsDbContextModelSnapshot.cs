@@ -135,6 +135,9 @@ namespace Umbraco.AI.Agent.Conversations.Persistence.SqlServer.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("AgentId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("ContentJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");

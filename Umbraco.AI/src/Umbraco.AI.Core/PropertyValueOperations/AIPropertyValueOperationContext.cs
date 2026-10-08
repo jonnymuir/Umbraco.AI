@@ -42,6 +42,18 @@ public sealed class AIPropertyValueOperationContext
     /// <summary>Gets document-level metadata supplied by the caller.</summary>
     public AIDocumentMetadata DocumentMetadata { get; }
 
+    /// <summary>
+    /// Gets the culture/segment being edited. Falls back to the first entry of
+    /// <see cref="AIDocumentMetadata.Variants"/> when not set explicitly.
+    /// </summary>
+    public AIVariantId? Variant
+    {
+        get => _variant ?? (DocumentMetadata.Variants.Count > 0 ? DocumentMetadata.Variants[0] : null);
+        init => _variant = value;
+    }
+
+    private readonly AIVariantId? _variant;
+
     /// <summary>Gets the dispatcher for handlers that need to recurse into nested operations.</summary>
     public IAIPropertyValueDispatcher Dispatcher { get; }
 }

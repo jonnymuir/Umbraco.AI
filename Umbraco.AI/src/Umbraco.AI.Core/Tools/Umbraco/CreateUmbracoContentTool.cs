@@ -31,7 +31,7 @@ public record CreateUmbracoContentArgs(
 /// Tool that creates a new Umbraco content item as a draft (unpublished). Use publish_umbraco_content
 /// afterward to make it live.
 /// </summary>
-[AITool("create_umbraco_content", "Create Umbraco Content", ScopeId = ContentWriteScope.ScopeId, IsDestructive = true)]
+[AITool("create_umbraco_content", "Create Umbraco Content", ScopeId = ContentWriteScope.ScopeId, IsDestructive = true, RequiresApproval = false)]
 public class CreateUmbracoContentTool(
     IContentEditingService contentEditingService,
     IContentTypeService contentTypeService,

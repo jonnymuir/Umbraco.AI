@@ -46,6 +46,13 @@ public sealed class AISettings : IAIAuditableEntity
     [AISetting]
     public Guid? ClassifierChatProfileId { get; set; }
 
+    /// <summary>
+    /// How the backoffice shows the notice that tells users a response is AI-generated.
+    /// Defaults to <see cref="AIDisclosureNoticeMode.Always"/>.
+    /// </summary>
+    [AISetting]
+    public AIDisclosureNoticeMode DisclosureNoticeMode { get; set; } = AIDisclosureNoticeMode.Always;
+
     /// <inheritdoc />
     public DateTime DateCreated { get; internal set; }
 

@@ -14,6 +14,19 @@ namespace Umbraco.AI.Persistence.Notifications;
 public class RunAIMigrationNotificationHandler
     : INotificationAsyncHandler<UmbracoApplicationStartedNotification>
 {
+    /// <summary>
+    /// v17 migration ID to the v18 ID of the same migration. <c>UmbracoAI_AddCachedInputTokens</c>
+    /// was generated separately on each line (v17 in 17.3.0, v18 in 18.3.0). Both providers' pairs
+    /// are listed; the other provider's pair never matches, so it does nothing.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> V17MigrationIdRenames = new Dictionary<string, string>
+    {
+        // SQL Server
+        ["20260731095757_UmbracoAI_AddCachedInputTokens"] = "20260731093410_UmbracoAI_AddCachedInputTokens",
+        // SQLite
+        ["20260731095759_UmbracoAI_AddCachedInputTokens"] = "20260731093420_UmbracoAI_AddCachedInputTokens",
+    };
+
     private readonly IConfiguration _configuration;
     private readonly ILogger<RunAIMigrationNotificationHandler> _logger;
 
@@ -66,6 +79,15 @@ public class RunAIMigrationNotificationHandler
             await AIMigrationHistoryHelper.MigrateHistoryRecordsAsync(
                 dbContext.Database.GetDbConnection(),
                 AIConnectionStringResolver.MigrationsHistoryTableName,
+                _logger,
+                cancellationToken);
+
+            // Migrations that shipped with a different ID on the v17 line. Without this a site
+            // upgrading from 17.x re-runs them and fails on schema that already exists.
+            await AIMigrationHistoryHelper.RenameMigrationIdsAsync(
+                dbContext.Database.GetDbConnection(),
+                AIConnectionStringResolver.MigrationsHistoryTableName,
+                V17MigrationIdRenames,
                 _logger,
                 cancellationToken);
 

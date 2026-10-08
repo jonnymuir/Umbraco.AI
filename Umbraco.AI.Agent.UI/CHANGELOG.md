@@ -5,6 +5,32 @@ All notable changes to Umbraco.AI.Agent.UI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.2.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.UI@18.1.0...Umbraco.AI.Agent.UI@18.2.0) (2026-10-05)
+
+### feat
+
+* **agent-ui,agent:** Send the previous auto pick with each run ([aa41c24](https://github.com/umbraco/Umbraco.AI/commit/aa41c24b5d921e49eff22bd035fec5ae407385ae))
+
+## [18.1.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.UI@18.1.0-rc.4...Umbraco.AI.Agent.UI@18.1.0) (2026-10-01)
+
+### feat
+
+* **agent-ui,prompt:** Show an AI-generated notice on chat and prompt responses ([ad5bab8](https://github.com/umbraco/Umbraco.AI/commit/ad5bab80cbcebd50978c6da4184076a12025e365))
+* **settings,agent-ui,prompt,deploy:** Add a setting to control the AI disclosure notice ([c292e59](https://github.com/umbraco/Umbraco.AI/commit/c292e59f84a17a88d5f2b6caf4c12b1e4e1e3817))
+* **settings,agent-ui,prompt:** Make the AI disclosure notice dismissible per location ([6976bac](https://github.com/umbraco/Umbraco.AI/commit/6976bac026e9268fb0e715e6b1ea5cc0604c3c58))
+
+### fix
+
+* **agent-ui,copilot:** Stop the sidebar Copilot recursing when it first binds to an item ([56d58e6](https://github.com/umbraco/Umbraco.AI/commit/56d58e6a4b860552ef4d844df7a9f1044ca0ee91)), closes [#383](https://github.com/umbraco/Umbraco.AI/issues/383)
+* **agent-ui:** Re-arm auto-follow when a consumer swaps the message source ([0adb51a](https://github.com/umbraco/Umbraco.AI/commit/0adb51a96200b95fb77f28e39d79c79a2096dabd))
+* **agent-ui:** Stop chat auto-scroll from overriding a manual scroll during streaming ([87e06b1](https://github.com/umbraco/Umbraco.AI/commit/87e06b1a0bf07de8af91f40d50b06761277473c3))
+* **frontend,agent,agent-ui:** Stop custom elements double-registering in the backoffice ([edadf41](https://github.com/umbraco/Umbraco.AI/commit/edadf41d9a20c38d16cbda44336a57d99edc0d4c))
+
+### refactor
+
+* **frontend,agent-ui,prompt:** Share one disclosure notice component ([ea2d0ba](https://github.com/umbraco/Umbraco.AI/commit/ea2d0babcd96f49c4e589bed282b240315cfbe67))
+
+## [18.1.0-rc.4](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.UI@18.1.0-rc.3...Umbraco.AI.Agent.UI@18.1.0-rc.4) (2026-09-16)
 
 ## [18.1.0-rc.3](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.UI@18.1.0-rc.2...Umbraco.AI.Agent.UI@18.1.0-rc.3) (2026-09-10)
 
@@ -35,6 +61,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### refactor
 
 * **agent-ui,copilot:** Rename the empty-state slot to empty-state-message ([7b7445a](https://github.com/umbraco/Umbraco.AI/commit/7b7445a7596686f1908273cbe4b7c1261f23117c))
+
+## [18.0.5](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.UI@18.0.4...Umbraco.AI.Agent.UI@18.0.5) (2026-09-24)
+
+### fix
+
+* **agent-ui:** Clear stale "Calling <tool>..." status once its result arrives ([e8b5a83](https://github.com/umbraco/Umbraco.AI/commit/e8b5a831835565ba0412af6cce5fed5286ae1c20))
+* **agent-ui:** Never leave a dangling tool_use behind an aborted or cancelled tool call ([96ff118](https://github.com/umbraco/Umbraco.AI/commit/96ff1185249ccf0a172481b6be320d67f08abd16))
+
+## [18.0.4](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.UI@18.0.2...Umbraco.AI.Agent.UI@18.0.4) (2026-09-10)
+
+### fix
+
+* **agent-ui:** Re-arm auto-follow when a consumer swaps the message source ([0adb51a](https://github.com/umbraco/Umbraco.AI/commit/0adb51a96200b95fb77f28e39d79c79a2096dabd))
+* **agent-ui:** Stop chat auto-scroll from overriding a manual scroll during streaming ([87e06b1](https://github.com/umbraco/Umbraco.AI/commit/87e06b1a0bf07de8af91f40d50b06761277473c3))
+* **frontend,agent,agent-ui:** Stop custom elements double-registering in the backoffice ([edadf41](https://github.com/umbraco/Umbraco.AI/commit/edadf41d9a20c38d16cbda44336a57d99edc0d4c))
 
 ## [18.0.2](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.UI@18.0.1...Umbraco.AI.Agent.UI@18.0.2) (2026-08-17)
 

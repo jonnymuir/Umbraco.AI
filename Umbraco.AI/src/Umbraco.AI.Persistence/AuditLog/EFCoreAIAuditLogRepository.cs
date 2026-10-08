@@ -231,4 +231,36 @@ internal class EFCoreAIAuditLogRepository : IAIAuditLogRepository
         scope.Complete();
         return deletedCount;
     }
+
+    /// <inheritdoc />
+    public async Task<int> FailRunningOlderThanAsync(DateTime threshold, string errorMessage, CancellationToken ct)
+    {
+        using IEFCoreScope<UmbracoAIDbContext> scope = _scopeProvider.CreateScope();
+
+        int updatedCount = await scope.ExecuteWithContextAsync(async db =>
+        {
+            List<AIAuditLogEntity> staleAuditLogs = await db.AuditLogs
+                .Where(t => t.Status == (int)AIAuditLogStatus.Running && t.StartTime < threshold)
+                .ToListAsync(ct);
+
+            if (staleAuditLogs.Count == 0)
+            {
+                return 0;
+            }
+
+            // EndTime stays null: when the operation actually stopped is unknown.
+            foreach (AIAuditLogEntity auditLog in staleAuditLogs)
+            {
+                auditLog.Status = (int)AIAuditLogStatus.Failed;
+                auditLog.ErrorCategory = (int)AIAuditLogErrorCategory.Unknown;
+                auditLog.ErrorMessage = errorMessage;
+            }
+
+            await db.SaveChangesAsync(ct);
+            return staleAuditLogs.Count;
+        });
+
+        scope.Complete();
+        return updatedCount;
+    }
 }

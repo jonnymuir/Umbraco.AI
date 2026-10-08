@@ -33,6 +33,11 @@ public abstract class AIToolBasic
     public bool IsDestructive { get; }
 
     /// <summary>
+    /// Gets whether a call to the tool must be approved by a human before it runs on an interactive surface.
+    /// </summary>
+    public bool RequiresApproval { get; }
+
+    /// <summary>
     /// Gets tags for additional categorization.
     /// </summary>
     public IReadOnlyList<string> Tags { get; }
@@ -56,6 +61,7 @@ public abstract class AIToolBasic
         Name = attribute.Name;
         ScopeId = attribute.ScopeId;
         IsDestructive = attribute.IsDestructive;
+        RequiresApproval = attribute.RequiresApproval;
         Tags = attribute.Tags;
     }
 }

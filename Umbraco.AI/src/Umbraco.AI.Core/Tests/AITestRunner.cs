@@ -336,6 +336,7 @@ internal sealed class AITestRunner : IAITestRunner
                     Passed = false,
                     Score = 0.0,
                     FailureMessage = $"Grader implementation '{grader.GraderTypeId}' not found",
+                    IsError = true,
                     Severity = grader.Severity
                 });
                 continue;
@@ -345,8 +346,14 @@ internal sealed class AITestRunner : IAITestRunner
             {
                 var result = await graderImpl.GradeAsync(transcript, outcome, grader, cancellationToken);
 
+                // Error results carry no verdict to invert, so they always fail
+                if (result.IsError)
+                {
+                    result.Passed = false;
+                    result.Score = 0.0;
+                }
                 // Apply negation if configured
-                if (grader.Negate)
+                else if (grader.Negate)
                 {
                     result.Passed = !result.Passed;
                     result.Score = 1.0 - result.Score;
@@ -369,6 +376,7 @@ internal sealed class AITestRunner : IAITestRunner
                     Passed = false,
                     Score = 0.0,
                     FailureMessage = $"Grader execution failed: {ex.Message}",
+                    IsError = true,
                     Severity = grader.Severity
                 });
             }

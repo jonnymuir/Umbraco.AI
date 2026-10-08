@@ -17,6 +17,7 @@ public class AIToolBaseTests
         tool.Name.ShouldBe("Test Tool");
         tool.ScopeId.ShouldBe("Testing");
         tool.IsDestructive.ShouldBeTrue();
+        tool.RequiresApproval.ShouldBeTrue(); // Follows IsDestructive when not set
         tool.Tags.ShouldBe(new[] { "test", "fake" });
     }
 
@@ -31,7 +32,20 @@ public class AIToolBaseTests
         tool.Name.ShouldBe("Minimal Tool");
         tool.ScopeId.ShouldBe("general"); // Default
         tool.IsDestructive.ShouldBeFalse(); // Default
+        tool.RequiresApproval.ShouldBeFalse(); // Follows IsDestructive
         tool.Tags.ShouldBeEmpty(); // Default
+    }
+
+    [Fact]
+    public void Constructor_DestructiveWithApprovalOptOut_StaysDestructiveButNeedsNoApproval()
+    {
+        // Arrange & Act
+        var tool = new NoApprovalTool();
+
+        // Assert
+        tool.IsDestructive.ShouldBeTrue();
+        tool.RequiresApproval.ShouldBeFalse();
+        ((IAITool)tool).RequiresApproval.ShouldBeFalse();
     }
 
     [Fact]
@@ -110,6 +124,17 @@ public class AIToolBaseTests
     private class MinimalTool : AIToolBase
     {
         public override string Description => "A minimal test tool";
+
+        protected override Task<object> ExecuteAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<object>(new { });
+        }
+    }
+
+    [AITool("no-approval-tool", "No Approval Tool", IsDestructive = true, RequiresApproval = false)]
+    private class NoApprovalTool : AIToolBase
+    {
+        public override string Description => "A destructive tool that needs no approval";
 
         protected override Task<object> ExecuteAsync(CancellationToken cancellationToken = default)
         {

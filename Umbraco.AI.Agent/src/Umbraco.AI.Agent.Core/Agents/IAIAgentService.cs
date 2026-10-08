@@ -136,6 +136,13 @@ public interface IAIAgentService
     /// <param name="context">The current availability context (section, entity type, etc.).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The selected agent, or null if no agents available in this context.</returns>
+    /// <remarks>
+    /// Builds a single-message <c>IAIAgentSelectionService.SelectAgentAsync</c> input (no context
+    /// items, no previous-turn agent) and returns its result's agent. The pluggable selector chain -
+    /// including any custom <c>IAIAgentSelector</c> registrations - runs exactly as it does for an
+    /// <c>auto</c> request.
+    /// </remarks>
+    [Obsolete("Use IAIAgentSelectionService.SelectAgentAsync. Will be removed in v20")]
     Task<AIAgent?> SelectAgentForPromptAsync(
         string userPrompt,
         string surfaceId,

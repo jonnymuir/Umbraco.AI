@@ -85,6 +85,7 @@ public class RegexGrader : AITestGraderBase<RegexGraderConfig>
 
         // Perform regex match
         bool passed;
+        var isError = false;
         string? failureMessage = null;
         Match? match = null;
 
@@ -102,11 +103,13 @@ public class RegexGrader : AITestGraderBase<RegexGraderConfig>
         catch (RegexMatchTimeoutException)
         {
             passed = false;
+            isError = true;
             failureMessage = "Regex matching timed out after 5 seconds";
         }
         catch (ArgumentException ex)
         {
             passed = false;
+            isError = true;
             failureMessage = $"Invalid regex pattern: {ex.Message}";
         }
 
@@ -134,6 +137,7 @@ public class RegexGrader : AITestGraderBase<RegexGraderConfig>
             ActualValue = actualValue,
             ExpectedValue = config.Pattern,
             FailureMessage = failureMessage,
+            IsError = isError,
             Metadata = metadata
         });
     }

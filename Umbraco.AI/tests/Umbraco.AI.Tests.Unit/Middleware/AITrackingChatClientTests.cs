@@ -304,6 +304,56 @@ public class AITrackingChatClientTests
             It.IsAny<AIAuditLog>(), It.IsAny<AIAuditPrompt?>(), It.IsAny<AIAuditResponse?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task GetStreamingResponseAsync_WhenResponseEndsOnStreamedProviderError_QueuesFailureNotComplete()
+    {
+        // Arrange — the provider reports a rate limit as streamed ErrorContent; the stream itself
+        // ends normally, so nothing throws.
+        var inner = new UpdatesStreamingChatClient(
+            new ChatResponseUpdate(ChatRole.Assistant,
+                [new ErrorContent("Rate limit reached for gpt-4o") { ErrorCode = "rate_limit_exceeded" }]));
+        var client = CreateClient(inner);
+        var usageSignal = ArrangeUsageRecordingSignal();
+
+        // Act
+        await foreach (var _ in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "hi")]))
+        {
+        }
+
+        var record = await AwaitOrTimeout(usageSignal.Task);
+
+        // Assert
+        _auditLogServiceMock.Verify(x => x.QueueRecordAuditLogFailureAsync(
+            _auditLog,
+            It.IsAny<AIAuditPrompt?>(),
+            It.Is<Exception>(e => e.Message.Contains("rate_limit_exceeded") && e.Message.Contains("Rate limit reached")),
+            CancellationToken.None), Times.Once);
+        _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(
+            It.IsAny<AIAuditLog>(), It.IsAny<AIAuditPrompt?>(), It.IsAny<AIAuditResponse?>(), It.IsAny<CancellationToken>()), Times.Never);
+        record.Status.ShouldBe("Failed");
+    }
+
+    [Fact]
+    public async Task GetStreamingResponseAsync_WhenModelContinuesAfterStreamedError_StillCompletes()
+    {
+        // Arrange — a non-fatal error mid-response, followed by the model's actual answer.
+        var inner = new UpdatesStreamingChatClient(
+            new ChatResponseUpdate(ChatRole.Assistant, [new ErrorContent("content filter warning")]),
+            new ChatResponseUpdate(ChatRole.Assistant, "Here is your answer."));
+        var client = CreateClient(inner);
+
+        // Act
+        await foreach (var _ in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "hi")]))
+        {
+        }
+
+        // Assert
+        _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(
+            _auditLog, It.IsAny<AIAuditPrompt?>(), It.IsAny<AIAuditResponse?>(), CancellationToken.None), Times.Once);
+        _auditLogServiceMock.Verify(x => x.QueueRecordAuditLogFailureAsync(
+            It.IsAny<AIAuditLog>(), It.IsAny<AIAuditPrompt?>(), It.IsAny<Exception>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     #endregion
 
     #region GetService
@@ -385,6 +435,28 @@ public class AITrackingChatClientTests
     /// A chat client whose streaming implementation throws on the first MoveNextAsync call.
     /// Used to simulate connection resets and similar mid-stream errors.
     /// </summary>
+    private sealed class UpdatesStreamingChatClient(params ChatResponseUpdate[] updates) : IChatClient
+    {
+        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> chatMessages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => Task.FromResult(updates.ToChatResponse());
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> chatMessages,
+            ChatOptions? options = null,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (var update in updates)
+            {
+                await Task.Yield();
+                yield return update;
+            }
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose() { }
+    }
+
     private sealed class ThrowingStreamingChatClient : IChatClient
     {
         private readonly Exception _exception;

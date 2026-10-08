@@ -30,6 +30,8 @@ public class AIAgentFactoryApprovalTests
         public string Description => string.Empty;
         public string ScopeId => "test-scope";
         public bool IsDestructive { get; init; }
+        private readonly bool? _requiresApproval;
+        public bool RequiresApproval { get => _requiresApproval ?? IsDestructive; init => _requiresApproval = value; }
         public IReadOnlyList<string> Tags => [];
         public Type? ArgsType => null;
         public Task<object> ExecuteAsync(object? args, CancellationToken cancellationToken = default)
@@ -79,6 +81,94 @@ public class AIAgentFactoryApprovalTests
         chatOptions!.Tools.ShouldNotBeNull();
         chatOptions.Tools!.Single(t => t.Name == "delete-thing").ShouldBeOfType<ApprovalRequiredAIFunction>();
         chatOptions.Tools!.Single(t => t.Name == "get-thing").ShouldNotBeOfType<ApprovalRequiredAIFunction>();
+    }
+
+    [Fact]
+    public async Task CreateAgentAsync_DestructiveToolNotRequiringApproval_IsLeftUnwrapped()
+    {
+        IAITool[] tools =
+        [
+            new TestTool { Id = "save-draft", Name = "save-draft", IsDestructive = true, RequiresApproval = false },
+            new TestTool { Id = "publish",    Name = "publish",    IsDestructive = true },
+        ];
+
+        var factory = CreateFactory(tools);
+        var agent = CreateAgent(["save-draft", "publish"]);
+
+        var result = await factory.CreateAgentAsync(agent);
+
+        var chatOptions = ExtractChatOptions(result);
+        var saveDraft = chatOptions!.Tools!.Single(t => t.Name == "save-draft");
+        saveDraft.ShouldNotBeOfType<ApprovalRequiredAIFunction>();
+        saveDraft.ShouldNotBeOfType<ApprovalDeniedAIFunction>();
+        chatOptions.Tools!.Single(t => t.Name == "publish").ShouldBeOfType<ApprovalRequiredAIFunction>();
+    }
+
+    [Fact]
+    public async Task CreateAgentAsync_OnlyDestructiveToolsNotRequiringApproval_LeavesAllowMultipleToolCallsNull()
+    {
+        IAITool[] tools = [new TestTool { Id = "save-draft", Name = "save-draft", IsDestructive = true, RequiresApproval = false }];
+
+        var factory = CreateFactory(tools);
+        var agent = CreateAgent(["save-draft"]);
+
+        var result = await factory.CreateAgentAsync(agent);
+
+        ExtractChatOptions(result)!.AllowMultipleToolCalls.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task CreateAgentAsync_DenyAllPolicy_StillDeniesDestructiveToolNotRequiringApproval()
+    {
+        IAITool[] tools = [new TestTool { Id = "save-draft", Name = "save-draft", IsDestructive = true, RequiresApproval = false }];
+
+        var factory = CreateFactory(tools);
+        var agent = CreateAgent(["save-draft"]);
+
+        var result = await factory.CreateAgentAsync(agent, approvalPolicy: AIApprovalPolicy.DenyAll);
+
+        ExtractChatOptions(result)!.Tools!.Single(t => t.Name == "save-draft").ShouldBeOfType<ApprovalDeniedAIFunction>();
+    }
+
+    [Fact]
+    public async Task CreateAgentAsync_DenyApprovalRequiredPolicy_RunsToolsNotRequiringApproval_DeniesTheRest()
+    {
+        IAITool[] tools =
+        [
+            new TestTool { Id = "save-draft", Name = "save-draft", IsDestructive = true, RequiresApproval = false },
+            new TestTool { Id = "publish",    Name = "publish",    IsDestructive = true },
+            new TestTool { Id = "get-thing",  Name = "get-thing",  IsDestructive = false },
+        ];
+
+        var factory = CreateFactory(tools);
+        var agent = CreateAgent(["save-draft", "publish", "get-thing"]);
+
+        var result = await factory.CreateAgentAsync(agent, approvalPolicy: AIApprovalPolicy.DenyApprovalRequired);
+
+        var chatOptions = ExtractChatOptions(result);
+        var saveDraft = chatOptions!.Tools!.Single(t => t.Name == "save-draft");
+        saveDraft.ShouldNotBeOfType<ApprovalRequiredAIFunction>();
+        saveDraft.ShouldNotBeOfType<ApprovalDeniedAIFunction>();
+        chatOptions.Tools!.Single(t => t.Name == "publish").ShouldBeOfType<ApprovalDeniedAIFunction>();
+        chatOptions.Tools!.Single(t => t.Name == "get-thing").ShouldNotBeOfType<ApprovalDeniedAIFunction>();
+        // Nothing is wrapped for interactive approval, so multi-call stays at the default.
+        chatOptions.AllowMultipleToolCalls.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task CreateAgentAsync_RestrictedSurface_StillDropsDestructiveToolNotRequiringApproval()
+    {
+        IAITool[] tools = [new TestTool { Id = "save-draft", Name = "save-draft", IsDestructive = true, RequiresApproval = false }];
+
+        var factory = CreateFactory(
+            tools,
+            surfaces: [new TestSurface { Id = "copilot", RestrictsDestructiveBackendTools = true }],
+            contributors: [new SurfaceContextContributor()]);
+        var agent = CreateAgent(["save-draft"]);
+
+        var result = await factory.CreateAgentAsync(agent, contextItems: [SurfaceContextItem("copilot")]);
+
+        ExtractChatOptions(result)!.Tools?.ShouldNotContain(t => t.Name == "save-draft");
     }
 
     [Fact]

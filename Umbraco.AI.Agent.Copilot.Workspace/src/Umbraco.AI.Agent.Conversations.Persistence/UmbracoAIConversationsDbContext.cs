@@ -189,6 +189,7 @@ public class UmbracoAIConversationsDbContext : DbContext
             entity.Property(e => e.InputTokens).IsRequired(false);
             entity.Property(e => e.OutputTokens).IsRequired(false);
             entity.Property(e => e.DateCreated).IsRequired();
+            entity.Property(e => e.AgentId).IsRequired(false);
 
             // Ordering anchor + concurrency guard for server-assigned sequence (interrogation B1).
             entity.HasIndex(e => new { e.ConversationId, e.Sequence }).IsUnique();

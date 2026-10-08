@@ -115,24 +115,36 @@ public class PublishUmbracoContentToolTests
     }
 
     [Fact]
-    public async Task ResolveConfirmationPhraseAsync_ContentFound_ReturnsItsName()
+    public async Task ResolveConfirmationPhraseAsync_ReturnsNull_SoApprovalIsAPlainClick()
     {
         var key = Guid.NewGuid();
         _contentEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync(Mock.Of<IContent>(c => c.Name == "Home"));
 
         var phrase = await _tool.ResolveConfirmationPhraseAsync(new PublishUmbracoContentArgs(key));
 
-        phrase.ShouldBe("Home");
+        phrase.ShouldBeNull();
     }
 
     [Fact]
-    public async Task ResolveConfirmationPhraseAsync_ContentNotFound_ReturnsNull()
+    public async Task DescribeInvocationAsync_ItemFound_NamesIt()
+    {
+        var key = Guid.NewGuid();
+        _contentEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync(Mock.Of<IContent>(c => c.Name == "Home"));
+
+        var description = await _tool.DescribeInvocationAsync(new PublishUmbracoContentArgs(key));
+
+        description.ShouldBe("Publish 'Home', making it live.");
+    }
+
+    [Fact]
+    public async Task DescribeInvocationAsync_ItemNotFound_FallsBackToKey()
     {
         var key = Guid.NewGuid();
         _contentEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync((IContent?)null);
 
-        var phrase = await _tool.ResolveConfirmationPhraseAsync(new PublishUmbracoContentArgs(key));
+        var description = await _tool.DescribeInvocationAsync(new PublishUmbracoContentArgs(key));
 
-        phrase.ShouldBeNull();
+        description.ShouldNotBeNull();
+        description.ShouldContain(key.ToString());
     }
 }

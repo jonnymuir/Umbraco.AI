@@ -12,6 +12,9 @@ export * from "./tool/index.js";
 export * from "./audit-log/index.js";
 export * from "./analytics/index.js";
 export * from "./workspace-registry/index.js";
+// Also reachable from exports.ts: registering the notice element here puts it in a chunk shared
+// with internal-components.ts, so it is defined once rather than again inside app.js.
+export * from "./disclosure/index.js";
 export * from "./test/index.js";
 export * from "./guardrail/index.js";
 // client-ready.ts must be dual-reachable (also here, not just via app.ts/exports.ts) -- see the matching

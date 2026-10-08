@@ -19,6 +19,8 @@ import { toDisplayMessages } from "../conversation/message-mapper.js";
  */
 export class UaiServerPersistedConversationStrategy implements UaiConversationStrategy {
     #repository: UaiConversationRepository;
+    /** Current agent-id -> display-name lookup, consulted at {@link loadInitial} time (see ctor doc). */
+    #getAgentNames: () => ReadonlyMap<string, string>;
     #conversationId?: string;
     #persisted = 0;
     /**
@@ -33,8 +35,16 @@ export class UaiServerPersistedConversationStrategy implements UaiConversationSt
      */
     #loaded = false;
 
-    constructor(repository: UaiConversationRepository) {
+    /**
+     * `getAgentNames` is called (not captured once) each time {@link loadInitial} runs, so a reopened
+     * chat picks up whichever agent names the caller's picker has resolved by then. Callers are expected
+     * to await their agent catalog's load before calling `loadInitial` (`UaiCopilotWorkspaceChatContext`
+     * does, via its memoised `loadAgents()`), so the catalog is populated by the time this runs — not a
+     * best-effort snapshot (see `toDisplayMessages`).
+     */
+    constructor(repository: UaiConversationRepository, getAgentNames: () => ReadonlyMap<string, string> = () => new Map()) {
         this.#repository = repository;
+        this.#getAgentNames = getAgentNames;
     }
 
     /** Binds the strategy to a conversation. Resets the persisted boundary (reset on each open). */
@@ -73,7 +83,7 @@ export class UaiServerPersistedConversationStrategy implements UaiConversationSt
             return [];
         }
         const { data } = await this.#repository.requestMessages(id);
-        const messages = toDisplayMessages(data?.items ?? []);
+        const messages = toDisplayMessages(data?.items ?? [], this.#getAgentNames());
         this.#persisted = messages.length;
         this.#loaded = true;
         return messages;

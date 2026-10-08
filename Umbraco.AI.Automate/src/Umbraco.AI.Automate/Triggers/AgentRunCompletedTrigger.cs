@@ -72,4 +72,8 @@ public sealed class AgentRunCompletedTrigger
             },
         };
     }
+
+    /// <inheritdoc />
+    protected override bool CanHandle(AgentRunCompletedTriggerOutput output, AgentRunCompletedTriggerSettings? settings)
+        => settings is null || settings.AgentId == Guid.Empty || settings.AgentId == output.AgentId;
 }

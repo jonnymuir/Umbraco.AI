@@ -12,6 +12,40 @@ namespace Umbraco.AI.Agent.Core.Agents;
 public class AIAgentScopeValidator
 {
     /// <summary>
+    /// Checks if an agent can run on a specific surface in the given context: it must be active, opted
+    /// in to the surface via <see cref="AIAgent.SurfaceIds"/>, and pass the surface's scope rules
+    /// (<see cref="IsAgentAvailable"/>).
+    /// </summary>
+    /// <remarks>
+    /// This is the one rule for "can this agent run here". Auto-selection, explicitly named agents and
+    /// any save-time checks all go through it, so the rule cannot drift between those paths.
+    /// </remarks>
+    /// <param name="agent">The agent to check.</param>
+    /// <param name="surfaceId">The surface the agent is being run on.</param>
+    /// <param name="context">The current context.</param>
+    /// <param name="surfaces">The registered surfaces, used to resolve the surface's scope dimensions.</param>
+    /// <returns>True if the agent is available on the surface, false otherwise.</returns>
+    internal bool IsAgentAvailableOnSurface(
+        AIAgent agent,
+        string surfaceId,
+        AgentAvailabilityContext context,
+        AIAgentSurfaceCollection surfaces)
+    {
+        if (!agent.IsActive)
+        {
+            return false;
+        }
+
+        // An empty SurfaceIds list means the agent is on no surface at all.
+        if (!agent.SurfaceIds.Contains(surfaceId, StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return IsAgentAvailable(agent, context, surfaces.GetById(surfaceId));
+    }
+
+    /// <summary>
     /// Checks if an agent is available in the given context for a specific surface.
     /// </summary>
     /// <param name="agent">The agent to check.</param>

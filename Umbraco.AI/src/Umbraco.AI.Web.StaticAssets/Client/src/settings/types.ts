@@ -1,3 +1,5 @@
+import type { UaiDisclosureNoticeMode } from "../disclosure/types.js";
+
 /**
  * Model for AI settings.
  */
@@ -7,4 +9,5 @@ export interface UaiSettingsModel {
     defaultSpeechToTextProfileId: string | null;
     defaultImageGenerationProfileId: string | null;
     classifierChatProfileId: string | null;
+    disclosureNoticeMode: UaiDisclosureNoticeMode;
 }

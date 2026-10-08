@@ -218,19 +218,20 @@ public class AIImageGenerationServiceTests
     {
         var generator = new FakeImageGenerator();
         SetupDefaultImageProfile(generator);
+        var usage = new UsageDetails { TotalTokenCount = 42 };
 
         var result = await _service.InvokeWithTrackingAsync<string>(
             b => b.WithAlias("tracked"),
             (gen, ct) => Task.FromResult(new AITrackedImageResult<string>
             {
                 Result = "done",
-                Usage = new UsageDetails { TotalTokenCount = 42 },
+                Usage = usage,
                 ImageCount = 1,
             }));
 
         result.Result.ShouldBe("done");
         _auditLogServiceMock.Verify(x => x.QueueStartAuditLogAsync(It.IsAny<AIAuditLog>(), It.IsAny<CancellationToken>()), Times.Once);
-        _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(It.IsAny<AIAuditLog>(), It.IsAny<AIAuditPrompt?>(), It.IsAny<AIAuditResponse?>(), It.IsAny<CancellationToken>()), Times.Once);
+        _auditLogServiceMock.Verify(x => x.QueueCompleteAuditLogAsync(It.IsAny<AIAuditLog>(), It.IsAny<AIAuditPrompt?>(), It.Is<AIAuditResponse?>(r => r != null && r.Usage == usage), It.IsAny<CancellationToken>()), Times.Once);
         _usageRecordingServiceMock.Verify(x => x.QueueRecordUsageAsync(It.IsAny<AIUsageRecord>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 

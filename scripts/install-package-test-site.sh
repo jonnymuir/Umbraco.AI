@@ -132,9 +132,14 @@ dotnet new umbraco --force -n "$SITE_NAME" --friendly-name "Administrator" --ema
 popd > /dev/null
 
 # Step 4: Install Clean starter kit
-echo "Installing Clean starter kit..."
+# Clean's own major tracks the CMS major it targets, offset by 10 (Clean 7.x -> CMS 17,
+# Clean 8.x -> CMS 18), so it needs the same major pin as the Umbraco.AI packages below -
+# otherwise `dotnet add package Clean` grabs its own latest major regardless of which CMS
+# major this site's template installed, producing an NU1107 conflict between the two.
+CLEAN_MAJOR=$((VERSION_MAJOR - 10))
+echo "Installing Clean starter kit (Clean ${CLEAN_MAJOR}.x for Umbraco v${VERSION_MAJOR})..."
 pushd "demos/v${VERSION_MAJOR}/$SITE_NAME" > /dev/null
-dotnet add package Clean
+dotnet add package Clean --version "${CLEAN_MAJOR}.*"
 popd > /dev/null
 
 # Step 5: Configure NuGet sources and PackageSourceMapping
@@ -184,7 +189,6 @@ else
       <package pattern="Umbraco.AI.*" />
       <package pattern="Umbraco" />
       <package pattern="Umbraco.*" />
-      <package pattern="Clean" />
     </packageSource>
     <packageSource key="nuget.org">
       <package pattern="*" />
@@ -201,70 +205,84 @@ popd > /dev/null
 echo "Installing Umbraco.AI packages from $FEED feed..."
 pushd "demos/v${VERSION_MAJOR}/$SITE_NAME" > /dev/null
 
-# Determine if we need --prerelease flag (only for nightly/prereleases, not for release)
+# Float to the highest version within this major. Nightly/prereleases feeds publish most
+# packages as continuous prerelease builds (e.g. "17.0.2--preview.N.gHASH"), so float through
+# prerelease identifiers there; the release feed only ever carries stable versions.
 if [ "$FEED" = "release" ]; then
-    PRERELEASE_FLAG=""
+    VERSION_FLOAT="${VERSION_MAJOR}.*"
 else
-    PRERELEASE_FLAG="--prerelease"
+    VERSION_FLOAT="${VERSION_MAJOR}.*-*"
 fi
 
 # Install Core first to establish the version baseline
 echo "  Installing Umbraco.AI.Core..."
-dotnet add package Umbraco.AI.Core $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.Core --version "$VERSION_FLOAT"
 
 # Core meta-package (includes Startup + Web.StaticAssets)
 echo "  Installing Umbraco.AI..."
-dotnet add package Umbraco.AI $PRERELEASE_FLAG
+dotnet add package Umbraco.AI --version "$VERSION_FLOAT"
 
 # Provider packages
 echo "  Installing Umbraco.AI.OpenAI..."
-dotnet add package Umbraco.AI.OpenAI $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.OpenAI --version "$VERSION_FLOAT"
 
 echo "  Installing Umbraco.AI.Anthropic..."
-dotnet add package Umbraco.AI.Anthropic $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.Anthropic --version "$VERSION_FLOAT"
 
 echo "  Installing Umbraco.AI.DeepSeek..."
-dotnet add package Umbraco.AI.DeepSeek $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.DeepSeek --version "$VERSION_FLOAT"
 
 echo "  Installing Umbraco.AI.Google..."
-dotnet add package Umbraco.AI.Google $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.Google --version "$VERSION_FLOAT"
 
 echo "  Installing Umbraco.AI.Amazon..."
-dotnet add package Umbraco.AI.Amazon $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.Amazon --version "$VERSION_FLOAT"
+
+echo "  Installing Umbraco.AI.Alibaba..."
+dotnet add package Umbraco.AI.Alibaba --version "$VERSION_FLOAT"
 
 echo "  Installing Umbraco.AI.MicrosoftFoundry..."
-dotnet add package Umbraco.AI.MicrosoftFoundry $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.MicrosoftFoundry --version "$VERSION_FLOAT"
 
 echo "  Installing Umbraco.AI.FireworksAI..."
-dotnet add package Umbraco.AI.FireworksAI $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.FireworksAI --version "$VERSION_FLOAT"
 
 echo "  Installing Umbraco.AI.HuggingFace..."
-dotnet add package Umbraco.AI.HuggingFace $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.HuggingFace --version "$VERSION_FLOAT"
 
 echo "  Installing Umbraco.AI.Mistral..."
-dotnet add package Umbraco.AI.Mistral $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.Mistral --version "$VERSION_FLOAT"
+
+echo "  Installing Umbraco.AI.Moonshot..."
+dotnet add package Umbraco.AI.Moonshot --version "$VERSION_FLOAT"
+
+echo "  Installing Umbraco.AI.OpenRouter..."
+dotnet add package Umbraco.AI.OpenRouter --version "$VERSION_FLOAT"
 
 echo "  Installing Umbraco.AI.TogetherAI..."
-dotnet add package Umbraco.AI.TogetherAI $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.TogetherAI --version "$VERSION_FLOAT"
+
+echo "  Installing Umbraco.AI.ZAI..."
+dotnet add package Umbraco.AI.ZAI --version "$VERSION_FLOAT"
 
 # Add-on packages (includes Startup + Web.StaticAssets)
 echo "  Installing Umbraco.AI.Prompt..."
-dotnet add package Umbraco.AI.Prompt $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.Prompt --version "$VERSION_FLOAT"
 
 echo "  Installing Umbraco.AI.Agent..."
-dotnet add package Umbraco.AI.Agent $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.Agent --version "$VERSION_FLOAT"
 
 # Search add-on
 echo "  Installing Umbraco.AI.Search..."
-dotnet add package Umbraco.AI.Search $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.Search --version "$VERSION_FLOAT"
 
 # Agent Copilot (frontend-only static assets)
 echo "  Installing Umbraco.AI.Agent.Copilot..."
-dotnet add package Umbraco.AI.Agent.Copilot $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.Agent.Copilot --version "$VERSION_FLOAT"
 
 # Agent Copilot Workspace (full-section persisted chat; pulls the Conversations backend)
 echo "  Installing Umbraco.AI.Agent.Copilot.Workspace..."
-dotnet add package Umbraco.AI.Agent.Copilot.Workspace $PRERELEASE_FLAG
+dotnet add package Umbraco.AI.Agent.Copilot.Workspace --version "$VERSION_FLOAT"
 
 popd > /dev/null
 

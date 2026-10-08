@@ -27,10 +27,11 @@ public class UpdateConversationController : ConversationControllerBase
     /// <param name="id">The conversation id.</param>
     /// <param name="model">The update request.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>204 No Content, or 404 if not found for the current user.</returns>
+    /// <returns>204 No Content, 400 if the save was cancelled, or 404 if not found for the current user.</returns>
     [HttpPut("{id:guid}")]
     [MapToApiVersion("1.0")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(
         Guid id,
@@ -43,6 +44,10 @@ public class UpdateConversationController : ConversationControllerBase
         try
         {
             await _conversationService.UpdateConversationAsync(conversation, cancellationToken);
+        }
+        catch (AIConversationSaveCancelledException ex)
+        {
+            return ConversationSaveCancelled(ex);
         }
         catch (InvalidOperationException)
         {

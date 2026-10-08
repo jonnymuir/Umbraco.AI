@@ -30,12 +30,21 @@ public class CreateConversationController : ConversationControllerBase
     [HttpPost]
     [MapToApiVersion("1.0")]
     [ProducesResponseType(typeof(ConversationResponseModel), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create(
         [FromBody] CreateConversationRequestModel model,
         CancellationToken cancellationToken = default)
     {
         var conversation = _umbracoMapper.Map<AIConversation>(model)!;
-        var created = await _conversationService.CreateConversationAsync(conversation, cancellationToken);
+        AIConversation created;
+        try
+        {
+            created = await _conversationService.CreateConversationAsync(conversation, cancellationToken);
+        }
+        catch (AIConversationSaveCancelledException ex)
+        {
+            return ConversationSaveCancelled(ex);
+        }
 
         return CreatedAtAction(
             nameof(ByIdConversationController.GetById),

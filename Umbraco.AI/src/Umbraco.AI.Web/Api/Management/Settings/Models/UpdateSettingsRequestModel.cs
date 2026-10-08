@@ -29,4 +29,10 @@ public class UpdateSettingsRequestModel
     /// The ID of the default profile to use for image-generation operations.
     /// </summary>
     public Guid? DefaultImageGenerationProfileId { get; set; }
+
+    /// <summary>
+    /// How the AI-generated disclosure notice is shown (Always, Dismissible, Off).
+    /// Missing or unrecognised values fall back to Always.
+    /// </summary>
+    public string? DisclosureNoticeMode { get; set; }
 }

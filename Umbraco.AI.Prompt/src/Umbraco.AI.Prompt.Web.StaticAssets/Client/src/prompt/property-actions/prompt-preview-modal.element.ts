@@ -255,6 +255,9 @@ export class UaiPromptPreviewModalElement extends UmbModalBaseElement<
                 </div>
 
                 <div slot="actions">
+                    ${this._response && !this._loading
+                        ? html`<uai-disclosure-notice location="prompt"></uai-disclosure-notice>`
+                        : nothing}
                     <uui-button label="Cancel" @click=${this.#onCancel}> Cancel </uui-button>
                     ${this._resultOptions &&
                         this._resultOptions.length > 0 &&
@@ -320,6 +323,10 @@ export class UaiPromptPreviewModalElement extends UmbModalBaseElement<
                 overflow: auto;
             }
 
+            uai-disclosure-notice {
+                margin-right: auto;
+            }
+
             .response-container.multiple {
                border: 0;
             }
@@ -383,7 +390,10 @@ export class UaiPromptPreviewModalElement extends UmbModalBaseElement<
 
             [slot="actions"] {
                 display: flex;
+                align-items: center;
+                justify-content: flex-end;
                 gap: var(--uui-size-space-2);
+                width: 100%;
             }
 
             uui-button uui-icon {

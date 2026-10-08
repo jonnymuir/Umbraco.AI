@@ -122,12 +122,15 @@ export class UaiAgentClient {
      * @param tools Optional frontend tools to include (with metadata)
      * @param context Optional context items to include for LLM awareness
      * @param resume Optional resume entries for human_approval or tool_call interrupts
+     * @param previousAgentId Optional ID of the agent resolved on the previous turn, sent for
+     * `auto` agents so the server-side selection chain (e.g. a sticky selector) can see it.
      */
     sendMessage(
         messages: UaiChatMessage[],
         tools?: UaiFrontendTool[],
         context?: Array<{ description: string; value: string }>,
         resume?: Array<{ interruptId: string; status: "resolved" | "cancelled"; payload?: unknown }>,
+        previousAgentId?: string,
     ): void {
         const runId = crypto.randomUUID();
 
@@ -143,6 +146,13 @@ export class UaiAgentClient {
         // side-channel where metadata was sent in a parallel array and rejoined by name.
         const aguiTools = (tools ?? []).map((tool) => UaiAgentClient.#toAGUITool(tool));
 
+        // Thread resume entries and the previous auto-selection pick through forwardedProps.
+        // UaiHttpAgent lifts `resume` into the typed body.resume field on the server request;
+        // `previousAgentId` passes through unchanged for the server's agent-selection chain.
+        const forwardedProps: Record<string, unknown> = {};
+        if (resume?.length) forwardedProps.resume = resume;
+        if (previousAgentId) forwardedProps.previousAgentId = previousAgentId;
+
         // Subscribe to the transport's event stream
         // Apply transformChunks to convert CHUNK events → START/CONTENT/END events
         this.#transport
@@ -152,9 +162,7 @@ export class UaiAgentClient {
                 messages: convertedMessages,
                 tools: aguiTools,
                 context: context ?? [],
-                // Thread resume entries through forwardedProps so UaiHttpAgent can lift
-                // them into the typed body.resume field on the server request.
-                forwardedProps: resume?.length ? { resume } : undefined,
+                forwardedProps: Object.keys(forwardedProps).length > 0 ? forwardedProps : undefined,
             })
             .pipe(transformChunks(false))
             .subscribe({

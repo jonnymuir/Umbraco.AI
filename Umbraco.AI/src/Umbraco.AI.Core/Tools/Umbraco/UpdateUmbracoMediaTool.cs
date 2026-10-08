@@ -23,7 +23,7 @@ public record UpdateUmbracoMediaArgs(
 /// <summary>
 /// Tool that updates an existing Umbraco media item's name and/or property values.
 /// </summary>
-[AITool("update_umbraco_media", "Update Umbraco Media", ScopeId = MediaWriteScope.ScopeId, IsDestructive = true)]
+[AITool("update_umbraco_media", "Update Umbraco Media", ScopeId = MediaWriteScope.ScopeId, IsDestructive = true, RequiresApproval = false)]
 public class UpdateUmbracoMediaTool(
     IMediaEditingService mediaEditingService,
     IUmbracoWriteAuthorizer authorizer)

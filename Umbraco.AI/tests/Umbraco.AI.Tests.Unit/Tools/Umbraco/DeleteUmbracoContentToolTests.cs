@@ -107,24 +107,36 @@ public class DeleteUmbracoContentToolTests
     }
 
     [Fact]
-    public async Task ResolveConfirmationPhraseAsync_ContentFound_ReturnsItsName()
+    public async Task ResolveConfirmationPhraseAsync_ReturnsNull_SoApprovalIsAPlainClick()
     {
         var key = Guid.NewGuid();
         _contentEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync(Mock.Of<IContent>(c => c.Name == "Home"));
 
         var phrase = await _tool.ResolveConfirmationPhraseAsync(new DeleteUmbracoContentArgs(key));
 
-        phrase.ShouldBe("Home");
+        phrase.ShouldBeNull();
     }
 
     [Fact]
-    public async Task ResolveConfirmationPhraseAsync_ContentNotFound_ReturnsNull()
+    public async Task DescribeInvocationAsync_ItemFound_NamesIt()
+    {
+        var key = Guid.NewGuid();
+        _contentEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync(Mock.Of<IContent>(c => c.Name == "Home"));
+
+        var description = await _tool.DescribeInvocationAsync(new DeleteUmbracoContentArgs(key));
+
+        description.ShouldBe("Move 'Home' to the recycle bin (reversible).");
+    }
+
+    [Fact]
+    public async Task DescribeInvocationAsync_ItemNotFound_FallsBackToKey()
     {
         var key = Guid.NewGuid();
         _contentEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync((IContent?)null);
 
-        var phrase = await _tool.ResolveConfirmationPhraseAsync(new DeleteUmbracoContentArgs(key));
+        var description = await _tool.DescribeInvocationAsync(new DeleteUmbracoContentArgs(key));
 
-        phrase.ShouldBeNull();
+        description.ShouldNotBeNull();
+        description.ShouldContain(key.ToString());
     }
 }

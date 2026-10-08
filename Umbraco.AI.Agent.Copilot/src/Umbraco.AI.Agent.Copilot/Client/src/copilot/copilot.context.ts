@@ -254,6 +254,14 @@ export class UaiCopilotContext extends UmbControllerBase implements UaiChatConte
             }
         });
 
+        // A rebind attempted while a turn is in flight is deferred inside #handleEntitySelection --
+        // retry once the run settles, against whichever entity ends up selected by then.
+        this.observe(this.#runController.isRunning$, (running) => {
+            if (!running && this.#historyBound && this.#pendingEntityKey !== this.#boundEntityKey) {
+                this.#handleEntitySelection(this.#pendingEntityKey);
+            }
+        });
+
         this.#bindHistoryToUser();
         this.#bindHistoryToSession();
 
@@ -430,6 +438,15 @@ export class UaiCopilotContext extends UmbControllerBase implements UaiChatConte
             return;
         }
 
+        // Never rebind while a turn is in flight -- a frontend tool call finishes asynchronously
+        // and would otherwise resume (or a still-open save-rekey snapshot would persist) against
+        // the wrong entity's thread once the code below replaces #activeHistoryKey / #messages,
+        // corrupting both conversations (#381). #pendingEntityKey already holds this key; the
+        // isRunning$ observer registered in the constructor retries once the run settles.
+        if (this.#runController.isRunning) {
+            return;
+        }
+
         const newStorageKey = isPersistableEntityKey(newKey) ? newKey : undefined;
 
         // Save-rekey heuristic (see method doc): adopt the new key and persist the carried-over
@@ -449,10 +466,13 @@ export class UaiCopilotContext extends UmbControllerBase implements UaiChatConte
 
         // Navigation/switch: rebind to the incoming key, then let the strategy load its thread. Abort
         // any in-flight run first so transient state doesn't leak across the swap (loadInitialMessages
-        // only replaces the message list).
+        // only replaces the message list). Claim the key before aborting: the abort settles the run,
+        // which re-enters this method via the isRunning$ observer, and the guard at the top must
+        // already see this key as bound or the swap would run twice (or, before isRunning$ was
+        // de-duplicated, recurse until the stack overflowed).
+        this.#boundEntityKey = newKey;
         this.#runController.abortRun();
         this.#activeHistoryKey = newStorageKey;
-        this.#boundEntityKey = newKey;
         this.#restoreAgentForKey(newStorageKey);
         void this.#runController.loadInitialMessages();
     }

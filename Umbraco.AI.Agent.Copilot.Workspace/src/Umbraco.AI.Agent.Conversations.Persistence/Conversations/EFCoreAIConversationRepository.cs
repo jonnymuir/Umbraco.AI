@@ -11,6 +11,7 @@ internal sealed class EFCoreAIConversationRepository : IAIConversationRepository
 {
     private const int MaxAppendRetries = 3;
     private const string UserRole = "user";
+    private const string AssistantRole = "assistant";
 
     private readonly IEFCoreScopeProvider<UmbracoAIConversationsDbContext> _scopeProvider;
     private readonly AIConversationEntityFactory _factory;
@@ -288,6 +289,18 @@ internal sealed class EFCoreAIConversationRepository : IAIConversationRepository
             .FirstOrDefaultAsync(cancellationToken));
         scope.Complete();
         return text;
+    }
+
+    public async Task<Guid?> GetLastAssistantAgentIdAsync(Guid conversationId, CancellationToken cancellationToken = default)
+    {
+        using IEFCoreScope<UmbracoAIConversationsDbContext> scope = _scopeProvider.CreateScope();
+        var agentId = await scope.ExecuteWithContextAsync(async db => await db.Messages.AsNoTracking()
+            .Where(m => m.ConversationId == conversationId && m.Role == AssistantRole)
+            .OrderByDescending(m => m.Sequence)
+            .Select(m => m.AgentId)
+            .FirstOrDefaultAsync(cancellationToken));
+        scope.Complete();
+        return agentId;
     }
 
     public async Task<(IReadOnlyList<AIMessage> Items, int Total)> GetMessagesPagedAsync(

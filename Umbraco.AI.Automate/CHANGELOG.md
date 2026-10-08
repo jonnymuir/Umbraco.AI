@@ -5,6 +5,19 @@ All notable changes to Umbraco.AI.Automate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.0.1](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Automate@18.0.1-rc.4...Umbraco.AI.Automate@18.0.1) (2026-10-01)
+
+### feat
+
+* **agent,automate:** Let Run Agent steps make changes that don't need approval ([8b896ee](https://github.com/umbraco/Umbraco.AI/commit/8b896ee8c4fb8a9f15297edf0d19b61f6af20e3f))
+* **automate:** Pass media attachments to the Run AI Agent action ([947cdd5](https://github.com/umbraco/Umbraco.AI/commit/947cdd5e17e8f570bdd3677df57c8c748f317cc5)), closes [#443](https://github.com/umbraco/Umbraco.AI/issues/443)
+
+### fix
+
+* **automate:** Honour the Agent filter on agent run triggers ([535a87d](https://github.com/umbraco/Umbraco.AI/commit/535a87dc462662b3df9df79ff10115bb509a4c75))
+
+## [18.0.1-rc.4](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Automate@18.0.1-rc.3...Umbraco.AI.Automate@18.0.1-rc.4) (2026-09-16)
+
 ## [18.0.1-rc.3](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Automate@18.0.1-rc.2...Umbraco.AI.Automate@18.0.1-rc.3) (2026-09-08)
 
 ## [18.0.1-rc.2](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Automate@18.0.1-rc.1...Umbraco.AI.Automate@18.0.1-rc.2) (2026-08-21)

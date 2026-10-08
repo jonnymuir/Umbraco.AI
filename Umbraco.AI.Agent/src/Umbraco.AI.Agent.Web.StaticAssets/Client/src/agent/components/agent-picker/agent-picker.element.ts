@@ -9,6 +9,7 @@ import type { UaiPickableItemModel } from "@umbraco-ai/core";
 import { AgentsService } from "../../../api/index.js";
 
 const elementName = "uai-agent-picker";
+const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
 interface UaiAgentItemModel {
     id: string;
@@ -62,6 +63,9 @@ export class UaiAgentPickerElement extends UmbFormControlMixin<string | undefine
     private _loading = false;
 
     #setValue(val: string | undefined) {
+        // A C# Guid setting that was never picked (e.g. an Automate step's AgentId) arrives as the
+        // empty GUID; it is never a real agent, so treat it as no selection instead of looking it up.
+        if (val === EMPTY_GUID) val = undefined;
         if (val === this._selectedId) return;
 
         this._selectedId = val;

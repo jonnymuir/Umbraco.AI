@@ -22,7 +22,7 @@ namespace Umbraco.AI.Core.PropertyValueOperations;
 /// nested inside blocks), and the default-value provider abstraction.
 /// </para>
 /// </remarks>
-public sealed class AIPropertyValueDispatcher : IAIPropertyValueDispatcher
+public sealed class AIPropertyValueDispatcher : IAIPropertyValueDispatcher, IAIPropertyValueReader
 {
     private static readonly JsonSerializerOptions ArgsSerializerOptions = new(JsonSerializerDefaults.Web);
 
@@ -96,7 +96,10 @@ public sealed class AIPropertyValueDispatcher : IAIPropertyValueDispatcher
                 _schemaService,
                 _defaultValueProvider,
                 request.DocumentMetadata,
-                this);
+                this)
+            {
+                Variant = request.Variant,
+            };
 
             return await DispatchInternalAsync(request, rootEditorSchemaAlias, context, cancellationToken).ConfigureAwait(false);
         }
@@ -151,8 +154,6 @@ public sealed class AIPropertyValueDispatcher : IAIPropertyValueDispatcher
                     $"No property value handler is registered for editor '{currentEditorSchemaAlias}'.");
             }
 
-            frames.Add(new DescentFrame(handler, currentValue, blockKey, propertyAlias));
-
             var innerContentTypeKey = handler.GetItemContentTypeKey(currentValue, blockKey, context);
             if (innerContentTypeKey is null)
             {
@@ -162,17 +163,23 @@ public sealed class AIPropertyValueDispatcher : IAIPropertyValueDispatcher
 
             var nextPropertyAlias = ((AIPropertyPathSegment.PropertyAliasSegment)path[i + 2]).Alias;
 
-            var nextEditorSchemaAlias = TryResolvePropertyEditorAlias(innerContentTypeKey.Value, nextPropertyAlias);
-            if (nextEditorSchemaAlias is null)
+            var nextPropertyType = TryResolvePropertyType(innerContentTypeKey.Value, nextPropertyAlias);
+            if (nextPropertyType is null)
             {
                 return Fail(AIPropertyValueOperationError.Codes.PropertyNotFound,
                     $"Property '{nextPropertyAlias}' was not found on content type '{innerContentTypeKey}'.");
             }
 
-            currentValue = handler.GetItemPropertyValue(
-                currentValue, blockKey, nextPropertyAlias, variantId: null, context);
+            // A value inside a block carries a culture/segment only when its own property type
+            // varies by it, independent of the containing block editor's variance.
+            var itemVariant = AIVariantId.ForVariations(context.Variant, nextPropertyType.Variations);
 
-            currentEditorSchemaAlias = nextEditorSchemaAlias;
+            frames.Add(new DescentFrame(handler, currentValue, blockKey, propertyAlias, itemVariant));
+
+            currentValue = handler.GetItemPropertyValue(
+                currentValue, blockKey, nextPropertyAlias, itemVariant, context);
+
+            currentEditorSchemaAlias = nextPropertyType.PropertyEditorAlias;
         }
 
         var leafResult = await ApplyLeafOperationAsync(
@@ -198,7 +205,7 @@ public sealed class AIPropertyValueDispatcher : IAIPropertyValueDispatcher
                 frame.BlockKey,
                 ascendingPropertyAlias,
                 ascendingValue,
-                variantId: null,
+                frame.ItemVariant,
                 context,
                 cancellationToken).ConfigureAwait(false);
 
@@ -271,6 +278,12 @@ public sealed class AIPropertyValueDispatcher : IAIPropertyValueDispatcher
                             "RemoveItem requires a 'blockKey' GUID argument.");
                     }
 
+                    var removeValidation = handler.ValidateRemoveItem(leafValue, blockKey, context);
+                    if (!removeValidation.IsValid)
+                    {
+                        return AIPropertyValueDispatchResult.Fail(removeValidation.Error!);
+                    }
+
                     var newValue = await handler.RemoveItemAsync(leafValue, blockKey, context, cancellationToken).ConfigureAwait(false);
                     return AIPropertyValueDispatchResult.Ok(newValue);
                 }
@@ -299,21 +312,72 @@ public sealed class AIPropertyValueDispatcher : IAIPropertyValueDispatcher
         }
     }
 
+    /// <inheritdoc />
+    bool IAIPropertyValueReader.TryReadValue(AIPropertyValueDispatchRequest request, out JsonNode? value)
+    {
+        value = null;
+
+        // Same layout as DispatchInternalAsync: [propAlias, {blockKey}, propAlias, ..., propAlias].
+        var path = request.Path;
+        if (path is null || (path.Count & 1) == 0 || path[0] is not AIPropertyPathSegment.PropertyAliasSegment rootSegment)
+        {
+            return false;
+        }
+
+        var currentEditorSchemaAlias = TryResolvePropertyEditorAlias(request.DocumentMetadata.ContentTypeKey, rootSegment.Alias);
+        if (string.IsNullOrWhiteSpace(currentEditorSchemaAlias))
+        {
+            return false;
+        }
+
+        var context = new AIPropertyValueOperationContext(
+            _schemaService,
+            _defaultValueProvider,
+            request.DocumentMetadata,
+            this)
+        {
+            Variant = request.Variant,
+        };
+
+        var currentValue = request.RootValue;
+        for (var i = 0; i + 1 < path.Count; i += 2)
+        {
+            if (path[i + 1] is not AIPropertyPathSegment.BlockKeySegment blockSegment
+                || path[i + 2] is not AIPropertyPathSegment.PropertyAliasSegment nextSegment)
+            {
+                return false;
+            }
+
+            var handler = _handlers.GetByEditorSchemaAlias(currentEditorSchemaAlias);
+            var innerContentTypeKey = handler?.GetItemContentTypeKey(currentValue, blockSegment.BlockKey, context);
+            var nextPropertyType = innerContentTypeKey is null
+                ? null
+                : TryResolvePropertyType(innerContentTypeKey.Value, nextSegment.Alias);
+            if (handler is null || nextPropertyType is null)
+            {
+                return false;
+            }
+
+            var itemVariant = AIVariantId.ForVariations(context.Variant, nextPropertyType.Variations);
+            currentValue = handler.GetItemPropertyValue(currentValue, blockSegment.BlockKey, nextSegment.Alias, itemVariant, context);
+            currentEditorSchemaAlias = nextPropertyType.PropertyEditorAlias;
+        }
+
+        value = currentValue;
+        return true;
+    }
+
     private string? TryResolvePropertyEditorAlias(Guid contentTypeKey, string propertyAlias)
+        => TryResolvePropertyType(contentTypeKey, propertyAlias)?.PropertyEditorAlias;
+
+    private IPropertyType? TryResolvePropertyType(Guid contentTypeKey, string propertyAlias)
     {
         // Try content types (covers documents and elements) first, then media types.
         var composition = (IContentTypeComposition?)_contentTypeService.Get(contentTypeKey)
             ?? _mediaTypeService.Get(contentTypeKey);
 
-        if (composition is null)
-        {
-            return null;
-        }
-
-        var property = composition.CompositionPropertyTypes
+        return composition?.CompositionPropertyTypes
             .FirstOrDefault(p => string.Equals(p.Alias, propertyAlias, StringComparison.OrdinalIgnoreCase));
-
-        return property?.PropertyEditorAlias;
     }
 
     private static JsonNode? ExtractValueArg(JsonNode? args)
@@ -344,8 +408,14 @@ public sealed class AIPropertyValueDispatcher : IAIPropertyValueDispatcher
             return false;
         }
 
-        var raw = node.GetValue<string?>();
-        return Guid.TryParse(raw, out value);
+        try
+        {
+            return Guid.TryParse(node.GetValue<string?>(), out value);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static bool TryReadIntArg(JsonNode? args, string propertyName, out int value)
@@ -374,5 +444,6 @@ public sealed class AIPropertyValueDispatcher : IAIPropertyValueDispatcher
         IAIPropertyValueHandler Handler,
         JsonNode? Value,
         Guid BlockKey,
-        string PropertyAlias);
+        string PropertyAlias,
+        AIVariantId ItemVariant);
 }

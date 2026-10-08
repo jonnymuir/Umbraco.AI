@@ -1,9 +1,11 @@
 using Microsoft.Extensions.AI;
+using Umbraco.AI.Core.Tools;
 
 namespace Umbraco.AI.Agent.Core.Chat;
 
 /// <summary>
-/// Wraps a destructive backend tool so that, under <see cref="Agents.AIApprovalPolicy.DenyAll"/>,
+/// Wraps a destructive backend tool so that, under <see cref="Agents.AIApprovalPolicy.DenyAll"/>
+/// (or, for tools that require approval, <see cref="Agents.AIApprovalPolicy.DenyApprovalRequired"/>),
 /// it is never executed. When the model calls it, the inner function is bypassed and a denial
 /// result is returned instead, telling the model the action required approval that was not granted.
 /// </summary>
@@ -18,8 +20,12 @@ namespace Umbraco.AI.Agent.Core.Chat;
 /// <see cref="AIFunction.Description"/> and the JSON schema through to the inner function, so the
 /// model still sees the tool exactly as declared — only invocation is short-circuited.
 /// </para>
+/// <para>
+/// Marked <see cref="IAINonExecutingFunction"/> so tool execution notifications are not published
+/// for a tool that never runs.
+/// </para>
 /// </remarks>
-internal sealed class ApprovalDeniedAIFunction : DelegatingAIFunction
+internal sealed class ApprovalDeniedAIFunction : DelegatingAIFunction, IAINonExecutingFunction
 {
     public ApprovalDeniedAIFunction(AIFunction innerFunction)
         : base(innerFunction)

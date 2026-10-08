@@ -5,6 +5,26 @@ All notable changes to Umbraco.AI.Agent.Copilot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.1.1](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot@18.1.0...Umbraco.AI.Agent.Copilot@18.1.1) (2026-10-05)
+
+### fix
+
+* **copilot:** Default property value tools to the language being viewed ([4cbccb7](https://github.com/umbraco/Umbraco.AI/commit/4cbccb732aad69a474e2749e1c0032267e8fdb83))
+* **core,copilot:** Respect culture variance for values inside blocks ([7180f55](https://github.com/umbraco/Umbraco.AI/commit/7180f55dfd890f36dcc0fa7738a55a618a48f7a2)), closes [#450](https://github.com/umbraco/Umbraco.AI/issues/450)
+
+## [18.1.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot@18.1.0-rc.4...Umbraco.AI.Agent.Copilot@18.1.0) (2026-10-01)
+
+### fix
+
+* **agent-ui,copilot:** Stop the sidebar Copilot recursing when it first binds to an item ([56d58e6](https://github.com/umbraco/Umbraco.AI/commit/56d58e6a4b860552ef4d844df7a9f1044ca0ee91)), closes [#383](https://github.com/umbraco/Umbraco.AI/issues/383)
+* **core,agent,copilot:** Add missing tool and surface translations ([c242b61](https://github.com/umbraco/Umbraco.AI/commit/c242b6122f43d61c41297ef6896a3efa971884de)), closes [#413](https://github.com/umbraco/Umbraco.AI/issues/413)
+
+## [18.1.0-rc.4](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot@18.1.0-rc.3...Umbraco.AI.Agent.Copilot@18.1.0-rc.4) (2026-09-16)
+
+### fix
+
+* **agent,copilot:** Stop a restored/aborted thread ever holding a dangling tool_use ([c3accf4](https://github.com/umbraco/Umbraco.AI/commit/c3accf45298b7c9e61f169c1f839a69bb2bed823)), closes [#381](https://github.com/umbraco/Umbraco.AI/issues/381)
+
 ## [18.1.0-rc.3](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot@18.1.0-rc.2...Umbraco.AI.Agent.Copilot@18.1.0-rc.3) (2026-09-08)
 
 ## [18.1.0-rc.2](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot@18.1.0-rc.1...Umbraco.AI.Agent.Copilot@18.1.0-rc.2) (2026-08-21)
@@ -20,6 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **copilot:** Make the contextual trigger keyboard and screen-reader accessible ([cc03796](https://github.com/umbraco/Umbraco.AI/commit/cc03796ba77f069fa7ccc4fc7f4a63c976240b72))
 * **copilot:** Remember the selected agent across reloads ([b865cfc](https://github.com/umbraco/Umbraco.AI/commit/b865cfcd4d31ca4bcfa8f687632ae76767d93cb2))
 * **copilot:** Use the AI sparkles glyph on the contextual copilot button ([dfd8ec1](https://github.com/umbraco/Umbraco.AI/commit/dfd8ec14a316cd2cf00c5447e025c14f900f5d91))
+
+## [18.0.6](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot@18.0.5...Umbraco.AI.Agent.Copilot@18.0.6) (2026-09-24)
+
+### fix
+
+* **core,agent,copilot:** Add missing tool and surface translations ([c242b61](https://github.com/umbraco/Umbraco.AI/commit/c242b6122f43d61c41297ef6896a3efa971884de)), closes [#413](https://github.com/umbraco/Umbraco.AI/issues/413)
 
 ## [18.0.5](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI.Agent.Copilot@18.0.4...Umbraco.AI.Agent.Copilot@18.0.5) (2026-08-17)
 

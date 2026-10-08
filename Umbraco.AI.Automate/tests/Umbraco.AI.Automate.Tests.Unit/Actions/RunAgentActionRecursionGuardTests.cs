@@ -3,7 +3,9 @@ using Moq;
 using Shouldly;
 using Umbraco.AI.Agent.Core.Agents;
 using Umbraco.AI.Automate.Actions;
+using Umbraco.AI.Core.Media;
 using Umbraco.Automate.Core.Actions;
+using Umbraco.Automate.Core.Security;
 using Umbraco.Automate.Core.Settings;
 using Umbraco.Cms.Core.Services;
 using Xunit;
@@ -110,7 +112,14 @@ public class RunAgentActionRecursionGuardTests
     }
 
     private RunAgentAction CreateAction()
-        => new(_infrastructure, _agentServiceMock.Object, _userServiceMock.Object, _loggerMock.Object);
+        => new(
+            _infrastructure,
+            _agentServiceMock.Object,
+            _userServiceMock.Object,
+            Mock.Of<IMediaService>(),
+            Mock.Of<IAIUmbracoMediaResolver>(),
+            Mock.Of<IAutomationActionAuthorizer>(),
+            _loggerMock.Object);
 
     private static ActionContext CreateContextWithNestingDepth(RunAgentSettings settings, int nestingDepth)
         => new()

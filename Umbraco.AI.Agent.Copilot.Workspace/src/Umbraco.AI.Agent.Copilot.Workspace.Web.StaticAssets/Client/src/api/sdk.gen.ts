@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { Create2Data, Create2Errors, Create2Responses, CreateData, CreateErrors, CreateResponses, Delete2Data, Delete2Errors, Delete2Responses, DeleteData, DeleteErrors, DeleteResponses, GetAll2Data, GetAll2Errors, GetAll2Responses, GetAllData, GetAllErrors, GetAllResponses, GetById2Data, GetById2Errors, GetById2Responses, GetByIdData, GetByIdErrors, GetByIdResponses, GetFileData, GetFileErrors, GetFileResponses, GetMessagesData, GetMessagesErrors, GetMessagesResponses, StreamAgentAGUIData, StreamAgentAGUIErrors, StreamAgentAGUIResponse, StreamAgentAGUIResponses, TruncateAfterLastUserMessageData, TruncateAfterLastUserMessageErrors, TruncateAfterLastUserMessageResponses, Update2Data, Update2Errors, Update2Responses, UpdateData, UpdateErrors, UpdateResponses } from './types.gen';
+import type { Create2Data, Create2Errors, Create2Responses, CreateData, CreateErrors, CreateResponses, Delete2Data, Delete2Errors, Delete2Responses, DeleteData, DeleteErrors, DeleteResponses, GetAll2Data, GetAll2Errors, GetAll2Responses, GetAllData, GetAllErrors, GetAllResponses, GetById2Data, GetById2Errors, GetById2Responses, GetByIdData, GetByIdErrors, GetByIdResponses, GetMessagesData, GetMessagesErrors, GetMessagesResponses, StreamAgentAGUIData, StreamAgentAGUIErrors, StreamAgentAGUIResponse, StreamAgentAGUIResponses, TruncateAfterLastUserMessageData, TruncateAfterLastUserMessageErrors, TruncateAfterLastUserMessageResponses, Update2Data, Update2Errors, Update2Responses, UpdateData, UpdateErrors, UpdateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -135,14 +135,6 @@ export class ProjectsService {
 }
 
 export class StreamService {
-    public static getFile<ThrowOnError extends boolean = false>(options: Options<GetFileData, ThrowOnError>) {
-        return (options.client ?? client).get<GetFileResponses, GetFileErrors, ThrowOnError>({
-            security: [{ scheme: 'bearer', type: 'http' }],
-            url: '/umbraco/ai/management/api/v1/conversations/{id}/files/{fileId}',
-            ...options
-        });
-    }
-    
     public static streamAgentAGUI<ThrowOnError extends boolean = false>(options: Options<StreamAgentAGUIData, ThrowOnError, StreamAgentAGUIResponse>) {
         return (options.client ?? client).sse.post<StreamAgentAGUIResponses, StreamAgentAGUIErrors, ThrowOnError>({
             security: [{ scheme: 'bearer', type: 'http' }],

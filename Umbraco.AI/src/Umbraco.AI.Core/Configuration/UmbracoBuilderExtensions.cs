@@ -113,6 +113,7 @@ public static partial class UmbracoBuilderExtensions
         // File processing handlers (extensible - add custom handlers via AIFileProcessingHandlers())
         builder.AIFileProcessingHandlers()
             .Append<OpenXmlFileProcessingHandler>()
+            .Append<PlainTextFileProcessingHandler>()
             .Append<AudioTranscriptionFileProcessingHandler>();
 
         builder.AIChatMiddleware()
@@ -123,7 +124,8 @@ public static partial class UmbracoBuilderExtensions
             .Append<AIFunctionInvokingChatMiddleware>()  // Function/tool invocation
             .Append<AIGuardrailChatMiddleware>()         // Guardrail evaluation (pre/post-generate)
             .Append<AITrackingChatMiddleware>()          // Usage analytics + audit logging (via IAIOperationTracker)
-            .Append<AIContextInjectingChatMiddleware>(); // Context injection (outermost)
+            .Append<AIContextInjectingChatMiddleware>()  // Context injection
+            .Append<AIProfileSystemPromptChatMiddleware>(); // Profile system prompt (outermost: fixed text first keeps the provider cache prefix stable)
 
         builder.AIEmbeddingMiddleware()
             .Append<AIOpenTelemetryEmbeddingMiddleware>()   // OpenTelemetry tracing + metrics (innermost - zero cost when unconfigured)

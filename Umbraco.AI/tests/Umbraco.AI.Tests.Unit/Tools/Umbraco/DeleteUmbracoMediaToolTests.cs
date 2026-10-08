@@ -78,24 +78,36 @@ public class DeleteUmbracoMediaToolTests
     }
 
     [Fact]
-    public async Task ResolveConfirmationPhraseAsync_MediaFound_ReturnsItsName()
+    public async Task ResolveConfirmationPhraseAsync_ReturnsNull_SoApprovalIsAPlainClick()
     {
         var key = Guid.NewGuid();
-        _mediaEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync(Mock.Of<IMedia>(m => m.Name == "Logo.png"));
-
-        var phrase = await _tool.ResolveConfirmationPhraseAsync(new DeleteUmbracoMediaArgs(key));
-
-        phrase.ShouldBe("Logo.png");
-    }
-
-    [Fact]
-    public async Task ResolveConfirmationPhraseAsync_MediaNotFound_ReturnsNull()
-    {
-        var key = Guid.NewGuid();
-        _mediaEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync((IMedia?)null);
+        _mediaEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync(Mock.Of<IMedia>(c => c.Name == "Home"));
 
         var phrase = await _tool.ResolveConfirmationPhraseAsync(new DeleteUmbracoMediaArgs(key));
 
         phrase.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task DescribeInvocationAsync_ItemFound_NamesIt()
+    {
+        var key = Guid.NewGuid();
+        _mediaEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync(Mock.Of<IMedia>(c => c.Name == "Home"));
+
+        var description = await _tool.DescribeInvocationAsync(new DeleteUmbracoMediaArgs(key));
+
+        description.ShouldBe("Move 'Home' to the recycle bin (reversible).");
+    }
+
+    [Fact]
+    public async Task DescribeInvocationAsync_ItemNotFound_FallsBackToKey()
+    {
+        var key = Guid.NewGuid();
+        _mediaEditingServiceMock.Setup(x => x.GetAsync(key)).ReturnsAsync((IMedia?)null);
+
+        var description = await _tool.DescribeInvocationAsync(new DeleteUmbracoMediaArgs(key));
+
+        description.ShouldNotBeNull();
+        description.ShouldContain(key.ToString());
     }
 }

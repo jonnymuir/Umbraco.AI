@@ -20,8 +20,8 @@ export const manifests: Array<UmbExtensionManifest> = [
         element: () => import("./analytics-dashboard.element.js"),
         weight: 1000,
         meta: {
-            label: "Dashboard",
-            pathname: "dashboard",
+            label: "Usage",
+            pathname: "usage",
             icon: "icon-chart",
         },
         conditions: [

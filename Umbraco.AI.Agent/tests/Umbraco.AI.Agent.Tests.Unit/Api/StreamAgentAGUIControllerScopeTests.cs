@@ -5,6 +5,7 @@ using Moq;
 using Shouldly;
 using Umbraco.AI.Agent.Core.AGUI;
 using Umbraco.AI.Agent.Core.Agents;
+using Umbraco.AI.Agent.Core.Agents.Selection;
 using Umbraco.AI.Agent.Core.Surfaces;
 using Umbraco.AI.Agent.Web.Api.Management.Agent.Controllers;
 using Umbraco.AI.AGUI.Models;
@@ -19,8 +20,9 @@ namespace Umbraco.AI.Agent.Tests.Unit.Api;
 
 /// <summary>
 /// The auto-selection path filters agents through <see cref="AIAgentScopeValidator"/>. These tests
-/// pin that an explicitly named agent goes through the same check, so passing an agent ID is not a
-/// way around scope rules the surface has applied.
+/// pin that an explicitly named agent goes through the same check - active, opted in to the surface
+/// via <c>SurfaceIds</c>, and inside its scope - so passing an agent ID is not a way around rules the
+/// surface has applied.
 /// </summary>
 public class StreamAgentAGUIControllerScopeTests
 {
@@ -93,6 +95,66 @@ public class StreamAgentAGUIControllerScopeTests
         result.ShouldNotBeOfType<NotFound<ProblemDetails>>();
     }
 
+    [Fact]
+    public async Task StreamAgentAGUI_ExplicitAgentNotOptedInToTheSurface_IsRejected()
+    {
+        // Arrange
+        // No scope rules at all, so only the SurfaceIds opt-in can turn this agent away.
+        var agent = CreateAgent(allowedSection: null, surfaceIds: ["some-other-surface"]);
+        var controller = CreateController(agent, requestSection: "content");
+
+        // Act
+        var result = await controller.StreamAgentAGUI(new IdOrAlias(AgentId), CreateRequest());
+
+        // Assert
+        var notFound = result.ShouldBeOfType<NotFound<ProblemDetails>>();
+        notFound.Value!.Title.ShouldBe("AIAgent not available in this context");
+    }
+
+    [Fact]
+    public async Task StreamAgentAGUI_ExplicitAgentOnNoSurface_IsRejected()
+    {
+        // Arrange
+        // An empty SurfaceIds list means "on no surface", not "on every surface".
+        var agent = CreateAgent(allowedSection: null, surfaceIds: []);
+        var controller = CreateController(agent, requestSection: "content");
+
+        // Act
+        var result = await controller.StreamAgentAGUI(new IdOrAlias(AgentId), CreateRequest());
+
+        // Assert
+        result.ShouldBeOfType<NotFound<ProblemDetails>>();
+    }
+
+    [Fact]
+    public async Task StreamAgentAGUI_ExplicitAgentNotOptedIn_WithNoSurfaceInContext_StillRuns()
+    {
+        // Arrange
+        // Opt-in is surface-relative like scope: a contextless programmatic caller keeps working.
+        var agent = CreateAgent(allowedSection: null, surfaceIds: []);
+        var controller = CreateController(agent, requestSection: "content", surface: null);
+
+        // Act
+        var result = await controller.StreamAgentAGUI(new IdOrAlias(AgentId), CreateRequest());
+
+        // Assert
+        result.ShouldNotBeOfType<NotFound<ProblemDetails>>();
+    }
+
+    [Fact]
+    public async Task StreamAgentAGUI_ExplicitAgentOptedInWithDifferentCasing_IsAllowed()
+    {
+        // Arrange
+        var agent = CreateAgent(allowedSection: null, surfaceIds: ["COPILOT"]);
+        var controller = CreateController(agent, requestSection: "content");
+
+        // Act
+        var result = await controller.StreamAgentAGUI(new IdOrAlias(AgentId), CreateRequest());
+
+        // Assert
+        result.ShouldNotBeOfType<NotFound<ProblemDetails>>();
+    }
+
     private static AGUIRunRequest CreateRequest()
         => new()
         {
@@ -100,9 +162,10 @@ public class StreamAgentAGUIControllerScopeTests
             Context = [new AGUIContextItem { Description = "ctx", Value = "{}" }],
         };
 
-    private static UmbracoAIAgent CreateAgent(string? allowedSection)
+    private static UmbracoAIAgent CreateAgent(string? allowedSection, IReadOnlyList<string>? surfaceIds = null)
         => new()
         {
+            SurfaceIds = surfaceIds ?? ["copilot"],
             Id = AgentId,
             Alias = "test-agent",
             Name = "Test Agent",
@@ -135,6 +198,13 @@ public class StreamAgentAGUIControllerScopeTests
                 It.IsAny<CancellationToken>()))
             .Returns(EmptyEventStream());
 
+        var selectionServiceMock = new Mock<IAIAgentSelectionService>();
+
+        var messageConverterMock = new Mock<IAGUIMessageConverter>();
+        messageConverterMock
+            .Setup(x => x.ConvertToChatMessages(It.IsAny<IEnumerable<AGUIMessage>?>()))
+            .Returns([]);
+
         var contextConverterMock = new Mock<IAGUIContextConverter>();
         contextConverterMock
             .Setup(x => x.ConvertToRequestContextItems(It.IsAny<IEnumerable<AGUIContextItem>>()))
@@ -165,6 +235,8 @@ public class StreamAgentAGUIControllerScopeTests
 
         return new StreamAgentAGUIController(
             agentServiceMock.Object,
+            selectionServiceMock.Object,
+            messageConverterMock.Object,
             contextConverterMock.Object,
             toolConverterMock.Object,
             scopeProviderMock.Object,

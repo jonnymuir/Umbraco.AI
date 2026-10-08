@@ -27,6 +27,7 @@ public class SettingsMapDefinition : IMapDefinition
         target.ClassifierChatProfileId = source.ClassifierChatProfileId;
         target.DefaultSpeechToTextProfileId = source.DefaultSpeechToTextProfileId;
         target.DefaultImageGenerationProfileId = source.DefaultImageGenerationProfileId;
+        target.DisclosureNoticeMode = source.DisclosureNoticeMode.ToString();
     }
 
     // Umbraco.Code.MapAll -DateCreated -CreatedByUserId -DateModified -ModifiedByUserId
@@ -37,5 +38,15 @@ public class SettingsMapDefinition : IMapDefinition
         target.ClassifierChatProfileId = source.ClassifierChatProfileId;
         target.DefaultSpeechToTextProfileId = source.DefaultSpeechToTextProfileId;
         target.DefaultImageGenerationProfileId = source.DefaultImageGenerationProfileId;
+        target.DisclosureNoticeMode = ParseDisclosureNoticeMode(source.DisclosureNoticeMode);
     }
+
+    /// <summary>
+    /// Parses a disclosure notice mode, falling back to <see cref="AIDisclosureNoticeMode.Always"/> so a
+    /// missing or bad value never silently turns the notice off.
+    /// </summary>
+    internal static AIDisclosureNoticeMode ParseDisclosureNoticeMode(string? value)
+        => Enum.TryParse<AIDisclosureNoticeMode>(value, true, out var mode) && Enum.IsDefined(mode)
+            ? mode
+            : AIDisclosureNoticeMode.Always;
 }

@@ -83,6 +83,20 @@ public static class Constants
         public const string ConversationId = "Umbraco.AI.Agent.ConversationId";
 
         /// <summary>
+        /// Key for the agent-selection selector ID in metadata collections.
+        /// Set by <see cref="Agents.AIAgentService"/> on the AG-UI streaming path when
+        /// <see cref="Agents.AIAgentExecutionOptions.Selection"/> is set, and persisted onto
+        /// <c>AIAuditLog.Metadata</c> via <see cref="Umbraco.AI.Core.Constants.ContextKeys.LogKeys"/>.
+        /// </summary>
+        public const string SelectorId = "Umbraco.AI.Agent.SelectorId";
+
+        /// <summary>
+        /// Key for the agent-selection reason in metadata collections. Only set when the selector
+        /// gave a non-null reason; see <see cref="SelectorId"/>.
+        /// </summary>
+        public const string SelectionReason = "Umbraco.AI.Agent.SelectionReason";
+
+        /// <summary>
         /// Key for the caller's already-resolved allowed tool IDs.
         /// Set by <see cref="Agents.AIAgentService"/> so the agent factory builds its server-side
         /// tool list from the same permission decision that filtered the frontend tools — including

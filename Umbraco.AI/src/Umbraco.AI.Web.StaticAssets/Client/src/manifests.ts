@@ -28,6 +28,7 @@ import { auditLogManifests } from "./audit-log/manifests.js";
 import { manifests as langManifests } from "./lang/manifests.js";
 import { manifests as coreManifests } from "./core/manifests.js";
 import { workspaceRegistryManifests } from "./workspace-registry/manifests.js";
+import { disclosureManifests } from "./disclosure/manifests.js";
 import { settingsManifests } from "./settings/manifests.js";
 import { requestContextManifests } from "./request-context/manifests.js";
 import { testManifests } from "./test/manifests.js";
@@ -51,6 +52,7 @@ export const manifests: Array<UmbExtensionManifest | UmbExtensionManifestKind> =
     ...langManifests,
     ...coreManifests,
     ...workspaceRegistryManifests,
+    ...disclosureManifests,
     ...settingsManifests,
     ...requestContextManifests,
     ...testManifests,

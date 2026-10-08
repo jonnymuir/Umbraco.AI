@@ -96,6 +96,45 @@ public class AgentRunCompletedTriggerTests
         }
     }
 
+    [Fact]
+    public void CanHandle_NoAgentSelected_ReturnsTrue()
+    {
+        ITrigger trigger = CreateTrigger();
+
+        trigger.CanHandle(new AgentRunCompletedTriggerOutput { AgentId = TestAgentId }, new AgentRunCompletedTriggerSettings())
+            .ShouldBeTrue();
+    }
+
+    [Fact]
+    public void CanHandle_NullSettings_ReturnsTrue()
+    {
+        ITrigger trigger = CreateTrigger();
+
+        trigger.CanHandle(new AgentRunCompletedTriggerOutput { AgentId = TestAgentId }, null).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void CanHandle_MatchingAgent_ReturnsTrue()
+    {
+        ITrigger trigger = CreateTrigger();
+
+        trigger.CanHandle(
+                new AgentRunCompletedTriggerOutput { AgentId = TestAgentId },
+                new AgentRunCompletedTriggerSettings { AgentId = TestAgentId })
+            .ShouldBeTrue();
+    }
+
+    [Fact]
+    public void CanHandle_DifferentAgent_ReturnsFalse()
+    {
+        ITrigger trigger = CreateTrigger();
+
+        trigger.CanHandle(
+                new AgentRunCompletedTriggerOutput { AgentId = TestAgentId },
+                new AgentRunCompletedTriggerSettings { AgentId = Guid.NewGuid() })
+            .ShouldBeFalse();
+    }
+
     private static AgentRunCompletedTrigger CreateTrigger()
     {
         var infrastructure = new TriggerInfrastructure(new Mock<IEditableModelResolver>().Object);

@@ -131,6 +131,11 @@ public interface IAIAuditLogService
     /// <summary>
     /// Cleans up old audit-log logs based on the configured retention period.
     /// </summary>
+    /// <remarks>
+    /// Also marks audit-logs that have stayed <see cref="AIAuditLogStatus.Running"/> for longer than
+    /// <see cref="AIAuditLogOptions.StaleRunningTimeoutMinutes"/> as failed, since the process that owned
+    /// them can no longer complete them (for example, it stopped mid-call).
+    /// </remarks>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The number of audit-log logs deleted.</returns>
     Task<int> CleanupOldAuditLogsAsync(CancellationToken ct = default);

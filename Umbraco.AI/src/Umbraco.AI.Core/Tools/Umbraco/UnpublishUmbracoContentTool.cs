@@ -55,14 +55,15 @@ public class UnpublishUmbracoContentTool(
     }
 
     /// <inheritdoc />
-    protected override string? DescribeInvocation(UnpublishUmbracoContentArgs args)
-        => args.Culture is null
-            ? "Unpublish this content item, taking it offline."
-            : $"Unpublish the '{args.Culture}' culture of this content item.";
-
-    /// <inheritdoc />
-    protected override async Task<string?> ResolveConfirmationPhraseAsync(UnpublishUmbracoContentArgs args)
-        => (await contentEditingService.GetAsync(args.Key))?.Name;
+    protected override async Task<string?> DescribeInvocationAsync(UnpublishUmbracoContentArgs args)
+    {
+        var target = (await contentEditingService.GetAsync(args.Key))?.Name is { } name
+            ? $"'{name}'"
+            : $"content item {args.Key}";
+        return args.Culture is null
+            ? $"Unpublish {target}, taking it offline."
+            : $"Unpublish the '{args.Culture}' culture of {target}.";
+    }
 }
 
 /// <summary>

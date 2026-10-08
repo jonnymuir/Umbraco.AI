@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Umbraco.AI.Web.Api.Management.Settings.Models;
 
 /// <summary>
@@ -29,4 +31,10 @@ public class SettingsResponseModel
     /// The ID of the default profile to use for image-generation operations.
     /// </summary>
     public Guid? DefaultImageGenerationProfileId { get; set; }
+
+    /// <summary>
+    /// How the AI-generated disclosure notice is shown (Always, Dismissible, Off).
+    /// </summary>
+    [Required]
+    public string DisclosureNoticeMode { get; set; } = "Always";
 }

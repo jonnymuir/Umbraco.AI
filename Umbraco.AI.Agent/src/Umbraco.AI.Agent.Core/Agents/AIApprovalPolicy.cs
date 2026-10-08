@@ -30,4 +30,12 @@ public enum AIApprovalPolicy
     /// opt-in: it bypasses the approval gate entirely.
     /// </summary>
     AllowAll,
+
+    /// <summary>
+    /// Execute destructive tools that don't require approval (see <c>IAITool.RequiresApproval</c>),
+    /// and skip the ones that do, telling the model the action was denied. For non-interactive
+    /// callers that may make changes an editor can undo themselves (e.g. saving a draft) but must
+    /// never take an action that needs a human first (e.g. publishing or deleting).
+    /// </summary>
+    DenyApprovalRequired,
 }

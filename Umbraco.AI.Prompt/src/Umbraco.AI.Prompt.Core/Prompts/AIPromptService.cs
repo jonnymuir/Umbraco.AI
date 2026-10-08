@@ -313,7 +313,9 @@ internal sealed class AIPromptService : IAIPromptService
 
         // 7.5. Inject format instructions based on option count.
         // Inserted AFTER context messages so they appear closest to the user message,
-        // which makes LLMs more likely to follow them.
+        // which makes LLMs more likely to follow them. The message is kept so a retry can
+        // swap exactly this one.
+        ChatMessage? formatInstructionsMessage = null;
         if (prompt.OptionCount == 1)
         {
             var formatInstructions = """
@@ -323,7 +325,8 @@ internal sealed class AIPromptService : IAIPromptService
                 Do NOT wrap the value in markdown formatting unless the content itself requires it.
                 """;
 
-            messages.Add(new ChatMessage(ChatRole.System, formatInstructions));
+            formatInstructionsMessage = new ChatMessage(ChatRole.System, formatInstructions);
+            messages.Add(formatInstructionsMessage);
         }
         else if (prompt.OptionCount >= 2)
         {
@@ -337,7 +340,8 @@ internal sealed class AIPromptService : IAIPromptService
                 Generate exactly {{prompt.OptionCount}} distinct options for the user to choose from.
                 """;
 
-            messages.Add(new ChatMessage(ChatRole.System, formatInstructions));
+            formatInstructionsMessage = new ChatMessage(ChatRole.System, formatInstructions);
+            messages.Add(formatInstructionsMessage);
         }
 
         // 8. Create ChatOptions with PromptId for context resolution, feature tracking, and system tools
@@ -547,7 +551,7 @@ internal sealed class AIPromptService : IAIPromptService
                 {
                     // Structured output not honored — fall back to retry-based parsing
                     result = await ParseMultipleResultResponseWithRetryAsync(
-                        prompt, messages, chatOptions, responseText,
+                        prompt, profileId, messages, formatInstructionsMessage, chatOptions, responseText,
                         response.Usage, request, cancellationToken);
                 }
                 break;
@@ -607,7 +611,9 @@ internal sealed class AIPromptService : IAIPromptService
     /// </summary>
     private async Task<AIPromptExecutionResult> ParseMultipleResultResponseWithRetryAsync(
         AIPrompt prompt,
+        Guid? profileId,
         IList<ChatMessage> messages,
+        ChatMessage? formatInstructionsMessage,
         ChatOptions chatOptions,
         string responseText,
         UsageDetails? usage,
@@ -660,9 +666,7 @@ internal sealed class AIPromptService : IAIPromptService
                 Parse error from previous attempt: {{parseResult.Error}}
                 """;
 
-            // Remove old format instructions and add enhanced ones
-            messages.RemoveAt(0); // Remove old system message
-            messages.Insert(0, new ChatMessage(ChatRole.System, enhancedInstructions));
+            formatInstructionsMessage = ReplaceFormatInstructions(messages, formatInstructionsMessage, enhancedInstructions);
 
             // Retry execution
             var retryResponse = await _chatService.GetChatResponseAsync(chat =>
@@ -670,9 +674,9 @@ internal sealed class AIPromptService : IAIPromptService
                 chat.WithAlias($"prompt-{prompt.Alias}-retry")
                     .WithChatOptions(chatOptions)
                     .AsPassThrough();
-                if (prompt.ProfileId.HasValue)
+                if (profileId.HasValue)
                 {
-                    chat.WithProfile(prompt.ProfileId.Value);
+                    chat.WithProfile(profileId.Value);
                 }
             }, messages, cancellationToken);
 
@@ -681,7 +685,9 @@ internal sealed class AIPromptService : IAIPromptService
 
             return await ParseMultipleResultResponseWithRetryAsync(
                 prompt,
+                profileId,
                 messages,
+                formatInstructionsMessage,
                 chatOptions,
                 retryText,
                 combinedUsage,
@@ -698,6 +704,32 @@ internal sealed class AIPromptService : IAIPromptService
             Messages = messages.ToList(),
             ResultOptions = [] // Empty array on error
         };
+    }
+
+    /// <summary>
+    /// Swaps the given format instructions message for one with new instructions, in the same
+    /// position. Every other message (entity context, the user's prompt) is left alone. If the
+    /// message is not in the list, the new instructions are added at the end.
+    /// </summary>
+    /// <returns>The new format instructions message, to pass to the next retry.</returns>
+    internal static ChatMessage ReplaceFormatInstructions(
+        IList<ChatMessage> messages,
+        ChatMessage? current,
+        string instructions)
+    {
+        var replacement = new ChatMessage(ChatRole.System, instructions);
+        var index = current is null ? -1 : messages.IndexOf(current);
+
+        if (index >= 0)
+        {
+            messages[index] = replacement;
+        }
+        else
+        {
+            messages.Add(replacement);
+        }
+
+        return replacement;
     }
 
     /// <summary>

@@ -51,7 +51,7 @@ internal sealed class AITrackingImageGenerationClient : AIBoundImageGeneratorBas
                 {
                     Result = response,
                     Usage = response.Usage,
-                    AuditResponse = new AIAuditResponse { Data = $"{imageCount} image(s)" },
+                    AuditResponse = new AIAuditResponse { Data = $"{imageCount} image(s)", Usage = response.Usage },
                 };
             },
             cancellationToken);

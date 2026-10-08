@@ -184,4 +184,51 @@ public class UmbracoAISettingsServiceConnectorTests
         savedSettings.ShouldNotBeNull();
         savedSettings.DefaultImageGenerationProfileId.ShouldBe(resolvedProfile.Id);
     }
+
+    [Fact]
+    public async Task GetArtifactAsync_IncludesDisclosureNoticeMode()
+    {
+        // Arrange
+        var settings = new AISettings { DisclosureNoticeMode = AIDisclosureNoticeMode.Dismissible };
+        var udi = new GuidUdi(UmbracoAIConstants.UdiEntityType.Settings, AISettings.SettingsId);
+
+        // Act
+        var artifact = await _connector.GetArtifactAsync(udi, settings);
+
+        // Assert
+        artifact.ShouldNotBeNull();
+        artifact.DisclosureNoticeMode.ShouldBe("Dismissible");
+    }
+
+    [Theory]
+    [InlineData("Off", AIDisclosureNoticeMode.Always, AIDisclosureNoticeMode.Off)]
+    [InlineData(null, AIDisclosureNoticeMode.Dismissible, AIDisclosureNoticeMode.Dismissible)]
+    public async Task ProcessAsync_AppliesDisclosureNoticeMode_OrKeepsTargetValueWhenMissing(
+        string? artifactMode,
+        AIDisclosureNoticeMode targetMode,
+        AIDisclosureNoticeMode expected)
+    {
+        // Arrange - a null artifact value models an artifact written before the setting existed
+        var settings = new AISettings { DisclosureNoticeMode = targetMode };
+        _settingsServiceMock
+            .Setup(x => x.GetSettingsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(settings);
+
+        AISettings? savedSettings = null;
+        _settingsServiceMock
+            .Setup(x => x.SaveSettingsAsync(It.IsAny<AISettings>(), It.IsAny<CancellationToken>()))
+            .Callback<AISettings, CancellationToken>((s, _) => savedSettings = s)
+            .ReturnsAsync((AISettings s, CancellationToken _) => s);
+
+        var udi = new GuidUdi(UmbracoAIConstants.UdiEntityType.Settings, AISettings.SettingsId);
+        var artifact = new AISettingsArtifact(udi) { DisclosureNoticeMode = artifactMode };
+        var state = new ArtifactDeployState<AISettingsArtifact, AISettings>(artifact, settings, _connector, 3);
+
+        // Act
+        await _connector.ProcessAsync(state, Mock.Of<IDeployContext>(), 3);
+
+        // Assert
+        savedSettings.ShouldNotBeNull();
+        savedSettings.DisclosureNoticeMode.ShouldBe(expected);
+    }
 }

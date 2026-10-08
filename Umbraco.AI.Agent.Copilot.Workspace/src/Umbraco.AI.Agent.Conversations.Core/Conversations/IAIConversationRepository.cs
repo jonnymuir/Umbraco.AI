@@ -67,6 +67,13 @@ internal interface IAIConversationRepository
     /// </summary>
     Task<string?> GetLastUserMessageTextAsync(Guid conversationId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns the <see cref="AIMessage.AgentId"/> of the conversation's newest assistant message, or null
+    /// when it has none (a new conversation, or only legacy rows with no agent ID attributed). This is
+    /// Copilot Workspace's previous pick for auto agent selection.
+    /// </summary>
+    Task<Guid?> GetLastAssistantAgentIdAsync(Guid conversationId, CancellationToken cancellationToken = default);
+
     /// <summary>Loads a page of messages for a conversation in sequence order.</summary>
     Task<(IReadOnlyList<AIMessage> Items, int Total)> GetMessagesPagedAsync(
         Guid conversationId,

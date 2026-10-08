@@ -130,6 +130,9 @@ namespace Umbraco.AI.Agent.Conversations.Persistence.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("AgentId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ContentJson")
                         .IsRequired()
                         .HasColumnType("TEXT");

@@ -22,6 +22,14 @@ public sealed class AIMessage
     /// <summary>Message role (e.g. "user", "assistant", "tool").</summary>
     public string Role { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The agent that produced this message, or null. Stamped only on <c>ChatRole.Assistant</c> messages
+    /// persisted from a run — every other role (user, tool, system) always stores null. This is Copilot
+    /// Workspace's source for the conversation's previous auto-selection pick (the newest assistant
+    /// message's <see cref="AgentId"/>) and for showing which agent answered in a reopened chat.
+    /// </summary>
+    public Guid? AgentId { get; set; }
+
     /// <summary>Serialized M.E.AI <c>ChatMessage</c> JSON — the durable content record.</summary>
     public string ContentJson { get; set; } = string.Empty;
 

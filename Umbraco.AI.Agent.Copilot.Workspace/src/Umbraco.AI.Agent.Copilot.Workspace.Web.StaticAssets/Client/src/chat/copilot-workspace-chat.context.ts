@@ -83,6 +83,12 @@ export class UaiCopilotWorkspaceChatContext extends UmbControllerBase implements
     #conversation?: UaiConversationDetailModel;
     /** The target the run controller is currently keyed to (guards duplicate re-inits). */
     #currentTargetKey?: string;
+    /**
+     * Memoised `loadAgents()` call, so `#syncTarget` can await the *same* in-flight load the view kicked
+     * off rather than firing a second request. `loadAgents()` itself never rejects (the repository logs
+     * and returns on failure), so awaiting this can't throw.
+     */
+    #agentsReady?: Promise<void>;
     /** Guards against a second send racing the create request during draft promotion. */
     #creating = false;
     /** Set once this context is torn down, so an in-flight promotion doesn't navigate after the user left. */
@@ -131,7 +137,9 @@ export class UaiCopilotWorkspaceChatContext extends UmbControllerBase implements
         this.#agentRepository = new UaiWorkspaceAgentRepository(host);
         this.#hitlContext = new UaiHitlContext(host);
         this.#toolRendererManager = new UaiToolRendererManager(host);
-        this.#strategy = new UaiServerPersistedConversationStrategy(this.#conversationRepository);
+        this.#strategy = new UaiServerPersistedConversationStrategy(this.#conversationRepository, () =>
+            new Map(this.#agents.getValue().map((agent) => [agent.id, agent.name])),
+        );
         const frontendToolManager = new UaiFrontendToolManager(host);
 
         this.#runController = new UaiRunController(host, this.#hitlContext, {
@@ -181,7 +189,18 @@ export class UaiCopilotWorkspaceChatContext extends UmbControllerBase implements
         });
     }
 
-    async loadAgents(): Promise<void> {
+    /**
+     * Loads the agent catalog. Memoised: the view fires this once on mount without awaiting it, and
+     * `#syncTarget` awaits the *same* promise before loading a persisted conversation's history, so
+     * {@link toDisplayMessages}'s agent-name lookup (via the strategy's `getAgentNames` closure) always
+     * sees the loaded catalog rather than racing it. Safe to call again after the first load resolves —
+     * callers that want a fresh fetch should go through `#agentRepository` directly.
+     */
+    loadAgents(): Promise<void> {
+        return (this.#agentsReady ??= this.#fetchAgents());
+    }
+
+    async #fetchAgents(): Promise<void> {
         this.#agentsLoading.setValue(true);
         await this.#agentRepository.initialize();
         this.#agentsLoading.setValue(false);
@@ -220,6 +239,17 @@ export class UaiCopilotWorkspaceChatContext extends UmbControllerBase implements
         const id = target.id!;
         this.#strategy.setConversationId(id);
         this.#runController.setAgent({ id: `conversation:${id}`, name: "Workspace", alias: "workspace" });
+        // Wait for the agent catalog before loading history: the strategy's `loadInitial()` resolves each
+        // stored message's agent name from the catalog a single time, at the moment it's called (see
+        // `toDisplayMessages`) — if history won the race, names would be empty and never re-mapped. The
+        // view already kicked `loadAgents()` off on mount (unawaited); this joins that same in-flight
+        // load rather than firing a second one. Draft conversations have no history to name, so that
+        // branch above stays unblocked.
+        await this.loadAgents();
+        // The target may have changed again while that load was in flight (the user opened another
+        // conversation before the agent catalog resolved) — a stale load has nothing left to populate for
+        // this (abandoned) key, so bail out before firing an extra, pointless history fetch.
+        if (this.#currentTargetKey !== key) return;
         await this.#runController.loadInitialMessages();
         if (this.#currentTargetKey === key) this.#historyLoaded.setValue(true);
 

@@ -137,5 +137,10 @@ internal sealed class ScopedProfileChatClient : DelegatingChatClient
         context.SetValue(Constants.ContextKeys.ProfileVersion, _profile.Version);
         context.SetValue(Constants.ContextKeys.ProviderId, _profile.Model.ProviderId);
         context.SetValue(Constants.ContextKeys.ModelId, _profile.Model.ModelId);
+
+        // Always set (even to null) so a previous profile's prompt in the same scope is not reused.
+        context.SetValue(
+            Constants.ContextKeys.ProfileSystemPrompt,
+            (_profile.Settings as AIChatProfileSettings)?.SystemPromptTemplate);
     }
 }

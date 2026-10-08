@@ -34,4 +34,10 @@ public class AISettingsArtifact(GuidUdi udi, IEnumerable<ArtifactDependency>? de
     /// The UDI of the classifier chat profile (optional).
     /// </summary>
     public GuidUdi? ClassifierChatProfileUdi { get; set; }
+
+    /// <summary>
+    /// How the AI-generated disclosure notice is shown (Always, Dismissible, Off).
+    /// Null for artifacts written before this setting existed, in which case the target keeps its value.
+    /// </summary>
+    public string? DisclosureNoticeMode { get; set; }
 }

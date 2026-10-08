@@ -91,7 +91,9 @@ export class UaiHttpAgent extends AbstractAgent implements AgentTransport {
         // ferries the entries across that boundary via forwardedProps as a temporary shim. Once
         // the SDK adds resume to RunAgentInput (umbraco/Umbraco.AI#210), set it directly and drop
         // this lift. The server ignores forwardedProps.resume, so we strip it from the forwarded
-        // props here rather than sending it redundantly alongside body.resume.
+        // props here rather than sending it redundantly alongside body.resume. Other entries
+        // (e.g. `previousAgentId`, which UaiAgentClient merges in next to `resume` for `auto`
+        // agents) have no typed body field and pass through in otherForwardedProps unchanged.
         const { resume, ...otherForwardedProps } =
             (input.forwardedProps as { resume?: AGUIResumeEntryModel[] } | undefined) ?? {};
 

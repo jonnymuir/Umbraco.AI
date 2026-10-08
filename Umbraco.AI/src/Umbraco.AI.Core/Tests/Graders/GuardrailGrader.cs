@@ -77,7 +77,8 @@ public class GuardrailGrader : AITestGraderBase<GuardrailGraderConfig>
                 GraderId = graderConfig.Id,
                 Passed = false,
                 Score = 0.0,
-                FailureMessage = "No evaluator ID specified in guardrail grader configuration"
+                FailureMessage = "No evaluator ID specified in guardrail grader configuration",
+                IsError = true
             };
         }
 
@@ -89,7 +90,8 @@ public class GuardrailGrader : AITestGraderBase<GuardrailGraderConfig>
                 GraderId = graderConfig.Id,
                 Passed = false,
                 Score = 0.0,
-                FailureMessage = $"Guardrail evaluator '{config.EvaluatorId}' not found"
+                FailureMessage = $"Guardrail evaluator '{config.EvaluatorId}' not found",
+                IsError = true
             };
         }
 
@@ -129,7 +131,8 @@ public class GuardrailGrader : AITestGraderBase<GuardrailGraderConfig>
                 Score = 0.0,
                 ActualValue = content,
                 ExpectedValue = $"Content should be flagged by '{config.EvaluatorId}' evaluator",
-                FailureMessage = $"Guardrail evaluator '{config.EvaluatorId}' failed: {ex.Message}"
+                FailureMessage = $"Guardrail evaluator '{config.EvaluatorId}' failed: {ex.Message}",
+                IsError = true
             };
         }
     }

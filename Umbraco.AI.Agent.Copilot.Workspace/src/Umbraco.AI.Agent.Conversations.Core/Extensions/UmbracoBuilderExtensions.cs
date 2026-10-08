@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Umbraco.AI.Agent.Conversations.Core.Conversations;
 using Umbraco.AI.Agent.Conversations.Core.Projects;
 using Umbraco.AI.Agent.Core.FileStore;
+using Umbraco.AI.Core.RuntimeContext;
 using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Extensions;
 
@@ -35,6 +36,7 @@ public static class UmbracoBuilderExtensions
             new ConversationChatHistoryProvider(
                 sp.GetRequiredService<IAIConversationRepository>(),
                 sp.GetRequiredService<IAIFileStore>(),
+                sp.GetRequiredService<IAIRuntimeContextAccessor>(),
                 sp.GetRequiredService<ILogger<ConversationChatHistoryProvider>>()));
 
         // Ownership-enforcing services over the internal repositories (repos registered by the

@@ -40,6 +40,13 @@ public sealed class AITestGraderResult
     public string? FailureMessage { get; set; }
 
     /// <summary>
+    /// Whether the grader could not produce a verdict (e.g. provider error, misconfiguration,
+    /// or an unparseable response), as opposed to a real "did not pass" verdict.
+    /// Error results always fail and are never inverted by <see cref="AITestGraderConfig.Negate"/>.
+    /// </summary>
+    public bool IsError { get; set; }
+
+    /// <summary>
     /// Optional metadata from the grader.
     /// Contains grader-specific analysis data (e.g., regex match details, LLM reasoning).
     /// </summary>

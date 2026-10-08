@@ -6,11 +6,13 @@ using Umbraco.Cms.Infrastructure.BackgroundJobs;
 namespace Umbraco.AI.Core.AuditLog;
 
 /// <summary>
-/// Recurring background job that cleans up old AI audit-log records based on the configured retention period.
+/// Recurring background job that cleans up old AI audit-log records based on the configured retention period,
+/// and fails audit-logs left Running by a process that stopped mid-call.
 /// </summary>
 internal sealed class AIAuditLogCleanupBackgroundJob : RecurringBackgroundJobBase
 {
-    private static readonly TimeSpan CleanupInterval = TimeSpan.FromHours(6);
+    // Hourly so an abandoned Running entry is failed soon after it passes the stale timeout.
+    private static readonly TimeSpan CleanupInterval = TimeSpan.FromHours(1);
     private static readonly TimeSpan StartupDelay = TimeSpan.FromMinutes(5);
 
     private readonly IServiceProvider _serviceProvider;

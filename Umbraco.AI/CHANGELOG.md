@@ -5,6 +5,95 @@ All notable changes to Umbraco.AI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.5.2](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.5.1...Umbraco.AI@18.5.2) (2026-10-07)
+
+### fix
+
+* **core:** Don't require AI section access for shared picker lookups ([e85fac8](https://github.com/umbraco/Umbraco.AI/commit/e85fac8d882c8b3508828514487f7bbf4bdab906)), closes [#509](https://github.com/umbraco/Umbraco.AI/issues/509)
+* **ui:** Rename analytics Dashboard tab to Usage ([6f8bb59](https://github.com/umbraco/Umbraco.AI/commit/6f8bb5948c3da609d83ce17b4566d572038c2f83))
+
+## [18.5.1](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.5.0...Umbraco.AI@18.5.1) (2026-10-06)
+
+### fix
+
+* **core:** Stop content write tools wiping pickers and dropdowns on save ([412edf6](https://github.com/umbraco/Umbraco.AI/commit/412edf698e039bbbcc7f522ef298865a1a2033f7))
+* **core:** Content value tools now use the item's only culture when none is given, or return an error listing the available cultures
+* **core:** `set_umbraco_content_value` now restores the previous value and returns an error when a value in the wrong shape would be saved as empty
+
+## [18.5.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.4.0...Umbraco.AI@18.5.0) (2026-10-05)
+
+### feat
+
+* **core,agent:** Add tool executing and executed notifications ([739cc8c](https://github.com/umbraco/Umbraco.AI/commit/739cc8c51d784066f04cb183152d1752ff445bb6))
+
+### fix
+
+* **core,copilot:** Respect culture variance for values inside blocks ([7180f55](https://github.com/umbraco/Umbraco.AI/commit/7180f55dfd890f36dcc0fa7738a55a618a48f7a2)), closes [#450](https://github.com/umbraco/Umbraco.AI/issues/450)
+* **core:** Let 17.x sites upgrade past the AddCachedInputTokens migration ([2587d40](https://github.com/umbraco/Umbraco.AI/commit/2587d4012527b6c7973e6156f40f03f4bf3aff58))
+* **core:** Report failed typed tools as failed in AIToolExecutedNotification ([8e57e96](https://github.com/umbraco/Umbraco.AI/commit/8e57e96fbbf9ee127edbf21733bc2d72bf1270f2))
+* **core:** Send the chat profile's system prompt to the model ([bb6f142](https://github.com/umbraco/Umbraco.AI/commit/bb6f1423a076abc18e2785d37c05a7c5780f0c80))
+* **imagegeneration:** Record token usage on image generation audit-log entries ([7824820](https://github.com/umbraco/Umbraco.AI/commit/7824820684f1143b4a4c21e0c15ae17ca30623c8)), closes [#473](https://github.com/umbraco/Umbraco.AI/issues/473)
+
+## [18.4.0](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.4.0-rc.4...Umbraco.AI@18.4.0) (2026-10-01)
+
+### feat
+
+* **core,agent:** Only interrupt the editor for actions they can't undo themselves ([9ccebc8](https://github.com/umbraco/Umbraco.AI/commit/9ccebc8906fa8eea739ef6cdf66771d608524726))
+* **core:** Allow text and Office file extensions through the Umbraco media resolver ([5445137](https://github.com/umbraco/Umbraco.AI/commit/54451374f781004e23d315f84813d522c347fb36))
+* **core:** Extract file content when a Media entity is the active Copilot context ([5c604d6](https://github.com/umbraco/Umbraco.AI/commit/5c604d643358d890e7eec264ee1db78b7d66c035))
+* **core:** Extract text from plain-text file attachments (csv, txt, md) ([ac97ee2](https://github.com/umbraco/Umbraco.AI/commit/ac97ee2b79afe7e39870b6125403ad8aca7f9528))
+* **settings,agent-ui,prompt,deploy:** Add a setting to control the AI disclosure notice ([c292e59](https://github.com/umbraco/Umbraco.AI/commit/c292e59f84a17a88d5f2b6caf4c12b1e4e1e3817))
+* **settings,agent-ui,prompt:** Make the AI disclosure notice dismissible per location ([6976bac](https://github.com/umbraco/Umbraco.AI/commit/6976bac026e9268fb0e715e6b1ea5cc0604c3c58))
+
+### fix
+
+* **agent,core:** Make client-ready dual-reachable to fix hanging agent-load promise ([635e5f2](https://github.com/umbraco/Umbraco.AI/commit/635e5f24ed8f28a9042ae9c121ed40602d99d015))
+* **agent,frontend:** Show text instead of raw keys in agent delete prompts and labels ([b781bd7](https://github.com/umbraco/Umbraco.AI/commit/b781bd702705ff9c898bfd59edcc2750ef4e2a6e))
+* **core,agent,copilot:** Add missing tool and surface translations ([c242b61](https://github.com/umbraco/Umbraco.AI/commit/c242b6122f43d61c41297ef6896a3efa971884de)), closes [#413](https://github.com/umbraco/Umbraco.AI/issues/413)
+* **core,agent:** Turn on throwOnError so a failed request always shows a notification ([ff9cb17](https://github.com/umbraco/Umbraco.AI/commit/ff9cb17b4bec6515ce23a26d71f61e9510550543))
+* **core:** Actually fix block labels in the Copilot context selector ([5e8be5f](https://github.com/umbraco/Umbraco.AI/commit/5e8be5fcaa51a6ded8ce200fc50ab6bae01983cd)), closes [#343](https://github.com/umbraco/Umbraco.AI/issues/343)
+* **core:** Add translations for the content and media write tools ([ed7f3a1](https://github.com/umbraco/Umbraco.AI/commit/ed7f3a1952f3cec367b3fd0a7ea7042a38e08852)), closes [#413](https://github.com/umbraco/Umbraco.AI/issues/413)
+* **core:** Contribute the entity the user actually selected, not the last-detected one ([2e52410](https://github.com/umbraco/Umbraco.AI/commit/2e52410e077c15ae0633b9970442a76e2443bfa5))
+* **core:** Disable the block entity adapter in the Copilot context selector ([29bb1f1](https://github.com/umbraco/Umbraco.AI/commit/29bb1f124d4ff5d953b7df17449243066581b1c3)), closes [#343](https://github.com/umbraco/Umbraco.AI/issues/343)
+* **core:** Ensure an Umbraco context exists for content read tools ([1e3c64c](https://github.com/umbraco/Umbraco.AI/commit/1e3c64cf842c96dd359f675cc837e6b96c2840d4))
+* **core:** Fail audit logs left Running after the process stops mid-call ([34cde4e](https://github.com/umbraco/Umbraco.AI/commit/34cde4e7ce93bf5a6206fe24bdf261eb795f8de1)), closes [#442](https://github.com/umbraco/Umbraco.AI/issues/442)
+* **core:** Fall back to metadata-only context when file extraction throws ([5746230](https://github.com/umbraco/Umbraco.AI/commit/5746230f93465cb1f8c261f4c8e671921e129056))
+* **core:** Fall back to tool/scope names when no localization key exists ([dfc423e](https://github.com/umbraco/Umbraco.AI/commit/dfc423e6d47050b8b1b17e0634381833f0b41a44)), closes [#413](https://github.com/umbraco/Umbraco.AI/issues/413)
+* **core:** Give each block its own label in the Copilot context selector ([d53b1e7](https://github.com/umbraco/Umbraco.AI/commit/d53b1e7145d8bf8bbe8dd66da513e9c8ca48cbdd))
+* **core:** Log a guardrail-blocked audit entry as a warning, not an error ([7732d49](https://github.com/umbraco/Umbraco.AI/commit/7732d495d2a64d2fbf2e0a70c87824d2f99f7863))
+* **core:** Make streaming post-generate guardrails actually block/redact ([ba24444](https://github.com/umbraco/Umbraco.AI/commit/ba244442af8ab116c32ec8c086ff12dcf2d9396f))
+* **core:** Normalize JsonElement content-tool values before they reach FromEditor ([2db9178](https://github.com/umbraco/Umbraco.AI/commit/2db91788435c394a02b4acdb54d53734cf53995b)), closes [#408](https://github.com/umbraco/Umbraco.AI/issues/408)
+* **core:** Record a streamed call as failed when it ends on a provider error ([9d4f29c](https://github.com/umbraco/Umbraco.AI/commit/9d4f29ced538ad1e9ea4b0ed67c8106aaf5ae975))
+* **core:** Reject removing a block-grid block nested in an area ([dddf2ee](https://github.com/umbraco/Umbraco.AI/commit/dddf2ee1ad2b2a5f195e3ff74cb6fff894ee3939)), closes [#397](https://github.com/umbraco/Umbraco.AI/issues/397)
+* **core:** Resolve media UDIs in the media resolver ([6c94fbc](https://github.com/umbraco/Umbraco.AI/commit/6c94fbce0d1a04e92190b836f802b42f4ea6ecae))
+* **core:** RichTextPropertyValueHandler used the wrong blocks layout key ([cce36f0](https://github.com/umbraco/Umbraco.AI/commit/cce36f071661438680b72e830d510a06f4c6eae7))
+* **core:** Run audit-log cleanup hourly so stale Running entries clear sooner ([7734aef](https://github.com/umbraco/Umbraco.AI/commit/7734aef5274900fea972ad8b94f0c86114f06e5f))
+* **core:** Skip the blocking file-extraction path when there's no HttpContext ([17bae4e](https://github.com/umbraco/Umbraco.AI/commit/17bae4ee3917f9399db2b9ad8b34bf56a7459cd1)), closes [#340](https://github.com/umbraco/Umbraco.AI/issues/340)
+* **core:** Source the media context extraction gate from the real file, not its display name ([44eb568](https://github.com/umbraco/Umbraco.AI/commit/44eb56879c6853f2d2dca520adc34b1f50f57d0c))
+* **core:** Stop negated test graders turning grader errors into passes ([ff20d72](https://github.com/umbraco/Umbraco.AI/commit/ff20d722e97b55c4c5f164477a0aed1460e3c101)), closes [#429](https://github.com/umbraco/Umbraco.AI/issues/429)
+* **core:** Stop the media context path resolving files and transcribing audio needlessly ([ed2a35f](https://github.com/umbraco/Umbraco.AI/commit/ed2a35f8ebafde940582fc8dd64a20a4d6e9af27))
+* **core:** Stop untyped tools leaking a boolean-schema 'args' property ([e8a4b07](https://github.com/umbraco/Umbraco.AI/commit/e8a4b07a54dff96027381cc30783d0161ba0b128))
+* **core:** Strip BOM and add extension-based MIME fallback for file attachments ([346c597](https://github.com/umbraco/Umbraco.AI/commit/346c597b07f50854fbe3e6dddc11c77cfc876646))
+* **frontend,agent,agent-ui:** Stop custom elements double-registering in the backoffice ([edadf41](https://github.com/umbraco/Umbraco.AI/commit/edadf41d9a20c38d16cbda44336a57d99edc0d4c))
+
+### refactor
+
+* **core,agent:** Replace async runtime-context plumbing with a sync file-extraction path ([c76c8ce](https://github.com/umbraco/Umbraco.AI/commit/c76c8ced9b46a65a715415bf1641c147ac4d0440))
+* **core:** Add async entity-formatting dispatch alongside the sync one ([afe64fb](https://github.com/umbraco/Umbraco.AI/commit/afe64fb19e2361e23781402d220a212cf61addae))
+* **core:** Add async runtime-context contributor pipeline alongside the sync one ([6fdfe5a](https://github.com/umbraco/Umbraco.AI/commit/6fdfe5a719b278c0e72bb8c43e2c5c41d2ee3c01))
+* **core:** Extract shared file-processing truncation constant ([5541271](https://github.com/umbraco/Umbraco.AI/commit/5541271337976458c88b03f0f9a0b62b056ce8ad))
+* **core:** Wire SerializedEntityContributor to the async formatting path ([6f08b63](https://github.com/umbraco/Umbraco.AI/commit/6f08b6370221cb7d8668ebf3aa9f07ed8112e10f))
+* **frontend,agent-ui,prompt:** Share one disclosure notice component ([ea2d0ba](https://github.com/umbraco/Umbraco.AI/commit/ea2d0babcd96f49c4e589bed282b240315cfbe67))
+
+## [18.4.0-rc.4](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.4.0-rc.3...Umbraco.AI@18.4.0-rc.4) (2026-09-16)
+
+### feat
+
+* **core:** Separate audit log message blocks with clear headers and spacing ([8cf4359](https://github.com/umbraco/Umbraco.AI/commit/8cf435990afd3c740b59456f8fe32f8151cf95b3)), closes [umbraco/Umbraco.AI#382](https://github.com/umbraco/Umbraco.AI/issues/382)
+
+### fix
+
+* **core:** Disable the block entity adapter in the Copilot context selector ([35c9b2c](https://github.com/umbraco/Umbraco.AI/commit/35c9b2c9bc0c98b59cd876d1052f6caa471810cf)), closes [#343](https://github.com/umbraco/Umbraco.AI/issues/343)
 
 ## [18.4.0-rc.3](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.4.0-rc.2...Umbraco.AI@18.4.0-rc.3) (2026-09-10)
 
@@ -27,6 +116,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **core:** Resolve the parent's name in create_umbraco_content/media descriptions ([c67badc](https://github.com/umbraco/Umbraco.AI/commit/c67badc7df04136d335d79a782439abd3292dc1d))
 
 ## [18.4.0-rc.1](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.3.0...Umbraco.AI@18.4.0-rc.1) (2026-08-11)
+
+## [18.3.5](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.3.4...Umbraco.AI@18.3.5) (2026-09-24)
+
+### fix
+
+* **core,agent,copilot:** Add missing tool and surface translations ([c242b61](https://github.com/umbraco/Umbraco.AI/commit/c242b6122f43d61c41297ef6896a3efa971884de)), closes [#413](https://github.com/umbraco/Umbraco.AI/issues/413)
+* **core:** Disable the block entity adapter in the Copilot context selector ([29bb1f1](https://github.com/umbraco/Umbraco.AI/commit/29bb1f124d4ff5d953b7df17449243066581b1c3)), closes [#343](https://github.com/umbraco/Umbraco.AI/issues/343)
+* **core:** Fall back to tool/scope names when no localization key exists ([dfc423e](https://github.com/umbraco/Umbraco.AI/commit/dfc423e6d47050b8b1b17e0634381833f0b41a44)), closes [#413](https://github.com/umbraco/Umbraco.AI/issues/413)
+* **core:** Make streaming post-generate guardrails actually block/redact ([ba24444](https://github.com/umbraco/Umbraco.AI/commit/ba244442af8ab116c32ec8c086ff12dcf2d9396f))
+* **core:** Reject removing a block-grid block nested in an area ([dddf2ee](https://github.com/umbraco/Umbraco.AI/commit/dddf2ee1ad2b2a5f195e3ff74cb6fff894ee3939)), closes [#397](https://github.com/umbraco/Umbraco.AI/issues/397)
+* **core:** RichTextPropertyValueHandler used the wrong blocks layout key ([cce36f0](https://github.com/umbraco/Umbraco.AI/commit/cce36f071661438680b72e830d510a06f4c6eae7))
+* **core:** Stop untyped tools leaking a boolean-schema 'args' property ([e8a4b07](https://github.com/umbraco/Umbraco.AI/commit/e8a4b07a54dff96027381cc30783d0161ba0b128))
+
+## [18.3.4](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.3.3...Umbraco.AI@18.3.4) (2026-09-10)
+
+### fix
+
+* **core:** Actually fix block labels in the Copilot context selector ([5e8be5f](https://github.com/umbraco/Umbraco.AI/commit/5e8be5fcaa51a6ded8ce200fc50ab6bae01983cd)), closes [#343](https://github.com/umbraco/Umbraco.AI/issues/343)
+
+## [18.3.3](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.3.1...Umbraco.AI@18.3.3) (2026-09-10)
+
+### feat
+
+* **core:** Allow text and Office file extensions through the Umbraco media resolver ([5445137](https://github.com/umbraco/Umbraco.AI/commit/54451374f781004e23d315f84813d522c347fb36))
+* **core:** Extract file content when a Media entity is the active Copilot context ([5c604d6](https://github.com/umbraco/Umbraco.AI/commit/5c604d643358d890e7eec264ee1db78b7d66c035))
+* **core:** Extract text from plain-text file attachments (csv, txt, md) ([ac97ee2](https://github.com/umbraco/Umbraco.AI/commit/ac97ee2b79afe7e39870b6125403ad8aca7f9528))
+
+### fix
+
+* **agent,core:** Make client-ready dual-reachable to fix hanging agent-load promise ([635e5f2](https://github.com/umbraco/Umbraco.AI/commit/635e5f24ed8f28a9042ae9c121ed40602d99d015))
+* **core,agent:** Turn on throwOnError so a failed request always shows a notification ([ff9cb17](https://github.com/umbraco/Umbraco.AI/commit/ff9cb17b4bec6515ce23a26d71f61e9510550543))
+* **core:** Contribute the entity the user actually selected, not the last-detected one ([2e52410](https://github.com/umbraco/Umbraco.AI/commit/2e52410e077c15ae0633b9970442a76e2443bfa5))
+* **core:** Ensure an Umbraco context exists for content read tools ([1e3c64c](https://github.com/umbraco/Umbraco.AI/commit/1e3c64cf842c96dd359f675cc837e6b96c2840d4))
+* **core:** Fall back to metadata-only context when file extraction throws ([5746230](https://github.com/umbraco/Umbraco.AI/commit/5746230f93465cb1f8c261f4c8e671921e129056))
+* **core:** Give each block its own label in the Copilot context selector ([d53b1e7](https://github.com/umbraco/Umbraco.AI/commit/d53b1e7145d8bf8bbe8dd66da513e9c8ca48cbdd))
+* **core:** Skip the blocking file-extraction path when there's no HttpContext ([17bae4e](https://github.com/umbraco/Umbraco.AI/commit/17bae4ee3917f9399db2b9ad8b34bf56a7459cd1)), closes [#340](https://github.com/umbraco/Umbraco.AI/issues/340)
+* **core:** Source the media context extraction gate from the real file, not its display name ([44eb568](https://github.com/umbraco/Umbraco.AI/commit/44eb56879c6853f2d2dca520adc34b1f50f57d0c))
+* **core:** Stop the media context path resolving files and transcribing audio needlessly ([ed2a35f](https://github.com/umbraco/Umbraco.AI/commit/ed2a35f8ebafde940582fc8dd64a20a4d6e9af27))
+* **core:** Strip BOM and add extension-based MIME fallback for file attachments ([346c597](https://github.com/umbraco/Umbraco.AI/commit/346c597b07f50854fbe3e6dddc11c77cfc876646))
+* **frontend,agent,agent-ui:** Stop custom elements double-registering in the backoffice ([edadf41](https://github.com/umbraco/Umbraco.AI/commit/edadf41d9a20c38d16cbda44336a57d99edc0d4c))
 
 ## [18.3.1](https://github.com/umbraco/Umbraco.AI/compare/Umbraco.AI@18.3.0...Umbraco.AI@18.3.1) (2026-08-17)
 

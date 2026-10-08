@@ -56,14 +56,15 @@ public class PublishUmbracoContentTool(
     }
 
     /// <inheritdoc />
-    protected override string? DescribeInvocation(PublishUmbracoContentArgs args)
-        => args.Culture is null
-            ? "Publish this content item, making it live."
-            : $"Publish the '{args.Culture}' culture of this content item, making it live.";
-
-    /// <inheritdoc />
-    protected override async Task<string?> ResolveConfirmationPhraseAsync(PublishUmbracoContentArgs args)
-        => (await contentEditingService.GetAsync(args.Key))?.Name;
+    protected override async Task<string?> DescribeInvocationAsync(PublishUmbracoContentArgs args)
+    {
+        var target = (await contentEditingService.GetAsync(args.Key))?.Name is { } name
+            ? $"'{name}'"
+            : $"content item {args.Key}";
+        return args.Culture is null
+            ? $"Publish {target}, making it live."
+            : $"Publish the '{args.Culture}' culture of {target}, making it live.";
+    }
 }
 
 /// <summary>

@@ -1,11 +1,9 @@
 using Asp.Versioning;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 using Umbraco.AI.Core.Contexts.ResourceTypes;
 using Umbraco.AI.Web.Api.Management.ContextResourceTypes.Models;
-using Umbraco.AI.Web.Authorization;
 using Umbraco.Cms.Core.Mapping;
 
 namespace Umbraco.AI.Web.Api.Management.ContextResourceTypes.Controllers;
@@ -13,8 +11,10 @@ namespace Umbraco.AI.Web.Api.Management.ContextResourceTypes.Controllers;
 /// <summary>
 /// Controller to get a context resource type by ID.
 /// </summary>
+/// <remarks>
+/// Does not require AI section access, for the same reason as <see cref="AllContextResourceTypeController"/>.
+/// </remarks>
 [ApiVersion("1.0")]
-[Authorize(Policy = AIAuthorizationPolicies.SectionAccessAI)]
 public class ByIdContextResourceTypeController : ContextResourceTypeControllerBase
 {
     private readonly AIContextResourceTypeCollection _contextResourceTypes;

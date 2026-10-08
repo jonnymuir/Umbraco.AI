@@ -62,4 +62,46 @@ public class AIAuditLogServiceTests
 
         audit.ErrorCategory.ShouldBe(AIAuditLogErrorCategory.RateLimiting);
     }
+
+    [Fact]
+    public async Task CleanupOldAuditLogsAsync_FailsRunningAuditLogsOlderThanTimeout()
+    {
+        var service = CreateService(new AIAuditLogOptions { StaleRunningTimeoutMinutes = 60 });
+        DateTime? threshold = null;
+        _repositoryMock
+            .Setup(x => x.FailRunningOlderThanAsync(It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback((DateTime t, string _, CancellationToken _) => threshold = t)
+            .ReturnsAsync(1);
+
+        await service.CleanupOldAuditLogsAsync();
+
+        threshold.ShouldNotBeNull();
+        threshold.Value.ShouldBe(DateTime.UtcNow.AddMinutes(-60), TimeSpan.FromMinutes(1));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task CleanupOldAuditLogsAsync_WithTimeoutDisabled_DoesNotFailRunningAuditLogs(int timeoutMinutes)
+    {
+        var service = CreateService(new AIAuditLogOptions { StaleRunningTimeoutMinutes = timeoutMinutes });
+
+        await service.CleanupOldAuditLogsAsync();
+
+        _repositoryMock.Verify(
+            x => x.FailRunningOlderThanAsync(It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    private AIAuditLogService CreateService(AIAuditLogOptions options)
+    {
+        var optionsMock = new Mock<IOptionsMonitor<AIAuditLogOptions>>();
+        optionsMock.Setup(x => x.CurrentValue).Returns(options);
+
+        return new AIAuditLogService(
+            _repositoryMock.Object,
+            optionsMock.Object,
+            new Mock<IBackgroundTaskQueue>().Object,
+            NullLoggerFactory.Instance);
+    }
 }

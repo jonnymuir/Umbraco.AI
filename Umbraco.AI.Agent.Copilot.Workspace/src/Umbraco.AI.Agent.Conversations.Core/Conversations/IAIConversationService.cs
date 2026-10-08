@@ -50,6 +50,38 @@ public interface IAIConversationService
     Task<string?> GetLastUserMessageTextAsync(Guid conversationId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the agent ID of the conversation's newest assistant message, or null when it has none
+    /// (ownership-checked). This is Copilot Workspace's previous pick for auto agent selection.
+    /// </summary>
+    /// <remarks>
+    /// Added after this interface first shipped, so it has a default body to keep existing
+    /// implementations compiling. The default pages backwards through
+    /// <see cref="GetMessagesPagedAsync"/> (which does the ownership check) until it finds an
+    /// assistant message. Implementations should override it with a single targeted query.
+    /// </remarks>
+    async Task<Guid?> GetLastAssistantAgentIdAsync(Guid conversationId, CancellationToken cancellationToken = default)
+    {
+        const int pageSize = 50;
+
+        var (_, total) = await GetMessagesPagedAsync(conversationId, 0, 1, cancellationToken);
+
+        for (var end = total; end > 0; end -= pageSize)
+        {
+            var skip = Math.Max(0, end - pageSize);
+            var (items, _) = await GetMessagesPagedAsync(conversationId, skip, end - skip, cancellationToken);
+
+            var newestAssistant = items.LastOrDefault(
+                m => string.Equals(m.Role, "assistant", StringComparison.OrdinalIgnoreCase));
+            if (newestAssistant is not null)
+            {
+                return newestAssistant.AgentId;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Drops everything after the conversation's last user message (ownership-checked), so the next run
     /// answers that turn afresh instead of appending a second reply. This is the server-side half of the
     /// chat's regenerate action: the client truncates its own thread to match and then runs normally, so

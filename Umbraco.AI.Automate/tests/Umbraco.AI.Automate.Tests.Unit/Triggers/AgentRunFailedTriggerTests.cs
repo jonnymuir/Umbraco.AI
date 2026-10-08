@@ -97,6 +97,45 @@ public class AgentRunFailedTriggerTests
         }
     }
 
+    [Fact]
+    public void CanHandle_NoAgentSelected_ReturnsTrue()
+    {
+        ITrigger trigger = CreateTrigger();
+
+        trigger.CanHandle(new AgentRunFailedTriggerOutput { AgentId = TestAgentId }, new AgentRunFailedTriggerSettings())
+            .ShouldBeTrue();
+    }
+
+    [Fact]
+    public void CanHandle_NullSettings_ReturnsTrue()
+    {
+        ITrigger trigger = CreateTrigger();
+
+        trigger.CanHandle(new AgentRunFailedTriggerOutput { AgentId = TestAgentId }, null).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void CanHandle_MatchingAgent_ReturnsTrue()
+    {
+        ITrigger trigger = CreateTrigger();
+
+        trigger.CanHandle(
+                new AgentRunFailedTriggerOutput { AgentId = TestAgentId },
+                new AgentRunFailedTriggerSettings { AgentId = TestAgentId })
+            .ShouldBeTrue();
+    }
+
+    [Fact]
+    public void CanHandle_DifferentAgent_ReturnsFalse()
+    {
+        ITrigger trigger = CreateTrigger();
+
+        trigger.CanHandle(
+                new AgentRunFailedTriggerOutput { AgentId = TestAgentId },
+                new AgentRunFailedTriggerSettings { AgentId = Guid.NewGuid() })
+            .ShouldBeFalse();
+    }
+
     private static AgentRunFailedTrigger CreateTrigger()
     {
         var infrastructure = new TriggerInfrastructure(new Mock<IEditableModelResolver>().Object);

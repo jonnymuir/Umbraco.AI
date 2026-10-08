@@ -45,7 +45,8 @@ public interface IAIAgentFactory
     /// <param name="approvalPolicy">How destructive backend tools are gated for human approval.
     ///  Defaults to <see cref="AIApprovalPolicy.Interactive"/> (wrap in
     ///  <see cref="ApprovalRequiredAIFunction"/>). Non-interactive callers must pass
-    ///  <see cref="AIApprovalPolicy.DenyAll"/> (or <see cref="AIApprovalPolicy.AllowAll"/>)
+    ///  <see cref="AIApprovalPolicy.DenyAll"/> (or <see cref="AIApprovalPolicy.DenyApprovalRequired"/>
+    ///  or <see cref="AIApprovalPolicy.AllowAll"/>)
     ///  since they cannot resolve a <c>human_approval</c> interrupt.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>An <see cref="MsAIAgent"/> ready for use with MAF's RunAsync/RunStreamingAsync methods.</returns>

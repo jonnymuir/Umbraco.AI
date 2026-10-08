@@ -1,12 +1,10 @@
 using Asp.Versioning;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 using Umbraco.AI.Core.Models;
 using Umbraco.AI.Core.Profiles;
 using Umbraco.AI.Web.Api.Management.Profile.Models;
-using Umbraco.AI.Web.Authorization;
 using Umbraco.Cms.Api.Common.ViewModels.Pagination;
 using Umbraco.Cms.Core.Mapping;
 
@@ -15,8 +13,12 @@ namespace Umbraco.AI.Web.Api.Management.Profile.Controllers;
 /// <summary>
 /// Controller to get all profiles.
 /// </summary>
+/// <remarks>
+/// Does not require AI section access: the profile picker is reused outside the AI section (e.g. Automate
+/// action settings) by users without access to it. It only returns name, alias, capability and model;
+/// connection details and settings stay behind AI section access.
+/// </remarks>
 [ApiVersion("1.0")]
-[Authorize(Policy = AIAuthorizationPolicies.SectionAccessAI)]
 public class AllProfileController : ProfileControllerBase
 {
     private readonly IAIProfileService _profileService;

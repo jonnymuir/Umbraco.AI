@@ -19,6 +19,7 @@ internal static class AIMessageEntityFactory
         InputTokens = entity.InputTokens,
         OutputTokens = entity.OutputTokens,
         DateCreated = entity.DateCreated,
+        AgentId = entity.AgentId,
     };
 
     /// <summary>
@@ -38,5 +39,6 @@ internal static class AIMessageEntityFactory
         InputTokens = domain.InputTokens,
         OutputTokens = domain.OutputTokens,
         DateCreated = dateCreated,
+        AgentId = domain.AgentId,
     };
 }

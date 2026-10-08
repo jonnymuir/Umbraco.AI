@@ -58,4 +58,14 @@ internal interface IAIAuditLogRepository
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The number of traces deleted.</returns>
     Task<int> DeleteOlderThanAsync(DateTime threshold, CancellationToken ct);
+
+    /// <summary>
+    /// Marks every audit-log still in <see cref="AIAuditLogStatus.Running"/> that started before the
+    /// threshold as <see cref="AIAuditLogStatus.Failed"/>.
+    /// </summary>
+    /// <param name="threshold">The start-time threshold.</param>
+    /// <param name="errorMessage">The error message to record on each affected audit-log.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The number of audit-logs updated.</returns>
+    Task<int> FailRunningOlderThanAsync(DateTime threshold, string errorMessage, CancellationToken ct);
 }

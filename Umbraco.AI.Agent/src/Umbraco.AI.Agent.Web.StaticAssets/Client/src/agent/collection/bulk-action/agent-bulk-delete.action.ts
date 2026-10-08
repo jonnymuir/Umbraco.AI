@@ -5,7 +5,7 @@ export class UaiAgentBulkDeleteAction extends UaiBulkDeleteActionBase {
     protected getArgs(): UaiBulkDeleteActionArgs {
         return {
             headline: "#actions_delete",
-            confirmMessage: "#uaiAgentCopilotbulkDeleteConfirm",
+            confirmMessage: "#uaiAgent_bulkDeleteConfirm",
             getRepository: (host) => new UaiAgentDetailRepository(host),
         };
     }

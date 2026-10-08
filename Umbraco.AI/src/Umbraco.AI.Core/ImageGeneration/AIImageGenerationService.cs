@@ -180,7 +180,7 @@ internal sealed class AIImageGenerationService : IAIImageGenerationService
                     {
                         Result = r.Result,
                         Usage = r.Usage,
-                        AuditResponse = new AIAuditResponse { Data = $"{r.ImageCount ?? 0} image(s)" },
+                        AuditResponse = new AIAuditResponse { Data = $"{r.ImageCount ?? 0} image(s)", Usage = r.Usage },
                     };
                 },
                 cancellationToken);

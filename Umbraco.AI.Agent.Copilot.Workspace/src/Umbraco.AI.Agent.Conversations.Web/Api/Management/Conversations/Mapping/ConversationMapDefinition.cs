@@ -47,6 +47,7 @@ internal sealed class ConversationMapDefinition : IMapDefinition
         target.ContentText = source.ContentText;
         target.InputTokens = source.InputTokens;
         target.OutputTokens = source.OutputTokens;
+        target.AgentId = source.AgentId;
         target.DateCreated = source.DateCreated;
     }
 

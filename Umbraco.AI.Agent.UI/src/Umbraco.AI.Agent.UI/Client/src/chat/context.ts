@@ -59,7 +59,9 @@ export interface UaiChatContextApi extends UmbContextMinimal {
     readonly selectedAgent: Observable<UaiAgentItem | undefined>;
 
     /** Observable for the agent resolved in auto mode (contains agent info from agent_selected event). */
-    readonly resolvedAgent$: Observable<{ agentId: string; agentName: string; agentAlias: string } | undefined>;
+    readonly resolvedAgent$: Observable<
+        { agentId: string; agentName: string; agentAlias: string; selectorId?: string; reason?: string | null } | undefined
+    >;
 
     /** Tool renderer manager for manifest/element lookup. */
     readonly toolRendererManager: UaiToolRendererManager;

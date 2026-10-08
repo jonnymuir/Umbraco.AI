@@ -75,6 +75,10 @@ public sealed class AgentRunFailedTrigger
         };
     }
 
+    /// <inheritdoc />
+    protected override bool CanHandle(AgentRunFailedTriggerOutput output, AgentRunFailedTriggerSettings? settings)
+        => settings is null || settings.AgentId == Guid.Empty || settings.AgentId == output.AgentId;
+
     private static string ResolveErrorMessage(AIAgentExecutedNotification notification)
     {
         if (!string.IsNullOrEmpty(notification.Exception?.Message))

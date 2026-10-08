@@ -1,5 +1,11 @@
 import { SettingsService } from "../../api/sdk.gen.js";
 import type { UaiSettingsModel } from "../types.js";
+import type { UaiDisclosureNoticeMode } from "../../disclosure/types.js";
+
+// Anything unexpected reads as Always, matching the server: a bad value must never hide the notice.
+function toDisclosureNoticeMode(value: string | undefined): UaiDisclosureNoticeMode {
+    return value === "Dismissible" || value === "Off" ? value : "Always";
+}
 
 /**
  * Repository for AI settings data access.
@@ -13,6 +19,7 @@ export class UaiSettingsRepository {
             defaultSpeechToTextProfileId: data?.defaultSpeechToTextProfileId ?? null,
             defaultImageGenerationProfileId: data?.defaultImageGenerationProfileId ?? null,
             classifierChatProfileId: data?.classifierChatProfileId ?? null,
+            disclosureNoticeMode: toDisclosureNoticeMode(data?.disclosureNoticeMode),
         };
     }
 
@@ -24,6 +31,7 @@ export class UaiSettingsRepository {
                 defaultSpeechToTextProfileId: model.defaultSpeechToTextProfileId ?? undefined,
                 defaultImageGenerationProfileId: model.defaultImageGenerationProfileId ?? undefined,
                 classifierChatProfileId: model.classifierChatProfileId ?? undefined,
+                disclosureNoticeMode: model.disclosureNoticeMode,
             },
         });
         return {
@@ -32,6 +40,7 @@ export class UaiSettingsRepository {
             defaultSpeechToTextProfileId: data?.defaultSpeechToTextProfileId ?? null,
             defaultImageGenerationProfileId: data?.defaultImageGenerationProfileId ?? null,
             classifierChatProfileId: data?.classifierChatProfileId ?? null,
+            disclosureNoticeMode: toDisclosureNoticeMode(data?.disclosureNoticeMode),
         };
     }
 }

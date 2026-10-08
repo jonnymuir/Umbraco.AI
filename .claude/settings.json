@@ -1,37 +1,82 @@
 {
-    "hooks": {
-        "SessionStart": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "bash .claude/scripts/setup-dotnet-proxy.sh"
-                    }
-                ]
-            }
-        ],
-        "WorktreeCreate": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/worktree-create.sh",
-                        "timeout": 120
-                    }
-                ]
-            }
-        ],
-        "WorktreeRemove": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/worktree-remove.sh",
-                        "timeout": 30
-                    }
-                ]
-            }
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build *)",
+      "Bash(dotnet build)",
+      "Bash(dotnet test *)",
+      "Bash(dotnet test)",
+      "Bash(git fetch)",
+      "Bash(git fetch *)",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__azure-devops__pipelines_build",
+      "mcp__playwright__browser_find",
+      "mcp__claude-in-chrome__read_network_requests",
+      "mcp__github__issue_read",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__playwright__browser_console_messages",
+      "mcp__github__pull_request_read",
+      "mcp__claude-in-chrome__find",
+      "mcp__azure-devops__pipelines_artifact",
+      "mcp__claude-in-chrome__read_console_messages",
+      "mcp__playwright__browser_network_requests",
+      "mcp__azure-devops__wit_query",
+      "mcp__azure-devops__pipelines_definition"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/scripts/setup-dotnet-proxy.sh"
+          }
         ]
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/worktree-create.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/worktree-remove.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "umbraco-cms-backoffice-skills@umbraco-backoffice-marketplace": true,
+    "umbraco-claude-playbook@umbraco-claude-playbook": true
+  },
+  "extraKnownMarketplaces": {
+    "umbraco-backoffice-marketplace": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/umbraco/Umbraco-CMS-Backoffice-Skills.git",
+        "ref": "main"
+      }
+    },
+    "umbraco-claude-playbook": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/mattbrailsford/umbraco-claude-playbook.git"
+      }
     }
+  }
 }

@@ -134,31 +134,33 @@ Be objective and consistent in your evaluation.
                 using var doc = JsonDocument.Parse(jsonText);
                 var root = doc.RootElement;
 
-                var score = root.TryGetProperty("score", out var scoreElement)
-                    ? scoreElement.GetDouble()
-                    : 0.0;
-
-                var reasoning = root.TryGetProperty("reasoning", out var reasoningElement)
-                    ? reasoningElement.GetString()
-                    : null;
-
-                var passed = score >= config.PassThreshold;
-
-                return new AITestGraderResult
+                // A judgment without a numeric score is unparseable, not a zero score
+                if (root.TryGetProperty("score", out var scoreElement) && scoreElement.ValueKind == JsonValueKind.Number)
                 {
-                    GraderId = graderConfig.Id,
-                    Passed = passed,
-                    Score = score,
-                    ActualValue = actualValue,
-                    ExpectedValue = config.EvaluationCriteria,
-                    FailureMessage = passed ? null : $"Score {score:F2} below threshold {config.PassThreshold:F2}",
-                    Metadata = JsonSerializer.SerializeToElement(new
+                    var score = scoreElement.GetDouble();
+
+                    var reasoning = root.TryGetProperty("reasoning", out var reasoningElement)
+                        ? reasoningElement.GetString()
+                        : null;
+
+                    var passed = score >= config.PassThreshold;
+
+                    return new AITestGraderResult
                     {
-                        reasoning,
-                        threshold = config.PassThreshold,
-                        fullJudgment = judgmentText
-                    }, Constants.DefaultJsonSerializerOptions)
-                };
+                        GraderId = graderConfig.Id,
+                        Passed = passed,
+                        Score = score,
+                        ActualValue = actualValue,
+                        ExpectedValue = config.EvaluationCriteria,
+                        FailureMessage = passed ? null : $"Score {score:F2} below threshold {config.PassThreshold:F2}",
+                        Metadata = JsonSerializer.SerializeToElement(new
+                        {
+                            reasoning,
+                            threshold = config.PassThreshold,
+                            fullJudgment = judgmentText
+                        }, Constants.DefaultJsonSerializerOptions)
+                    };
+                }
             }
 
             // Failed to parse JSON from response
@@ -170,6 +172,7 @@ Be objective and consistent in your evaluation.
                 ActualValue = actualValue,
                 ExpectedValue = config.EvaluationCriteria,
                 FailureMessage = "Failed to parse judgment response from LLM",
+                IsError = true,
                 Metadata = JsonSerializer.SerializeToElement(new { rawResponse = judgmentText }, Constants.DefaultJsonSerializerOptions)
             };
         }
@@ -182,7 +185,8 @@ Be objective and consistent in your evaluation.
                 Score = 0.0,
                 ActualValue = actualValue,
                 ExpectedValue = config.EvaluationCriteria,
-                FailureMessage = $"LLM judge evaluation failed: {ex.Message}"
+                FailureMessage = $"LLM judge evaluation failed: {ex.Message}",
+                IsError = true
             };
         }
     }

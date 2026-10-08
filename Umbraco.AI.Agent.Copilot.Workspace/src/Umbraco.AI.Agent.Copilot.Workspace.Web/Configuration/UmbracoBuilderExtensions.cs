@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Umbraco.AI.Agent.Conversations.Core.Conversations;
 using Umbraco.AI.Agent.Copilot.Workspace.Core;
 using Umbraco.AI.Agent.Copilot.Workspace.Core.Authorization;
 using Umbraco.AI.Agent.Copilot.Workspace.Web.Authorization;
+using Umbraco.AI.Agent.Copilot.Workspace.Web.NotificationHandlers;
 using Umbraco.AI.Extensions;
 using Umbraco.Cms.Core.DependencyInjection;
+using Umbraco.Extensions;
 
 namespace Umbraco.AI.Agent.Copilot.Workspace.Web.Configuration;
 
@@ -43,6 +46,10 @@ public static class UmbracoBuilderExtensions
         // policy at runtime, so the Conversations web assembly carries no Copilot Workspace dependency.
         builder.Services.Configure<MvcOptions>(options =>
             options.Conventions.Add(new CopilotWorkspaceConversationsApiConvention()));
+
+        // Reject saving a conversation whose named agent can't run in Workspace. The check lives here, not
+        // in the host-agnostic Conversations layer, because only the host knows its surface.
+        builder.AddNotificationAsyncHandler<AIConversationSavingNotification, CopilotWorkspaceConversationAgentSavingNotificationHandler>();
 
         // Stream + file controllers are auto-discovered (their DI dependencies — conversation/project
         // services, the ConversationChatHistoryProvider, and the IAIFileStore — are registered by the

@@ -1,5 +1,6 @@
 export * from "./chat/exports.js";
 export * from "./context/exports.js";
+export * from "./disclosure/exports.js";
 export * from "./core/exports.js";
 export * from "./embeddings/exports.js";
 export * from "./speech-to-text/exports.js";

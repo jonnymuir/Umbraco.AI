@@ -4,6 +4,8 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Umbraco.AI.Agent.Core.Agents;
 using Umbraco.AI.Agent.Core.FileStore;
+using Umbraco.AI.Core.RuntimeContext;
+using AgentConstants = Umbraco.AI.Agent.Core.Constants;
 
 namespace Umbraco.AI.Agent.Conversations.Core.Conversations;
 
@@ -36,16 +38,19 @@ public sealed class ConversationChatHistoryProvider : ChatHistoryProvider
 
     private readonly IAIConversationRepository _repository;
     private readonly IAIFileStore _fileStore;
+    private readonly IAIRuntimeContextAccessor _runtimeContextAccessor;
     private readonly ILogger<ConversationChatHistoryProvider> _logger;
     private readonly ProviderSessionState<ConversationSessionState> _sessionState;
 
     internal ConversationChatHistoryProvider(
         IAIConversationRepository repository,
         IAIFileStore fileStore,
+        IAIRuntimeContextAccessor runtimeContextAccessor,
         ILogger<ConversationChatHistoryProvider> logger)
     {
         _repository = repository;
         _fileStore = fileStore;
+        _runtimeContextAccessor = runtimeContextAccessor;
         _logger = logger;
         _sessionState = new ProviderSessionState<ConversationSessionState>(
             stateInitializer: _ => new ConversationSessionState(),
@@ -515,7 +520,27 @@ public sealed class ConversationChatHistoryProvider : ChatHistoryProvider
             ContentJson = JsonSerializer.Serialize(storable, AIJsonUtilities.DefaultOptions),
             ContentText = storable.Text,
             SchemaVersion = 2,
+            AgentId = storable.Role == ChatRole.Assistant ? RunningAgentId : null,
         };
+    }
+
+    /// <summary>
+    /// The agent currently running, read from the run's runtime context (set by
+    /// <c>Umbraco.AI.Agent.Core.Chat.ScopedAIAgent</c> via <see cref="AgentConstants.ContextKeys.AgentId"/>),
+    /// or null when no scope is active or the key was never set (e.g. a test calling
+    /// <see cref="ToStoredMessagesAsync"/> directly). Uses <see cref="AIRuntimeContext.TryGetValue{T}"/>
+    /// rather than <c>GetValue</c> so a missing key reports null instead of <see cref="Guid.Empty"/> — the
+    /// data bag's <c>Guid</c> entry, if absent, must never be mistaken for a real (if degenerate) agent id.
+    /// </summary>
+    private Guid? RunningAgentId
+    {
+        get
+        {
+            var context = _runtimeContextAccessor.Context;
+            return context is not null && context.TryGetValue<Guid>(AgentConstants.ContextKeys.AgentId, out var agentId)
+                ? agentId
+                : null;
+        }
     }
 
     /// <summary>

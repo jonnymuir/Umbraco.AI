@@ -27,7 +27,7 @@ public record CreateUmbracoMediaArgs(
 /// Tool that creates a new Umbraco media item (e.g. a folder, or a file/image record — note this does
 /// not upload binary file content; it creates the media item's metadata).
 /// </summary>
-[AITool("create_umbraco_media", "Create Umbraco Media", ScopeId = MediaWriteScope.ScopeId, IsDestructive = true)]
+[AITool("create_umbraco_media", "Create Umbraco Media", ScopeId = MediaWriteScope.ScopeId, IsDestructive = true, RequiresApproval = false)]
 public class CreateUmbracoMediaTool(
     IMediaEditingService mediaEditingService,
     IMediaTypeService mediaTypeService,

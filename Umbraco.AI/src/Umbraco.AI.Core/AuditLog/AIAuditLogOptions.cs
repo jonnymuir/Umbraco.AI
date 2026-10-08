@@ -18,6 +18,13 @@ public class AIAuditLogOptions
     public int RetentionDays { get; set; } = 14;
 
     /// <summary>
+    /// Gets or sets how many minutes an audit-log may stay <see cref="AIAuditLogStatus.Running"/> before
+    /// cleanup treats it as abandoned (e.g. the process stopped mid-call) and marks it as failed.
+    /// Set to 0 or less to disable. Default is 60 minutes.
+    /// </summary>
+    public int StaleRunningTimeoutMinutes { get; set; } = 60;
+
+    /// <summary>
     /// Gets or sets a value indicating whether to persist prompt snapshots.
     /// Default is true.
     /// </summary>

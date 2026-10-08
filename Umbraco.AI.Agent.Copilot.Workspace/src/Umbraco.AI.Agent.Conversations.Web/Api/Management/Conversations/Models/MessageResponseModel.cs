@@ -26,6 +26,12 @@ public sealed class MessageResponseModel
     /// <summary>Output token count for this message, when recorded.</summary>
     public int? OutputTokens { get; set; }
 
+    /// <summary>
+    /// The agent that produced this message, when known. Null for non-assistant messages and for
+    /// assistant messages persisted before this was tracked.
+    /// </summary>
+    public Guid? AgentId { get; set; }
+
     /// <summary>Creation timestamp.</summary>
     public DateTime DateCreated { get; set; }
 }

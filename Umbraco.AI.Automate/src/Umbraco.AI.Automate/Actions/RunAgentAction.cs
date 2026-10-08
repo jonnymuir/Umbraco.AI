@@ -2,12 +2,16 @@ using System.Text.Json;
 using Json.Schema;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Umbraco.AI.Agent.Core;
 using Umbraco.AI.Agent.Core.Agents;
 using Umbraco.AI.Automate.Helpers;
 using Umbraco.AI.Automate.Triggers;
+using Umbraco.AI.Core.Media;
 using Umbraco.Automate.Core.Actions;
+using Umbraco.Automate.Core.Security;
+using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Services;
 using AIAgent = Umbraco.AI.Agent.Core.Agents.AIAgent;
 using CoreConstants = Umbraco.AI.Core.Constants;
@@ -27,20 +31,54 @@ public sealed class RunAgentAction : ActionBase<RunAgentSettings, object>
 {
     private readonly IAIAgentService _agentService;
     private readonly IUserService _userService;
+    private readonly IMediaService _mediaService;
+    private readonly IAIUmbracoMediaResolver _mediaResolver;
+    private readonly IAutomationActionAuthorizer _authorizer;
     private readonly ILogger<RunAgentAction> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RunAgentAction"/> class.
     /// </summary>
+    [Obsolete("Use the constructor that accepts an IMediaService, IAIUmbracoMediaResolver and IAutomationActionAuthorizer so media can be attached. Will be removed in v20.")]
     public RunAgentAction(
         ActionInfrastructure infrastructure,
         IAIAgentService agentService,
         IUserService userService,
         ILogger<RunAgentAction> logger)
+        : this(
+            infrastructure,
+            agentService,
+            userService,
+            StaticServiceProvider.Instance.GetRequiredService<IMediaService>(),
+            StaticServiceProvider.Instance.GetRequiredService<IAIUmbracoMediaResolver>(),
+            StaticServiceProvider.Instance.GetRequiredService<IAutomationActionAuthorizer>(),
+            logger)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RunAgentAction"/> class.
+    /// </summary>
+    /// <remarks>
+    /// Marked as the activation constructor so <c>ActivatorUtilities</c> doesn't find the
+    /// obsolete overload ambiguous.
+    /// </remarks>
+    [ActivatorUtilitiesConstructor]
+    public RunAgentAction(
+        ActionInfrastructure infrastructure,
+        IAIAgentService agentService,
+        IUserService userService,
+        IMediaService mediaService,
+        IAIUmbracoMediaResolver mediaResolver,
+        IAutomationActionAuthorizer authorizer,
+        ILogger<RunAgentAction> logger)
         : base(infrastructure)
     {
         _agentService = agentService;
         _userService = userService;
+        _mediaService = mediaService;
+        _mediaResolver = mediaResolver;
+        _authorizer = authorizer;
         _logger = logger;
     }
 
@@ -70,6 +108,18 @@ public sealed class RunAgentAction : ActionBase<RunAgentSettings, object>
     /// The key used in trigger output data to track agent nesting depth.
     /// </summary>
     public const string AgentNestingDepthKey = "_aiAgentDepth";
+
+    /// <summary>
+    /// The maximum number of media items that can be attached to a single agent run.
+    /// </summary>
+    public const int MaxAttachments = 10;
+
+    /// <summary>
+    /// The maximum combined size, in bytes, of the media attached to a single agent run.
+    /// Images are already downscaled by the media resolver; this bounds everything else
+    /// (documents, audio) so a single run can't send an unbounded request to the provider.
+    /// </summary>
+    public const long MaxTotalAttachmentBytes = 20 * 1024 * 1024;
 
     /// <inheritdoc />
     public override async Task<ActionResult> ExecuteAsync(ActionContext context, CancellationToken cancellationToken)
@@ -119,9 +169,18 @@ public sealed class RunAgentAction : ActionBase<RunAgentSettings, object>
             // the workspace service account's groups explicitly via AIAgentExecutionOptions.
             var userGroupIds = await ResolveServiceAccountGroupIdsAsync(context);
 
+            var (attachments, attachmentFailure) = await ResolveAttachmentsAsync(settings.Attachments, cancellationToken);
+            if (attachmentFailure is not null)
+            {
+                return attachmentFailure;
+            }
+
+            var contents = new List<AIContent> { new TextContent(settings.Message) };
+            contents.AddRange(attachments);
+
             var messages = new List<ChatMessage>
             {
-                new(ChatRole.User, settings.Message),
+                new(ChatRole.User, contents),
             };
 
             // Populate metadata context keys so AIAuditingChatClient can persist RunId/ThreadId
@@ -138,6 +197,7 @@ public sealed class RunAgentAction : ActionBase<RunAgentSettings, object>
             {
                 UserGroupIds = userGroupIds,
                 AdditionalProperties = additionalProperties,
+                ApprovalPolicy = RunAgentToolPermissionsExtensions.ToApprovalPolicy(settings.ToolPermissions),
             };
 
             // Mark the async flow as Automate-driven so the agent run triggers
@@ -228,6 +288,71 @@ public sealed class RunAgentAction : ActionBase<RunAgentSettings, object>
         }
 
         return output;
+    }
+
+    /// <summary>
+    /// Resolves the configured media references into <see cref="DataContent"/> attachments.
+    /// </summary>
+    /// <remarks>
+    /// Attachments are passed through as-is; the chat pipeline's file processing middleware
+    /// converts supported documents and audio to text, and images reach the model directly.
+    /// Any reference that can't be parsed, resolved, or that the service account can't access
+    /// fails the step: running the agent without the attachment would leave it guessing at
+    /// content it was meant to see.
+    /// </remarks>
+    private async Task<(IReadOnlyList<AIContent> Attachments, ActionResult? Failure)> ResolveAttachmentsAsync(
+        string? attachmentsSetting,
+        CancellationToken cancellationToken)
+    {
+        if (!MediaReferenceParser.TryParse(attachmentsSetting, out var mediaKeys, out var invalidReference))
+        {
+            return ([], ActionResult.Failed(
+                new ArgumentException($"'{invalidReference}' is not a valid media reference. Use a media key, a media UDI, or a media picker value."),
+                StepRunErrorCategory.Validation));
+        }
+
+        if (mediaKeys.Count > MaxAttachments)
+        {
+            return ([], ActionResult.Failed(
+                new ArgumentException($"{mediaKeys.Count} attachments were supplied; the maximum is {MaxAttachments}."),
+                StepRunErrorCategory.Validation));
+        }
+
+        var attachments = new List<AIContent>(mediaKeys.Count);
+        long totalBytes = 0;
+
+        foreach (var mediaKey in mediaKeys)
+        {
+            if (await _authorizer.AuthorizeMediaOrFailAsync(mediaKey, cancellationToken) is { } failure)
+            {
+                return ([], failure);
+            }
+
+            AIMediaContent? media = await _mediaResolver.ResolveAsync(mediaKey, cancellationToken: cancellationToken);
+            if (media is null)
+            {
+                return ([], ActionResult.Failed(
+                    new InvalidOperationException(
+                        $"Could not resolve a file from media '{mediaKey}'. It may not exist, have no file, or be an unsupported file type."),
+                    StepRunErrorCategory.Validation));
+            }
+
+            totalBytes += media.Data.Length;
+            if (totalBytes > MaxTotalAttachmentBytes)
+            {
+                return ([], ActionResult.Failed(
+                    new InvalidOperationException(
+                        $"Attachments exceed the maximum combined size of {MaxTotalAttachmentBytes / (1024 * 1024)} MB."),
+                    StepRunErrorCategory.Validation));
+            }
+
+            attachments.Add(new DataContent(media.Data, media.MediaType)
+            {
+                Name = _mediaService.GetById(mediaKey)?.Name,
+            });
+        }
+
+        return (attachments, null);
     }
 
     private async Task<IEnumerable<Guid>?> ResolveServiceAccountGroupIdsAsync(ActionContext context)

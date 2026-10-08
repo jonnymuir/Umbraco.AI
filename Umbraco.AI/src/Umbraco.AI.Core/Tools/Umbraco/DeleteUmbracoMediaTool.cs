@@ -49,12 +49,13 @@ public class DeleteUmbracoMediaTool(
     }
 
     /// <inheritdoc />
-    protected override string? DescribeInvocation(DeleteUmbracoMediaArgs args)
-        => "Move this media item to the recycle bin (reversible).";
-
-    /// <inheritdoc />
-    protected override async Task<string?> ResolveConfirmationPhraseAsync(DeleteUmbracoMediaArgs args)
-        => (await mediaEditingService.GetAsync(args.Key))?.Name;
+    protected override async Task<string?> DescribeInvocationAsync(DeleteUmbracoMediaArgs args)
+    {
+        var target = (await mediaEditingService.GetAsync(args.Key))?.Name is { } name
+            ? $"'{name}'"
+            : $"media item {args.Key}";
+        return $"Move {target} to the recycle bin (reversible).";
+    }
 }
 
 /// <summary>

@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { UaiChatMessage } from "@umbraco-ai/agent";
 import type { UmbController, UmbControllerHost } from "@umbraco-cms/backoffice/controller-api";
 import { UaiServerPersistedConversationStrategy } from "./server-persisted-conversation.strategy.js";
 import { UaiConversationRepository } from "../conversation/repository/conversation.repository.js";
+import type { MessageResponseModel } from "../api/types.gen.js";
 
 /** Minimal in-memory host — the repository is never actually called by the behaviour under test here. */
 function createFakeHost(): UmbControllerHost {
@@ -59,5 +60,72 @@ describe("UaiServerPersistedConversationStrategy — onServerPersistedBoundary",
         strategy.onServerPersistedBoundary("msg-does-not-exist", allMessages);
 
         expect(strategy.outbound(allMessages)).toEqual(allMessages);
+    });
+});
+
+const AGENT_A = "aaaaaaaa-0000-0000-0000-000000000001";
+
+/** A stored assistant row by `AGENT_A`, as `UaiServerPersistedConversationStrategy.loadInitial` reads it. */
+function storedAssistantRow(): MessageResponseModel {
+    return {
+        id: "m1",
+        sequence: 1,
+        role: "assistant",
+        contentJson: JSON.stringify({ role: "assistant", contents: [{ $type: "text", text: "Hello" }] }),
+        contentText: "Hello",
+        dateCreated: "2026-10-01T12:00:00Z",
+        agentId: AGENT_A,
+    } as MessageResponseModel;
+}
+
+/**
+ * Regression coverage for the contract the Copilot Workspace reopen-race fix depends on:
+ * `loadInitial()` must call the caller's `getAgentNames` closure LAZILY, at the moment it actually runs
+ * (see its ctor doc) — not capture its result once, earlier. That laziness is what lets
+ * `UaiCopilotWorkspaceChatContext#syncTarget` close the real race (the view fires `loadAgents()`
+ * without awaiting it, so the agent catalog and the conversation history load concurrently) simply by
+ * `await`ing the catalog's load before calling `loadInitialMessages()` — if this strategy instead read
+ * `getAgentNames()` once up front (e.g. at construction), awaiting anything in the caller afterwards
+ * wouldn't help, since the closure's answer would already be frozen from before the catalog populated.
+ *
+ * NOTE: `UaiCopilotWorkspaceChatContext` itself can't be constructed under this package's vitest setup
+ * today (`UaiWorkspaceAgentRepository`'s real constructor needs `UaiAgentRepository` from
+ * `@umbraco-ai/agent`, which that package's `index.ts` barrel doesn't export — a pre-existing
+ * resolution gap, unrelated to this fix, that blocks building any test host for that class). This spec
+ * is the closest coverage reachable without changing shared test infra; the `#syncTarget` sequencing
+ * itself was verified by code trace (see `copilot-workspace-chat.context.ts`).
+ */
+describe("UaiServerPersistedConversationStrategy — loadInitial reads agent names lazily", () => {
+    it("carries the agent's name when the catalog only finishes loading after loadInitial has already started", async () => {
+        const repository = new UaiConversationRepository(createFakeHost());
+        // Gated, not a plain resolved mock -- deterministic rather than relying on exact microtask-tick
+        // counting between this history fetch and the catalog flag below.
+        let resolveHistoryFetch!: () => void;
+        const historyFetchGate = new Promise<void>((resolve) => (resolveHistoryFetch = resolve));
+        vi.spyOn(repository, "requestMessages").mockImplementation(async () => {
+            await historyFetchGate;
+            return { data: { items: [storedAssistantRow()] } } as Awaited<
+                ReturnType<UaiConversationRepository["requestMessages"]>
+            >;
+        });
+
+        // Empty until the catalog flag flips -- mirrors `UaiCopilotWorkspaceChatContext`'s `#agents`
+        // state, which only populates once the agent catalog's own (separately awaited) fetch resolves.
+        let agentsLoaded = false;
+        const strategy = new UaiServerPersistedConversationStrategy(repository, () =>
+            agentsLoaded ? new Map([[AGENT_A, "Agent A"]]) : new Map(),
+        );
+        strategy.setConversationId("conv-1");
+
+        // loadInitial() is already in flight, blocked on the still-closed history gate, at the moment the
+        // catalog flips ready. `getAgentNames()` is only consulted once `requestMessages()` resolves (see
+        // the gate above) -- it must see this flip. If the closure were read up front instead of lazily
+        // (captured before the history fetch even started), this ordering would still leave it empty.
+        const loadInitial = strategy.loadInitial();
+        agentsLoaded = true;
+        resolveHistoryFetch();
+        const messages = await loadInitial;
+
+        expect(messages.find((m) => m.role === "assistant")?.agentName).toBe("Agent A");
     });
 });

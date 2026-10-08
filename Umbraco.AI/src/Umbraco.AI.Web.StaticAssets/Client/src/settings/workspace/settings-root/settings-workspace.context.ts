@@ -7,6 +7,7 @@ import { UAI_SETTINGS_ROOT_ENTITY_TYPE } from "../../entity.js";
 import { settingsRepository } from "../../repository/settings.repository.js";
 import type { UaiSettingsModel } from "../../types.js";
 import { UaiCommandStore } from "../../../core/command/command.store.js";
+import { UAI_DISCLOSURE_CONTEXT } from "../../../disclosure/disclosure.context.js";
 import type { UaiCommand } from "../../../core/command/command.base.js";
 
 export type { UaiSettingsModel } from "../../types.js";
@@ -19,6 +20,7 @@ export class UaiSettingsWorkspaceContext extends UmbSubmittableWorkspaceContextB
     public readonly IS_SETTINGS_WORKSPACE_CONTEXT = true;
 
     #notificationContext?: typeof UMB_NOTIFICATION_CONTEXT.TYPE;
+    #disclosureContext?: typeof UAI_DISCLOSURE_CONTEXT.TYPE;
     #commandStore = new UaiCommandStore();
 
     // Required by UmbSubmittableWorkspaceContextBase - settings is a singleton
@@ -31,6 +33,7 @@ export class UaiSettingsWorkspaceContext extends UmbSubmittableWorkspaceContextB
         defaultSpeechToTextProfileId: null,
         defaultImageGenerationProfileId: null,
         classifierChatProfileId: null,
+        disclosureNoticeMode: "Always",
     });
     readonly model = this.#model.asObservable();
 
@@ -42,6 +45,10 @@ export class UaiSettingsWorkspaceContext extends UmbSubmittableWorkspaceContextB
 
         this.consumeContext(UMB_NOTIFICATION_CONTEXT, (context) => {
             this.#notificationContext = context;
+        });
+
+        this.consumeContext(UAI_DISCLOSURE_CONTEXT, (context) => {
+            this.#disclosureContext = context;
         });
 
         this.#loadSettings();
@@ -98,6 +105,8 @@ export class UaiSettingsWorkspaceContext extends UmbSubmittableWorkspaceContextB
             const saved = await settingsRepository.save(model);
             this.#model.setValue(saved);
             this.#commandStore.reset();
+            // Apply straight away so open chats and prompts don't need a reload.
+            this.#disclosureContext?.setMode(saved.disclosureNoticeMode);
         } catch {
             this.#commandStore.unmute();
             this.#notificationContext?.peek("danger", {

@@ -80,7 +80,7 @@ internal sealed class AIConversationService : IAIConversationService
         await _eventAggregator.PublishAsync(savingNotification, cancellationToken);
         if (savingNotification.Cancel)
         {
-            throw new InvalidOperationException($"Conversation save cancelled: {DescribeMessages(messages)}");
+            throw new AIConversationSaveCancelledException(DescribeMessages(messages));
         }
 
         var created = await _repository.CreateAsync(conversation, cancellationToken);
@@ -103,7 +103,7 @@ internal sealed class AIConversationService : IAIConversationService
         await _eventAggregator.PublishAsync(savingNotification, cancellationToken);
         if (savingNotification.Cancel)
         {
-            throw new InvalidOperationException($"Conversation save cancelled: {DescribeMessages(messages)}");
+            throw new AIConversationSaveCancelledException(DescribeMessages(messages));
         }
 
         await _repository.UpdateAsync(conversation, cancellationToken);
@@ -152,6 +152,12 @@ internal sealed class AIConversationService : IAIConversationService
         return await _repository.GetLastUserMessageTextAsync(conversationId, cancellationToken);
     }
 
+    public async Task<Guid?> GetLastAssistantAgentIdAsync(Guid conversationId, CancellationToken cancellationToken = default)
+    {
+        await GetOwnedOrThrowAsync(conversationId, cancellationToken);
+        return await _repository.GetLastAssistantAgentIdAsync(conversationId, cancellationToken);
+    }
+
     public async Task<int> TruncateAfterLastUserMessageAsync(Guid conversationId, CancellationToken cancellationToken = default)
     {
         var conversation = await GetOwnedOrThrowAsync(conversationId, cancellationToken);
@@ -161,7 +167,7 @@ internal sealed class AIConversationService : IAIConversationService
         await _eventAggregator.PublishAsync(savingNotification, cancellationToken);
         if (savingNotification.Cancel)
         {
-            throw new InvalidOperationException($"Conversation save cancelled: {DescribeMessages(messages)}");
+            throw new AIConversationSaveCancelledException(DescribeMessages(messages));
         }
 
         var deleted = await _repository.DeleteMessagesAfterLastUserMessageAsync(conversationId, cancellationToken);

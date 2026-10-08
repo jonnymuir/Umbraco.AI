@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Umbraco.AI.Agent.Core.Agents;
+using Umbraco.AI.Agent.Core.Agents.Selection;
 using Umbraco.AI.Agent.Core.AGUI;
 using Umbraco.AI.Agent.Core.Chat;
 using Umbraco.AI.Agent.Core.FileStore;
@@ -55,6 +56,10 @@ public static class UmbracoBuilderExtensions
 
         // Register services
         builder.Services.AddSingleton<IAIAgentService, AIAgentService>();
+        // Owns the selector chain so AIAgentService doesn't grow further. Depends on IAIAgentService
+        // itself (for GetAgentsBySurfaceAsync) - the obsolete SelectAgentForPromptAsync proxy resolves
+        // this via the static service provider instead of a constructor parameter, to avoid a cycle.
+        builder.Services.AddSingleton<IAIAgentSelectionService, AIAgentSelectionService>();
         // Prevent deletion of profiles referenced by agents
         builder.AddNotificationAsyncHandler<AIProfileDeletingNotification, AIProfileDeletingAgentNotificationHandler>();
 
@@ -133,6 +138,10 @@ public static class UmbracoBuilderExtensions
         // Auto-discover agent surfaces via [AIAgentSurface] attribute
         builder.AIAgentSurfaces()
             .Add(() => builder.TypeLoader.GetTypesWithAttribute<IAIAgentSurface, AIAgentSurfaceAttribute>(cache: true));
+
+        // Register the agent selector collection. LLMAgentSelector is the only default - StickyAgentSelector
+        // (and any other opt-in built-in) stays unregistered until a composer explicitly appends it.
+        builder.AIAgentSelectors().Append<LLMAgentSelector>();
 
         // Auto-discover agent workflows via [AIAgentWorkflow] attribute
         builder.AIAgentWorkflows()

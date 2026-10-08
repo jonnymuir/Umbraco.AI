@@ -1,11 +1,9 @@
 using Asp.Versioning;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 using Umbraco.AI.Core.Contexts;
 using Umbraco.AI.Web.Api.Management.Context.Models;
-using Umbraco.AI.Web.Authorization;
 using Umbraco.Cms.Api.Common.ViewModels.Pagination;
 using Umbraco.Cms.Core.Mapping;
 
@@ -14,8 +12,12 @@ namespace Umbraco.AI.Web.Api.Management.Context.Controllers;
 /// <summary>
 /// Controller to get all contexts.
 /// </summary>
+/// <remarks>
+/// Does not require AI section access: the context picker is reused outside the AI section (Copilot
+/// Workspace, the AI Context Picker property editor) by users without access to it. It only returns
+/// name, alias and resource count; the full context stays behind AI section access.
+/// </remarks>
 [ApiVersion("1.0")]
-[Authorize(Policy = AIAuthorizationPolicies.SectionAccessAI)]
 public class AllContextController : ContextControllerBase
 {
     private readonly IAIContextService _contextService;

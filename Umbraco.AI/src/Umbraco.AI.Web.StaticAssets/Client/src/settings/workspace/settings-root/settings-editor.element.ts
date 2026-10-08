@@ -4,6 +4,7 @@ import { UmbTextStyles } from "@umbraco-cms/backoffice/style";
 import { UmbChangeEvent } from "@umbraco-cms/backoffice/event";
 import { UAI_SETTINGS_WORKSPACE_CONTEXT } from "./settings-workspace.context-token.js";
 import type { UaiSettingsModel } from "../../types.js";
+import type { UaiDisclosureNoticeMode } from "../../../disclosure/types.js";
 import { UaiPartialUpdateCommand } from "../../../core/command/implement/partial-update.command.js";
 
 @customElement("uai-settings-editor")
@@ -40,6 +41,14 @@ export class UaiSettingsEditorElement extends UmbLitElement {
         if (!name) return;
         const value = typeof target.value === "string" ? target.value : null;
         this.#workspaceContext?.handleCommand(new UaiPartialUpdateCommand<UaiSettingsModel>({ [name]: value }, name));
+    }
+
+    #onDisclosureNoticeModeChange(e: Event): void {
+        e.stopPropagation();
+        const value = (e.target as HTMLElement & { value?: string }).value as UaiDisclosureNoticeMode;
+        this.#workspaceContext?.handleCommand(
+            new UaiPartialUpdateCommand<UaiSettingsModel>({ disclosureNoticeMode: value }, "disclosureNoticeMode"),
+        );
     }
 
     override render() {
@@ -117,6 +126,39 @@ export class UaiSettingsEditorElement extends UmbLitElement {
                             @change=${this.#onPropertyChange}
                         >
                         </uai-profile-picker>
+                    </div>
+                </umb-property-layout>
+            </uui-box>
+
+            <uui-box headline="Transparency">
+                <umb-property-layout
+                    label="AI Disclosure Notice"
+                    description="Shows a notice on chat and prompt responses saying they are AI-generated. You may be legally required to tell people when content is AI-generated, for example under the EU AI Act. Check which rules apply to you before choosing Dismissible or Off."
+                >
+                    <div slot="editor">
+                        <uui-select
+                            label="AI Disclosure Notice"
+                            .value=${this._model?.disclosureNoticeMode ?? "Always"}
+                            .options=${[
+                                {
+                                    value: "Always",
+                                    name: "Always - Always show the notice",
+                                    selected: (this._model?.disclosureNoticeMode ?? "Always") === "Always",
+                                },
+                                {
+                                    value: "Dismissible",
+                                    name: "Dismissible - Show until each user hides it (remembered in their browser)",
+                                    selected: this._model?.disclosureNoticeMode === "Dismissible",
+                                },
+                                {
+                                    value: "Off",
+                                    name: "Off - Never show the notice",
+                                    selected: this._model?.disclosureNoticeMode === "Off",
+                                },
+                            ]}
+                            @change=${this.#onDisclosureNoticeModeChange}
+                        >
+                        </uui-select>
                     </div>
                 </umb-property-layout>
             </uui-box>

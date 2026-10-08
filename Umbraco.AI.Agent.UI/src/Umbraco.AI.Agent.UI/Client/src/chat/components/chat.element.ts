@@ -172,6 +172,7 @@ export class UaiChatElement extends UmbLitElement {
 
     #renderMessages() {
         const lastAssistantId = this.#getLastAssistantMessageId();
+        const firstUserId = this._messages.find((msg) => msg.role === "user")?.id;
 
         return html`
             ${repeat(
@@ -185,6 +186,9 @@ export class UaiChatElement extends UmbLitElement {
                         ?readonly=${this.readonly}
                         @regenerate=${this.#handleRegenerate}
                     ></uai-chat-message>
+                    ${msg.id === firstUserId
+                        ? html`<uai-disclosure-notice location="chat"></uai-disclosure-notice>`
+                        : nothing}
                     ${this.#renderInlineHitl(msg.id)}
                 `,
             )}
@@ -328,6 +332,15 @@ export class UaiChatElement extends UmbLitElement {
             font-size: 48px;
             margin-bottom: var(--uui-size-space-4);
             opacity: 0.5;
+        }
+
+        /* Styled like the assistant message bubble in message.element.ts */
+        uai-disclosure-notice[visible] {
+            max-width: 90%;
+            margin: var(--uui-size-space-3) var(--uui-size-space-3) 0;
+            --uai-disclosure-notice-padding: var(--uui-size-space-2) var(--uui-size-space-3);
+            --uai-disclosure-notice-border-radius: var(--uui-border-radius);
+            --uai-disclosure-notice-background: var(--uui-color-surface-alt);
         }
 
         .empty-state p {

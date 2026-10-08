@@ -94,14 +94,53 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
             }
 
             var aggregated = updates.ToChatResponse();
-            await scope.CompleteAsync(
-                aggregated.Usage,
-                new AIAuditResponse { Data = aggregated.Messages, Usage = aggregated.Usage });
+
+            // Some providers report a failure (e.g. a rate limit hit on the final model call of a
+            // tool loop) as streamed ErrorContent rather than by throwing, so the stream itself ends
+            // normally. Record the call as failed when the response ends on such an error, keeping
+            // the usage it consumed; an error the model carried on past stays a success.
+            if (FindTerminalProviderError(aggregated) is { } providerError)
+            {
+                await scope.FailAsync(new AIStreamedProviderErrorException(providerError), aggregated.Usage);
+            }
+            else
+            {
+                await scope.CompleteAsync(
+                    aggregated.Usage,
+                    new AIAuditResponse { Data = aggregated.Messages, Usage = aggregated.Usage });
+            }
         }
         finally
         {
             scope.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Returns the provider error the response ended on: an <see cref="ErrorContent"/> in the last
+    /// assistant message with no text or function call after it. Null when the response ended normally.
+    /// </summary>
+    private static ErrorContent? FindTerminalProviderError(ChatResponse response)
+    {
+        var lastAssistant = response.Messages.LastOrDefault(m => m.Role == ChatRole.Assistant);
+        if (lastAssistant is null)
+        {
+            return null;
+        }
+
+        for (var i = lastAssistant.Contents.Count - 1; i >= 0; i--)
+        {
+            switch (lastAssistant.Contents[i])
+            {
+                case ErrorContent error:
+                    return error;
+                case TextContent text when !string.IsNullOrWhiteSpace(text.Text):
+                case FunctionCallContent:
+                    return null;
+            }
+        }
+
+        return null;
     }
 
     private AIOperationDescriptor BuildDescriptor(IReadOnlyList<ChatMessage> messages) => new()
@@ -111,4 +150,19 @@ internal sealed class AITrackingChatClient : AIBoundChatClientBase
         Metadata = AIAuditMetadata.ExtractFromRuntimeContext(_contextAccessor.Context),
         RecordUsageWhenEmpty = true,
     };
+}
+
+/// <summary>
+/// A provider failure reported as streamed <see cref="ErrorContent"/> rather than thrown, wrapped so
+/// the audit log can record it like any other failed call.
+/// </summary>
+internal sealed class AIStreamedProviderErrorException(ErrorContent error)
+    : Exception(string.IsNullOrEmpty(error.ErrorCode)
+        ? error.Message ?? "The provider returned an error."
+        : $"{error.ErrorCode}: {error.Message ?? "The provider returned an error."}")
+{
+    /// <summary>
+    /// Gets the provider's error code, when it sent one.
+    /// </summary>
+    public string? ErrorCode { get; } = error.ErrorCode;
 }
