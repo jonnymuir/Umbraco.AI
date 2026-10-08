@@ -156,11 +156,33 @@ public class TestMapDefinition : IMapDefinition
                     OutputType = source.Outcome.OutputType.ToString(),
                     OutputValue = source.Outcome.OutputValue,
                     FinishReason = source.Outcome.FinishReason,
-                    TokenUsage = source.Outcome.TokenUsage != null ? new TestTokenUsageResponseModel
+                    Usage = source.Outcome.Usage != null ? new TestUsageResponseModel
                     {
-                        InputTokens = source.Outcome.TokenUsage.InputTokens,
-                        OutputTokens = source.Outcome.TokenUsage.OutputTokens,
-                        TotalTokens = source.Outcome.TokenUsage.TotalTokens
+                        InputTokens = source.Outcome.Usage.InputTokens,
+                        OutputTokens = source.Outcome.Usage.OutputTokens,
+                        TotalTokens = source.Outcome.Usage.TotalTokens,
+                        CallCount = source.Outcome.Usage.CallCount,
+                        UnreportedCallCount = source.Outcome.Usage.UnreportedCallCount,
+                        DurationMs = source.Outcome.Usage.DurationMs,
+                        FailedCallCount = source.Outcome.Usage.FailedCallCount,
+                        Breakdown = source.Outcome.Usage.Breakdown.Select(e => new TestUsageEntryResponseModel
+                        {
+                            Capability = e.Capability.ToString(),
+                            ProviderId = e.ProviderId,
+                            ModelId = e.ModelId,
+                            ProfileId = e.ProfileId,
+                            ProfileAlias = e.ProfileAlias,
+                            FeatureType = e.FeatureType,
+                            FeatureId = e.FeatureId,
+                            FeatureAlias = e.FeatureAlias,
+                            InputTokens = e.InputTokens,
+                            OutputTokens = e.OutputTokens,
+                            TotalTokens = e.TotalTokens,
+                            CallCount = e.CallCount,
+                            UnreportedCallCount = e.UnreportedCallCount,
+                            DurationMs = e.DurationMs,
+                            FailedCallCount = e.FailedCallCount
+                        }).ToList()
                     } : null
                 } : null,
                 GraderResults = source.GraderResults.Select(r =>
