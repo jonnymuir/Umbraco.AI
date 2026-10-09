@@ -1692,7 +1692,7 @@
       "umbraco.ai.google": {
         "type": "Project",
         "dependencies": {
-          "Google.GenAI": "[1.10.0, 1.999.999)",
+          "Google.GenAI": "[1.22.0, 1.999.999)",
           "Umbraco.AI.Core": "[1.0.0, )"
         }
       },
@@ -1707,9 +1707,9 @@
       },
       "Google.GenAI": {
         "type": "CentralTransitive",
-        "requested": "[1.10.0, 1.999.999)",
-        "resolved": "1.10.0",
-        "contentHash": "RUHQWNHVmeYhCad3lQtEJDGXsNa2S+gW4oQuyJou1hzQF1BFxQH/hpSNJYXO/CJKKXtsQAvobUWwtGkjeWjOEg==",
+        "requested": "[1.22.0, 1.999.999)",
+        "resolved": "1.22.0",
+        "contentHash": "o8yclR84AfGb8QzCkcYFGJ7wmtfHvwGi6DHRU2ZfkwoLU1vM1wl10HYGZLx6dm4Jsmw9+snX9TJSBMVI9tOplA==",
         "dependencies": {
           "Google.Apis.Auth": "1.69.0",
           "Microsoft.Extensions.AI.Abstractions": "10.6.0",
