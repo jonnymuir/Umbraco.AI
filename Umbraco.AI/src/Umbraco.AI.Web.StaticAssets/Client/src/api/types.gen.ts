@@ -705,6 +705,7 @@ export type TestOutcomeResponseModel = {
     outputType: string;
     outputValue?: null | string;
     finishReason?: null | string;
+    usage?: null | TestUsageResponseModel;
     tokenUsage?: null | TestTokenUsageResponseModel;
 };
 
@@ -779,6 +780,35 @@ export type TestTranscriptResponseModel = {
     reasoning?: null | JsonElement;
     timing?: null | JsonElement;
     finalOutput?: null | JsonElement;
+};
+
+export type TestUsageEntryResponseModel = {
+    capability: string;
+    providerId?: null | string;
+    modelId?: null | string;
+    profileId?: null | string;
+    profileAlias?: null | string;
+    featureType?: null | string;
+    featureId?: null | string;
+    featureAlias?: null | string;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    callCount: number;
+    unreportedCallCount: number;
+    durationMs: number;
+    failedCallCount: number;
+};
+
+export type TestUsageResponseModel = {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    callCount: number;
+    unreportedCallCount: number;
+    durationMs: number;
+    failedCallCount: number;
+    breakdown: Array<TestUsageEntryResponseModel>;
 };
 
 export type TestVariationComparisonResponseModel = {

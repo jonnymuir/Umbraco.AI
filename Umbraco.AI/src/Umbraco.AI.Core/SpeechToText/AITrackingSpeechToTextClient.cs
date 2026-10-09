@@ -17,14 +17,10 @@ namespace Umbraco.AI.Core.SpeechToText;
 internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBase
 {
     private readonly IAIOperationTracker _tracker;
-    private readonly IAIRuntimeContextAccessor _contextAccessor;
 
-    public AITrackingSpeechToTextClient(ISpeechToTextClient innerClient, IAIOperationTracker tracker, IAIRuntimeContextAccessor contextAccessor)
+    public AITrackingSpeechToTextClient(ISpeechToTextClient innerClient, IAIOperationTracker tracker)
         : base(innerClient)
-    {
-        _tracker = tracker;
-        _contextAccessor = contextAccessor;
-    }
+        => _tracker = tracker;
 
     /// <inheritdoc />
     public override async Task<SpeechToTextResponse> GetTextAsync(
@@ -43,7 +39,7 @@ internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBa
                 {
                     Result = response,
                     Usage = null,
-                    AuditResponse = new AIAuditResponse { Data = response.Text },
+                    ResponseData = response.Text,
                 };
             },
             cancellationToken);
@@ -66,55 +62,50 @@ internal sealed class AITrackingSpeechToTextClient : AIBoundSpeechToTextClientBa
         // yield cannot sit inside try/catch, so drive the enumerator manually (matches prior behavior).
         await using var enumerator = base.GetStreamingTextAsync(audioSpeechStream, options, cancellationToken)
             .GetAsyncEnumerator(cancellationToken);
-        try
+        while (true)
         {
-            while (true)
+            SpeechToTextResponseUpdate current;
+            try
             {
-                SpeechToTextResponseUpdate current;
-                try
+                // Entered per step: recording scopes are AsyncLocal and don't survive this iterator's yields.
+                using (scope.EnterScope())
                 {
                     if (!await enumerator.MoveNextAsync())
                     {
                         break;
                     }
-
-                    current = enumerator.Current;
-                }
-                catch (Exception ex)
-                {
-                    captured = ex;
-                    break;
                 }
 
-                if (current.Text is not null)
-                {
-                    textParts.Add(current.Text);
-                }
-
-                yield return current;
+                current = enumerator.Current;
             }
-
-            if (captured is not null)
+            catch (Exception ex)
             {
-                await scope.FailAsync(captured);
-                throw captured;
+                captured = ex;
+                break;
             }
 
-            var concatenatedText = string.Concat(textParts);
-            await scope.CompleteAsync(null, new AIAuditResponse { Data = concatenatedText });
+            if (current.Text is not null)
+            {
+                textParts.Add(current.Text);
+            }
+
+            yield return current;
         }
-        finally
+
+        if (captured is not null)
         {
-            scope.Dispose();
+            await scope.FailAsync(captured);
+            throw captured;
         }
+
+        var concatenatedText = string.Concat(textParts);
+        await scope.CompleteAsync(null, concatenatedText);
     }
 
     private AIOperationDescriptor BuildDescriptor(SpeechToTextOptions? options) => new()
     {
         Capability = AICapability.SpeechToText,
         PromptData = BuildPromptData(options),
-        Metadata = AIAuditMetadata.ExtractFromRuntimeContext(_contextAccessor.Context),
-        RecordUsageWhenEmpty = true,
     };
 
     /// <summary>
